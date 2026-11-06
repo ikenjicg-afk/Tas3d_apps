@@ -94,6 +94,32 @@ h1{margin-top:10px;font-size:clamp(56px,17vw,112px);line-height:.9;letter-spacin
 .acts a{font-weight:700;color:var(--orange)}
 .again{margin-top:20px;font-size:14px;background:#1b1b1b;border:0;padding:10px 14px;color:var(--mute);cursor:pointer}
 
+/* ---------- poll: pops up when the host starts it ---------- */
+.pollbar{margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;padding:14px 16px;background:#1a120f;border:1px solid var(--orange);text-align:left;cursor:pointer}
+.pollbar b{display:block;font-size:12px;letter-spacing:.03em;text-transform:uppercase;color:var(--orange)}
+.pollbar span:first-child{font-size:16px;line-height:1.3}
+.pollbar span:last-child{flex:none;font-weight:700;color:var(--orange)}
+.sheet{position:fixed;inset:0;z-index:10;background:#0b0b0b;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:sheetin .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes sheetin{from{transform:translateY(24px)}}
+.sheet-in{max-width:620px;margin:0 auto;padding:calc(24px + env(safe-area-inset-top,0px)) var(--padr) calc(24px + env(safe-area-inset-bottom,0px)) var(--pad)}
+.sheet .kick{color:var(--orange)}
+.sheet h2{margin-top:10px;font-size:clamp(32px,9.5vw,52px);line-height:1;letter-spacing:var(--tr-l)}
+.sheet .roles{margin-top:22px}
+.sheet .go{background:linear-gradient(rgba(11,11,11,0),#0b0b0b 14px)}
+.res{margin-top:22px;border-top:1px solid var(--rule)}
+.res div{padding:12px 0;border-bottom:1px solid var(--rule)}
+.res div p{display:flex;justify-content:space-between;gap:12px;font-size:18px}
+.res div p span:last-child{color:var(--mute);font-variant-numeric:tabular-nums}
+.res div.my p span:first-child{color:var(--orange)}
+.res i{display:block;margin-top:8px;height:8px;background:#232322}
+.res i b{display:block;height:100%;width:0;background:var(--fg);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.res div.lead i b{background:var(--orange)}
+.sheet .note{margin-top:14px;color:var(--mute);font-size:15px}
+.sheet .close{margin-top:22px;background:none;border:0;padding:10px 0;color:var(--mute);font-size:15px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.hostlink{position:relative;z-index:1;max-width:620px;margin:0 auto;padding:0 0 calc(18px + env(safe-area-inset-bottom,0px));font-size:12px}
+.hostlink a{color:#5d5d5a;letter-spacing:.03em;text-transform:uppercase;font-weight:700}
+body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px))}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (min-width:901px){:root{--gap:28px;--pad:max(22px,env(safe-area-inset-left,0px));--padr:max(22px,env(safe-area-inset-right,0px))}.cols{grid-template-columns:repeat(12,minmax(0,1fr))}}
 @media (max-width:359px){.role{font-size:24px}}
@@ -118,6 +144,7 @@ h1{margin-top:10px;font-size:clamp(56px,17vw,112px);line-height:.9;letter-spacin
   <section id="remote" hidden>
     <p class="thanks" id="thanks" tabindex="-1">Thank you!</p>
     <p class="me"><span>Checked in · <b id="myrole"></b></span><span id="count"></span></p>
+    <button type="button" class="pollbar" id="pollbar" hidden><span><b id="pollbarK">Poll · vote now</b><span id="pollbarQ"></span></span><span>→</span></button>
 
     <div class="pane" id="pane-react" role="tabpanel" aria-labelledby="tab-react">
       <p class="kick">Remote</p>
@@ -141,6 +168,18 @@ h1{margin-top:10px;font-size:clamp(56px,17vw,112px);line-height:.9;letter-spacin
     <button type="button" class="again" id="again" hidden>Test: check in again as a new guest</button>
   </section>
 </main>
+<p class="hostlink"><a href="../host/">Host</a></p>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="pollQ" hidden>
+  <div class="sheet-in">
+    <p class="kick" id="pollK">Poll</p>
+    <h2 id="pollQ" tabindex="-1"></h2>
+    <div class="roles" id="pollOpts" role="group" aria-labelledby="pollQ"></div>
+    <div class="res" id="pollRes" hidden></div>
+    <p class="note" id="pollNote"></p>
+    <div class="go" id="pollGo"><button type="button" class="big" id="pollOk" disabled><span id="pollOkT">Vote</span><span aria-hidden="true">→</span></button></div>
+    <button type="button" class="close" id="pollClose">Back to the remote</button>
+  </div>
+</div>
 <nav class="tabs" id="tabs" role="tablist" hidden>
   <button type="button" role="tab" id="tab-react" aria-controls="pane-react" aria-selected="true">Reactions</button>
   <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false">Questions<em id="qbadge" hidden></em></button>
@@ -153,7 +192,9 @@ h1{margin-top:10px;font-size:clamp(56px,17vw,112px);line-height:.9;letter-spacin
 // room: random part of the topic, so other people's tests on these public brokers do not mix with ours.
 // Topics: <base>/c/<phone id> = answer of one phone, <base>/s = total for phones, <base>/r = current round (changes on Reset),
 //   <base>/x = reactions (not kept; text "fire:2,clap:1"), <base>/q/<question id> = anonymous question (kept),
-//   <base>/show = the question shown over the slides (kept; plain text, empty = nothing shown).
+//   <base>/show = the question shown over the slides (kept; plain text, empty = nothing shown),
+//   <base>/now = the current poll (kept; {k:'poll', id, q, o:[options], open, at} or {k:'none'}),
+//   <base>/v/<poll id>/<phone id> = one vote (kept; {o: option index, t, g: round}), <base>/pr = poll results for phones.
 window.TAS3D_CHECKIN = {
   room: '24s57u4s6z',
   topic: 'testtopic/tas3d2026',
@@ -171,6 +212,16 @@ window.TAS3D_CHECKIN = {
     ['stud', 'Student'],
     ['teach', 'Teacher'],
     ['other', 'Other']
+  ],
+  // Host password: only its salted hash is here (PBKDF2-SHA256). It keeps guests out of the host panel; it is not strong security.
+  host: { salt: 'f8e2ab141cbb493600a15bdc94c1ac07', iterations: 150000, hash: 'c9529d95eea44f58496334901404e3fbf9d750e178011999ea5dcecf006c9d22' },
+  // ready-made polls in the host panel (the host can also write a new one)
+  polls: [
+    ['How many years have you been in 3D?', ['Less than 1', '1–3', '3–5', '5–10', '10+']],
+    ['Which renderer do you use most?', ['Corona', 'V-Ray', 'D5 Render', 'Unreal Engine', 'Twinmotion', 'Other']],
+    ['Where are you from?', ['Tashkent', 'Another city in Uzbekistan', 'Another country']],
+    ['Is this your first TAS3D?', ['Yes, first time', 'No, I was here in 2025']],
+    ['How was this talk?', ['Loved it', 'It was good', 'So-so']]
   ],
   // reactions on the guests' remote: [key, emoji, label]. The overlay programs know the same keys.
   reactions: [
@@ -297,7 +348,7 @@ window.TAS3D_CHECKIN = {
     try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && /^[a-z0-9]{12,40}$/.test(s.id || '')) return s; } catch (e) {}
     return fresh();
   }
-  function fresh() { return { id: newId(), role: '', sent: false, qn: 0, qs: [] }; }
+  function fresh() { return { id: newId(), role: '', sent: false, qn: 0, qs: [], votes: {} }; }
   function newId() {
     var a = new Uint8Array(12), s = '';
     (window.crypto || window.msCrypto).getRandomValues(a);
@@ -306,6 +357,7 @@ window.TAS3D_CHECKIN = {
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
   if (!st.qs) st.qs = [];
+  if (!st.votes) st.votes = {};
   if (!st.qn) st.qn = 0;
   save();
   function name(key) { for (var i = 0; i < C.roles.length; i++) if (C.roles[i][0] === key) return C.roles[i][1]; return ''; }
@@ -341,6 +393,7 @@ window.TAS3D_CHECKIN = {
     $('ask').hidden = view !== 'ask';
     $('remote').hidden = view !== 'remote';
     $('tabs').hidden = view !== 'remote';
+    document.body.classList.toggle('remote', view === 'remote');
     $('again').hidden = !TEST;
     $('thanks').hidden = !justDone;
     $('myrole').textContent = name(st.role);
@@ -351,6 +404,7 @@ window.TAS3D_CHECKIN = {
     $('tab-react').setAttribute('aria-selected', tab === 'react' ? 'true' : 'false');
     $('tab-ask').setAttribute('aria-selected', tab === 'ask' ? 'true' : 'false');
     renderQs();
+    renderPoll();
   }
   function show(v) {
     view = v; render();
@@ -373,6 +427,7 @@ window.TAS3D_CHECKIN = {
       clearTimeout(timer); clearTimeout(qtimer); attempt = 0;
       st = fresh(); save(); pick = ''; net = ''; stats = null; justDone = false; tab = 'react';
       $('qtext').value = ''; qInput();
+      sheetOpen = false; vpick = -1;
       show('ask');
     }
   }
@@ -391,6 +446,8 @@ window.TAS3D_CHECKIN = {
   function onMsg(t, text) {
     if (t === C.base + '/r') onRound(text);
     else if (t === C.base + '/s') onStats(text);
+    else if (t === C.base + '/now') onNow(text);
+    else if (t === C.base + '/pr') onPR(text);
   }
 
   // ---- kept messages (check-in, questions) go to every broker at once; done when one of them confirms
@@ -460,7 +517,7 @@ window.TAS3D_CHECKIN = {
     clearTimeout(liveT);
     var url = C.brokers[liveIdx % C.brokers.length], c, was = false;
     c = live = new TasMQ(url, {
-      onConnect: function () { was = true; liveWait = 1500; c.subscribe(C.base + '/r'); c.subscribe(C.base + '/s'); conn(); },
+      onConnect: function () { was = true; liveWait = 1500; c.subscribe(C.base + '/r'); c.subscribe(C.base + '/s'); c.subscribe(C.base + '/now', 1); c.subscribe(C.base + '/pr'); conn(); },
       onMessage: onMsg,
       onClose: function () {
         if (live !== c) return;
@@ -559,6 +616,110 @@ window.TAS3D_CHECKIN = {
     $('mine').hidden = !(st.qs && st.qs.length);
     var badge = $('qbadge'); badge.hidden = !unsent; badge.textContent = unsent;
   }
+
+  // ================= the poll: the host starts it, it pops up here =================
+  var poll = null, pr = null, sheetOpen = false, vpick = -1, vbusy = false, vtimer = null, vattempt = 0, seenPoll = '';
+  function json(x) { try { return JSON.parse(x); } catch (e) { return null; } }
+  function onNow(text) {
+    var d = json(text) || { k: 'none', at: 0 }, at = +d.at || 0;
+    if (poll && at < poll.at) return;                  // an older state from a broker that missed a change
+    if (d.k === 'poll' && d.id && Array.isArray(d.o)) {
+      var fresh2 = !poll || poll.k !== 'poll' || poll.id !== String(d.id);
+      poll = { k: 'poll', id: String(d.id), q: String(d.q || ''), o: d.o.map(String).slice(0, 6), open: !!d.open, at: at };
+      if (fresh2) { vpick = -1; if (pr && pr.id !== poll.id) pr = null; }
+      // a new open poll pops up by itself, once
+      if (st.sent && poll.open && !voted() && seenPoll !== poll.id) { seenPoll = poll.id; sheetOpen = true; vibe(); }
+    } else { poll = { k: 'none', at: at }; sheetOpen = false; }
+    render();
+    if (sheetOpen) try { $('pollQ').focus({ preventScroll: true }); } catch (e) {}
+  }
+  function onPR(text) {
+    var d = json(text);
+    if (!d || !Array.isArray(d.n)) return;
+    pr = { id: String(d.id), n: d.n.map(function (v) { return +v || 0; }), total: +d.total || 0 };
+    renderPoll();
+  }
+  function voted() { return poll && poll.k === 'poll' && st.votes && st.votes.hasOwnProperty(poll.id); }
+  function vibe() { try { if (navigator.vibrate) navigator.vibrate([30, 40, 30]); } catch (e) {} }
+  function renderPoll() {
+    var has = poll && poll.k === 'poll', v = has && voted(), sending = has && vbusy;
+    var bar = $('pollbar');
+    bar.hidden = !(view === 'remote' && has && !sheetOpen && (poll.open || v));
+    $('pollbarK').textContent = !has ? '' : v || !poll.open ? 'Poll · see the results' : 'Poll · vote now';
+    $('pollbarQ').textContent = has ? poll.q : '';
+    $('sheet').hidden = !(view === 'remote' && has && sheetOpen);
+    document.body.style.overflow = $('sheet').hidden ? '' : 'hidden';
+    if (!has) return;
+    $('pollK').textContent = poll.open ? 'Poll · voting open' : 'Poll · voting closed';
+    $('pollQ').textContent = poll.q;
+    var canVote = poll.open && !v;
+    // options
+    var box2 = $('pollOpts');
+    if (box2.getAttribute('data-p') !== poll.id) {
+      box2.setAttribute('data-p', poll.id); box2.innerHTML = '';
+      poll.o.forEach(function (o, i) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'role'; b.setAttribute('data-i', i); b.setAttribute('aria-pressed', 'false');
+        b.innerHTML = '<span class="nm"></span><span class="rd" aria-hidden="true"></span>';
+        b.querySelector('.nm').textContent = o;
+        b.addEventListener('click', function () { if (vbusy || voted() || !poll.open) return; vpick = i; renderPoll(); });
+        box2.appendChild(b);
+      });
+    }
+    box2.hidden = !canVote && !sending;
+    box2.querySelectorAll('.role').forEach(function (b) {
+      var on = +b.getAttribute('data-i') === vpick;
+      b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.disabled = sending;
+    });
+    $('pollGo').hidden = !canVote && !sending;
+    var ok = $('pollOk');
+    ok.disabled = vpick < 0 || sending; ok.classList.toggle('wait', sending);
+    $('pollOkT').textContent = sending ? 'Sending…' : 'Vote';
+    // results after voting or when voting is closed
+    var showRes = v || !poll.open, res = $('pollRes');
+    res.hidden = !showRes;
+    var note = '';
+    if (v) note = 'Thank you! Your vote: ' + (poll.o[st.votes[poll.id]] || '') + '.';
+    else if (!poll.open) note = 'Voting is closed.';
+    if (showRes) {
+      var n = pr && pr.id === poll.id ? pr.n : null, tot = pr && pr.id === poll.id ? pr.total : 0, max = 0;
+      if (n) n.forEach(function (x) { if (x > max) max = x; });
+      if (res.getAttribute('data-p') !== poll.id) {
+        res.setAttribute('data-p', poll.id); res.innerHTML = '';
+        poll.o.forEach(function (o) { var d = document.createElement('div'); d.innerHTML = '<p><span></span><span></span></p><i><b></b></i>'; d.querySelector('span').textContent = o; res.appendChild(d); });
+      }
+      res.querySelectorAll('div').forEach(function (d, i) {
+        var c = n ? n[i] || 0 : 0;
+        d.querySelectorAll('span')[1].textContent = n ? c + ' · ' + (tot ? Math.round(c / tot * 100) : 0) + '%' : '';
+        d.querySelector('b').style.width = (max ? c / max * 100 : 0) + '%';
+        d.classList.toggle('lead', !!n && max > 0 && c === max);
+        d.classList.toggle('my', v && st.votes[poll.id] === i);      // not 'mine': that class is the list of own questions
+      });
+      if (n) note += (note ? ' ' : '') + tot + (tot === 1 ? ' vote' : ' votes') + ' so far.';
+    }
+    $('pollNote').textContent = note;
+    $('pollClose').textContent = canVote ? 'Not now' : 'Back to the remote';
+  }
+  $('pollOk').addEventListener('click', function () {
+    if (vpick < 0 || vbusy || voted() || !poll || !poll.open) return;
+    vattempt = 0; vote(poll.id, vpick);
+  });
+  function vote(pid, o) {
+    clearTimeout(vtimer);
+    vbusy = true; vattempt++; renderPoll();
+    var mine = st;
+    sendKept(C.base + '/v/' + pid + '/' + st.id, function (g) { return JSON.stringify({ o: o, t: Date.now(), g: g }); }).then(function () {
+      vbusy = false;
+      if (st !== mine) return;
+      st.votes[pid] = o; save(); vpick = -1; renderPoll();
+    }).catch(function () {
+      if (st !== mine) { vbusy = false; return; }
+      $('pollNote').textContent = 'No connection, retrying…';
+      vtimer = setTimeout(function () { if (poll && poll.id === pid && poll.open) vote(pid, o); else { vbusy = false; renderPoll(); } }, ([1500, 3000, 5000][vattempt - 1] || 8000));
+    });
+  }
+  $('pollClose').addEventListener('click', function () { sheetOpen = false; vpick = vbusy ? vpick : -1; render(); });
+  $('pollbar').addEventListener('click', function () { sheetOpen = true; render(); try { $('pollQ').focus({ preventScroll: true }); } catch (e) {} });
 
   $('tab-react').addEventListener('click', function () { tab = 'react'; justDone = false; render(); });
   $('tab-ask').addEventListener('click', function () { tab = 'ask'; justDone = false; render(); });
