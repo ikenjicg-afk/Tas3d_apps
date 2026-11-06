@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'e59c10d000';</script>
+<script>window.TAS3D_BUILD = '96fcce8e27';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -61,6 +61,13 @@ button,input,textarea{font:inherit;color:inherit}
 .tog button[aria-pressed="true"] b{color:var(--orange)}
 .tog b{font-weight:700}
 .scrst{display:flex;justify-content:space-between;gap:10px}
+/* the live copy of the projector screen (the screen page in ?preview mode, fed from this panel) */
+.pvf{position:relative;margin-top:10px;aspect-ratio:16/9;background:#000;overflow:hidden;border:1px solid #2c2c2b}
+.pvf iframe{position:absolute;left:0;top:0;width:1280px;height:720px;border:0;transform-origin:0 0;pointer-events:none;background:#0e0e0e}
+.pvl{margin-top:8px;display:flex;justify-content:flex-end}
+.pvl a{font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mute);text-decoration:none;padding:4px 0}
+.lvb{border-color:var(--orange)}
+.lvb span b{color:var(--orange)}
 .scrst #scrSt{color:var(--orange)}
 .scrst #scrSt.off{color:var(--mute)}
 .qon{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--orange);background:#1a120f;font-size:15px}
@@ -141,11 +148,12 @@ h2.sec{margin-top:30px;font-size:22px}
     <span class="logo" role="img" aria-label="TAS3D"></span>
     <div class="r">
       <span class="live off" id="live"><i aria-hidden="true"></i><span id="liveT">…</span></span>
-      <button type="button" class="btn o" id="openScreen">Screen ↗</button>
     </div>
   </div>
   <div class="scr" aria-label="What the screen shows">
     <p class="kick scrst"><span>On the screen</span><span id="scrSt" class="off">Screen: checking…</span></p>
+    <div class="pvf" id="pvf"><iframe id="pvFrame" title="What the screen shows now" tabindex="-1" aria-hidden="true"></iframe></div>
+    <p class="pvl"><a id="openScreen" href="../screen/" target="tas3d-screen">Open the screen on this device ↗</a></p>
     <div class="seg" role="group" aria-label="Screen">
       <button type="button" data-s="blank" aria-pressed="false">Blank</button>
       <button type="button" data-s="logo" aria-pressed="false">Logo</button>
@@ -158,6 +166,7 @@ h2.sec{margin-top:30px;font-size:22px}
       <button type="button" id="tQr" aria-pressed="true">QR code: <b>on</b></button>
       <button type="button" id="tRx" aria-pressed="true">Reactions: <b>on</b></button>
     </div>
+    <p class="qon lvb" id="lvb" hidden><span id="lvbT"></span><button type="button" class="btn o" id="lvbStop">Stop</button></p>
     <p class="qon" id="qon" hidden><span id="qonT"></span><button type="button" class="btn" id="qonHide">Hide</button></p>
   </div>
   <div class="tabs" role="tablist">
@@ -215,8 +224,9 @@ h2.sec{margin-top:30px;font-size:22px}
   <section class="pane" id="p-slides" hidden>
     <div class="spk">
       <p class="kick">Speakers</p>
-      <div class="tog"><button type="button" id="tSp" aria-pressed="true">Speakers can put their slides on the screen: <b>on</b></button></div>
-      <p class="hint" style="margin-top:10px">Send the speakers this link and the speakers' password. They choose their folder, show it on the screen and change the slides from their phone or laptop.</p>
+      <p class="hint" style="margin-top:8px"><b style="color:var(--fg)">Start</b> gives a speaker the screen: they put their slides on it and change them from their phone or laptop.
+        <b style="color:var(--fg)">Stop</b> when the talk is over — the screen is yours again. Before Start a speaker can only look through their own slides.</p>
+      <p class="hint" style="margin-top:8px">Send all speakers this link and the speakers' password:</p>
       <p class="lnk"><code id="spkUrl"></code><button type="button" class="btn" id="spkCopy">Copy link</button></p>
     </div>
     <div id="deckui"></div>
@@ -224,14 +234,14 @@ h2.sec{margin-top:30px;font-size:22px}
       PDF, pictures (JPG, PNG) and videos (MP4) are shown; save PowerPoint and Keynote as PDF.</p>
   </section>
 
-  <p class="foot">Host only — do not show this page on the projector; open the Screen for that.
+  <p class="foot">Host only — do not show this page on the projector: the computer at the projector opens the screen (TAS3D Screen.html or “Open the screen on this device”).
     You stay logged in on this device for 90 days.</p>
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=c8ce86cd"></script>
+<script src="../assets/config.js?v=cfbdc676"></script>
 <script src="../assets/mqtt.js?v=97b7e5d6"></script>
-<script src="../assets/hub.js?v=522173a4"></script>
-<script src="../assets/deck.js?v=b351041d"></script>
+<script src="../assets/hub.js?v=b4c21d37"></script>
+<script src="../assets/deck.js?v=f9dffee4"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -242,14 +252,30 @@ h2.sec{margin-top:30px;font-size:22px}
     $('panel').hidden = false;
     var tab = 'checkin';
     try { tab = localStorage.getItem('tas3d-host-tab') || 'checkin'; } catch (e) {}
-    var hub = TasHub(render);
+    var frame = $('pvFrame'), pvWin = null;
+    var hub = TasHub(render, { onReact: function (x) { if (pvWin) pvWin.react(x); } });
     var S = hub.state;
+    // presentations: one client for the screen copy and the Slides tab
+    var dc = TasSlidesKey.get() ? TasDeckClient(null, { all: true, from: 'host' }) : null;
+    if (dc) dc.listen(function () { render(); });
+
+    // ---- the live copy of the screen
+    frame.src = '../screen/?preview' + (window.TAS3D_BUILD ? '&v=' + window.TAS3D_BUILD : '');
+    frame.addEventListener('load', function () {
+      var tries = 0;
+      (function hook() { try { pvWin = frame.contentWindow.TasPreview || null; } catch (e) { pvWin = null; } if (pvWin) render(); else if (++tries < 50) setTimeout(hook, 100); })();
+    });
+    function fit() { var w = $('pvf').clientWidth; if (w) frame.style.transform = 'scale(' + (w / 1280) + ')'; }
+    fit(); window.addEventListener('resize', fit);
+    if (window.ResizeObserver) new ResizeObserver(fit).observe($('pvf'));
+    // opening the screen from here brings the presentations key with it (after # it is not sent anywhere)
+    var key = TasSlidesKey.get();
+    $('openScreen').href = '../screen/' + (window.TAS3D_BUILD ? '?v=' + window.TAS3D_BUILD : '') + (key ? '#k=' + key : '');
 
     // ---- tabs
     document.querySelectorAll('.tabs button').forEach(function (b) {
       b.addEventListener('click', function () { tab = b.getAttribute('data-tab'); try { localStorage.setItem('tas3d-host-tab', tab); } catch (e) {} render(); });
     });
-    $('openScreen').addEventListener('click', function () { window.open('../screen/' + (window.TAS3D_BUILD ? '?v=' + window.TAS3D_BUILD : ''), 'tas3d-screen'); });
     var opened = Date.now();
     twoClick($('logout'), 'Log out', 'Log out for sure?', function () { TasAuth.logout(); location.href = '../hi/'; });
 
@@ -298,8 +324,9 @@ h2.sec{margin-top:30px;font-size:22px}
 
     // ---- slides: the remote for every speaker's folder (made when the tab is first opened)
     var deckUI = null;
-    function slidesUI() { if (!deckUI && TasSlidesKey.get()) deckUI = TasDeckUI($('deckui'), { mode: 'host' }); }
-    $('tSp').addEventListener('click', function () { hub.setCfg({ sp: !S.cfg.sp }); });
+    function setLive(id) { hub.setCfg({ live: id }); }
+    function slidesUI() { if (!deckUI && dc) deckUI = TasDeckUI($('deckui'), { mode: 'host', client: dc, setLive: setLive }); }
+    $('lvbStop').addEventListener('click', function () { setLive(''); });
     var spkUrl = new URL('../speakers/', location.href).href;
     $('spkUrl').textContent = spkUrl.replace(/^https?:\/\//, '');
     $('spkCopy').addEventListener('click', function () {
@@ -335,13 +362,19 @@ h2.sec{margin-top:30px;font-size:22px}
       var on = S.screenSeen && Date.now() - S.screenSeen < 20000, st = $('scrSt');
       st.classList.toggle('off', !on);
       var old = on && window.TAS3D_BUILD && S.screenBuild && S.screenBuild !== window.TAS3D_BUILD;
-      st.textContent = old ? 'Screen: old version — refresh it' : on ? 'Screen: on' : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off — press Screen ↗';
+      st.textContent = old ? 'Screen: old version — refresh it' : on ? 'Screen: on' : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off';
       document.querySelectorAll('.seg button').forEach(function (b) {
         var sc = b.getAttribute('data-s');
         b.setAttribute('aria-pressed', S.cfg.scene === sc ? 'true' : 'false');
         b.disabled = (sc === 'poll' && !hasPoll) || (sc === 'slides' && !S.cfg.deck);
       });
-      $('tSp').setAttribute('aria-pressed', S.cfg.sp ? 'true' : 'false'); $('tSp').querySelector('b').textContent = S.cfg.sp ? 'on' : 'off';
+      // who is presenting (Start in the Slides tab)
+      var lvName = '';
+      if (S.cfg.live && dc && dc.state.list) dc.state.list.decks.forEach(function (d) { if (d.id === S.cfg.live) lvName = d.name; });
+      $('lvb').hidden = !S.cfg.live;
+      if (S.cfg.live) { $('lvbT').innerHTML = ''; var lb = document.createElement('b'); lb.textContent = '\u25cf ' + (lvName || 'A speaker'); $('lvbT').appendChild(lb); $('lvbT').appendChild(document.createTextNode(' is presenting')); }
+      // the copy of the screen
+      if (pvWin) { try { pvWin.render(S, n, dc && S.cfg.scene === 'slides' ? dc.state.pv[S.cfg.deck] : null); } catch (e) { pvWin = null; } }
       $('tQr').setAttribute('aria-pressed', S.cfg.qr ? 'true' : 'false'); $('tQr').querySelector('b').textContent = S.cfg.qr ? 'on' : 'off';
       $('tRx').setAttribute('aria-pressed', S.cfg.rx ? 'true' : 'false'); $('tRx').querySelector('b').textContent = S.cfg.rx ? 'on' : 'off';
       $('qon').hidden = !S.show; $('qonT').textContent = S.show ? 'Question: ' + S.show : '';

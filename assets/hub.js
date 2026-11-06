@@ -67,7 +67,7 @@
       now: null,                             // the current poll {k, id, q, o, open, at}
       votes: {},                             // phone id -> {o, t} for the current poll
       rx: {},                                // reactions since this page was opened
-      cfg: { scene: 'checkin', qr: true, rx: true, deck: '', sp: true, at: 0 },   // what the screen shows, set by the host
+      cfg: { scene: 'checkin', qr: true, rx: true, deck: '', live: '', at: 0 },   // what the screen shows, set by the host
       total: 0, counts: {}, pollCounts: [], pollTotal: 0,
       screenSeen: 0,                         // when a screen page last said "I am on" (time of this device)
       screenBuild: ''                        // which version of the site that screen runs
@@ -140,12 +140,13 @@
       if (seenRxList.length > 600) delete seenRx[seenRxList.shift()];
       return true;
     }
+    function idOk(x) { return typeof x === 'string' && /^[a-z0-9]{1,40}$/.test(x); }
     function onCfg(x) {
       var d = json(x); if (!d) return;
       var at = +d.at || 0;
       if (at < S.cfg.at) return;                       // an older state from a broker that missed a change
       S.cfg = { scene: SCENES[d.scene] ? d.scene : 'checkin', qr: d.qr !== false, rx: d.rx !== false,
-        deck: typeof d.deck === 'string' && /^[a-z0-9]{1,40}$/.test(d.deck) ? d.deck : '', sp: d.sp !== false, at: at };
+        deck: idOk(d.deck) ? d.deck : '', live: idOk(d.live) ? d.live : '', at: at };
       changed();
     }
     function onReact(x) {
@@ -269,9 +270,9 @@
       closePoll: function () { if (S.now && S.now.k === 'poll') setNow({ k: 'poll', id: S.now.id, q: S.now.q, o: S.now.o, open: false }); },
       reopenPoll: function () { if (S.now && S.now.k === 'poll') setNow({ k: 'poll', id: S.now.id, q: S.now.q, o: S.now.o, open: true }); },
       endPoll: function () { clearVotes(); setNow({ k: 'none' }); if (S.cfg.scene === 'poll') api.setCfg({ scene: 'checkin' }); },
-      // what the screen shows: {scene}, {qr}, {rx}, {deck} (slides of which folder), {sp} (speakers may show their slides)
+      // what the screen shows: {scene}, {qr}, {rx}, {deck} (slides of which folder), {live} (the speaker who has the screen: Start / Stop)
       setCfg: function (p) {
-        var n = { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx, deck: S.cfg.deck, sp: S.cfg.sp };
+        var n = { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx, deck: S.cfg.deck, live: S.cfg.live };
         for (var k in p) n[k] = p[k];
         n.at = Math.max(Date.now(), S.cfg.at + 1);
         pub(B + '/cfg', JSON.stringify(n), { qos: 1, retain: true });

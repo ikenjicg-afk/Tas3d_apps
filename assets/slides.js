@@ -41,7 +41,7 @@
     let root = null;                        // {kind: 'handle', h} | {kind: 'files', top}
     let saved = null, rootName = '', need = 'connect', scanning = false, err = '';
     let decks = [], byId = {}, sigAll = '';
-    let cfg = { scene: '', deck: '', sp: true };
+    let cfg = { scene: '', deck: '', live: '' };
     let soundBlocked = false;
     const POSK = 'tas3d-slidepos-' + C.room, ack = {};
     let pos = {}; try { pos = JSON.parse(localStorage.getItem(POSK) || '{}') || {}; } catch (e) {}
@@ -81,13 +81,16 @@
       if (d.sn !== sn) return;
       const dk = byId[d.d]; if (!dk) return;
       const i = pos[dk.id] || 0, on = isOn(dk);
+      // the host controls everything; a speaker controls the screen only after the host's Start (cfg.live),
+      // and before that may only look through their own slides while they are not on the screen
+      const boss = d.from === 'host' || cfg.live === dk.id;
+      if (!boss && (on || /^(show|hide|play|pause|restart)$/.test(d.op))) return;
       switch (d.op) {
         case 'next': setPos(dk, i + 1); break;
         case 'prev': setPos(dk, i - 1); break;
         case 'go': if (Number.isInteger(d.i)) setPos(dk, d.i); break;
         case 'file': if (Number.isInteger(d.f) && dk.files[d.f] && dk.files[d.f].c) setPos(dk, dk.files[d.f].from); break;
         case 'show':
-          if (d.from !== 'host' && cfg.sp === false) break;          // the host has turned showing from the speakers' page off
           if (Number.isInteger(d.f) && dk.files[d.f] && dk.files[d.f].c) setPos(dk, dk.files[d.f].from);
           if (!on) hub.setCfg({ scene: 'slides', deck: dk.id });
           break;
@@ -156,10 +159,49 @@
       if (q === 'granted') useHandle(h, false); else { need = 'reconnect'; changed(); pubSa(); }
     })();
 
-    function treeFromFiles(list) {                    // <input webkitdirectory>: "Root/Speaker/file.pdf"
+    async function drop(items) {
+      const its = Array.from(items || []).filter((x) => x.kind === 'file');
+      if (!its.length) return false;
+      const it = its[0];
+      // both are asked for right away: the dropped item is readable only during the drop event
+      const hp = it.getAsFileSystemHandle && !NOFS ? it.getAsFileSystemHandle().catch(() => null) : null;
+      const en = it.webkitGetAsEntry && it.webkitGetAsEntry();
+      if (hp) {                                       // Chrome, Edge: a real folder, remembered and watched for new files
+        const h = await hp; if (h && h.kind === 'directory') { await useHandle(h, true); return true; }
+      }
+      if (en && en.isDirectory) {                     // Safari, Firefox: read the files now
+        scanning = true; changed();
+        const list = [];
+        await readEntries(en, en.name + '/', list, 0);
+        scanning = false;
+        const top = treeFromFiles(list);
+        root = { kind: 'files', top }; rootName = top.name || en.name; need = ''; err = '';
+        await scan();
+        return true;
+      }
+      err = 'Drop the folder itself (TAS3D 2026 Presentations), not files from it.'; changed();
+      return false;
+    }
+    function readEntries(dir, prefix, out, depth) {
+      return new Promise((ok) => {
+        const r = dir.createReader(), all = [];
+        const more = () => r.readEntries(async (batch) => {
+          if (batch.length) { all.push(...batch); return more(); }
+          for (const e of all) {
+            if (SKIP.test(e.name)) continue;
+            if (e.isDirectory) { if (depth < 4) await readEntries(e, prefix + e.name + '/', out, depth + 1); }
+            else { try { const f = await new Promise((y, n) => e.file(y, n)); out.push({ rel: prefix + e.name, file: f }); } catch (x) {} }
+          }
+          ok(out);
+        }, () => ok(out));
+        more();
+      });
+    }
+    function treeFromFiles(list) {                    // "Root/Speaker/file.pdf" (from <input webkitdirectory> or a dropped folder)
       const top = { name: '', dirs: [], files: [] }, dirs = new Map();
-      for (const f of list) {
-        const parts = (f.webkitRelativePath || f.name).split('/');
+      for (const x of list) {
+        const f = x.file || x;
+        const parts = (x.rel || f.webkitRelativePath || f.name).split('/');
         if (!top.name) top.name = parts.length > 1 ? parts[0] : 'Files';
         const rest = parts.length > 1 ? parts.slice(1) : parts;
         if (rest.length > 1 && !SKIP.test(rest[0]) && !dirs.has(rest[0])) { const d = { name: rest[0], files: [] }; dirs.set(rest[0], d); top.dirs.push(d); }   // a speaker's folder with only a note in it is still listed
@@ -303,7 +345,7 @@
     }
 
     // ---------- previews for the remotes (small JPEGs)
-    const TW = 384, TH = 256, thumbs = new Map(), thumbP = new Map();
+    const TW = 512, TH = 320, thumbs = new Map(), thumbP = new Map();   // the host panel shows the current one as the screen preview
     let tq = Promise.resolve();
     function thumb(d, i) {
       if (!d || i < 0 || i >= d.total) return Promise.resolve('');
@@ -351,7 +393,8 @@
         const cur = await thumb(d, i), nxt = await thumb(d, i + 1);
         if (byId[id] !== d || (d.total && (pos[id] || 0) !== i)) return;   // moved again meanwhile: that move publishes
         pub(B + '/pv/' + id, { sn, seq: ++seq, t: Date.now(), i, total: d.total, it: info(d, i), nx: info(d, i + 1), cur, nxt, v: videoState(d, i), ack: ack[id] || '' }, true);
-      }, 60);
+        thumb(d, i + 2); if (i > 0) thumb(d, i - 1);
+      }, 40);
     }
 
     // ---------- the slide on the screen
@@ -382,15 +425,15 @@
           L.el = v;
         }
         L.el.className = 'sl';
-        if (L.dead) { drop(L); throw new Error('not needed any more'); }
+        if (L.dead) { dropL(L); throw new Error('not needed any more'); }
         view.appendChild(L.el);
         return L;
       })();
-      L.p.catch(() => drop(L));
+      L.p.catch(() => dropL(L));
       layers.set(key, L);
       return L;
     }
-    function drop(L) {
+    function dropL(L) {
       L.dead = true;
       if (layers.get(L.key) === L) layers.delete(L.key);
       if (L.el) { if (L.k === 'vid') { L.el.pause(); L.el.removeAttribute('src'); L.el.load(); } L.el.remove(); }
@@ -410,11 +453,10 @@
       if (ok) { L.el.classList.add('on'); shown = L; if (fresh && L.k === 'vid') { L.el.currentTime = 0; playV(L.el); } }
       else shown = null;
       const keep = new Set([keyOf(d, i)]);
-      if (i > 0) keep.add(keyOf(d, i - 1));
-      if (i + 1 < d.total) keep.add(keyOf(d, i + 1));
-      [...layers.values()].forEach((x) => { if (!keep.has(x.key) && x !== shown) drop(x); });
-      if (i + 1 < d.total) prepare(d, i + 1);         // the next slide is ready before it is asked for
-      if (i > 0) setTimeout(() => { if (t === tok) prepare(d, i - 1); }, 300);
+      for (const j of [i - 1, i + 1, i + 2]) if (j >= 0 && j < d.total) keep.add(keyOf(d, j));
+      [...layers.values()].forEach((x) => { if (!keep.has(x.key) && x !== shown) dropL(x); });
+      if (i + 1 < d.total) prepare(d, i + 1);         // the next slides are ready before they are asked for
+      setTimeout(() => { if (t !== tok) return; if (i + 2 < d.total) prepare(d, i + 2); if (i > 0) prepare(d, i - 1); }, 250);
     }
     function playV(v) {
       v.muted = false;
@@ -444,17 +486,19 @@
     let rsT = null;
     window.addEventListener('resize', () => {
       clearTimeout(rsT);
-      rsT = setTimeout(() => { if (measure()) { [...layers.values()].forEach((x) => { if (x !== shown) drop(x); }); paint(); } }, 250);
+      rsT = setTimeout(() => { if (measure()) { [...layers.values()].forEach((x) => { if (x !== shown) dropL(x); }); paint(); } }, 250);
     });
 
     return {
       connect: () => connect(false),
       choose: () => connect(true),
+      drop,                                          // a folder dragged onto the screen
+      unmute() { if (soundBlocked) { soundBlocked = false; if (shown && shown.k === 'vid') shown.el.muted = false; changed(); pubSa(); } },
       useHandle: (h) => useHandle(h, false),         // tests (headless Chrome here cannot keep a folder in IndexedDB)
       // what the screen shows (from the host's settings); called on every change
       setCfg(c) {
         const before = cfg.scene === 'slides' ? cfg.deck : '';
-        cfg = { scene: c.scene, deck: c.deck || '', sp: c.sp !== false };
+        cfg = { scene: c.scene, deck: c.deck || '', live: c.live || '' };
         const now = cfg.scene === 'slides' ? cfg.deck : '';
         view.hidden = !now || !byId[now] || !byId[now].total;
         if (!now) { if (shown && shown.k === 'vid') shown.el.pause(); }

@@ -9,7 +9,7 @@
 //   <base>/now = the current poll (kept; {k:'poll', id, q, o:[options], open, at} or {k:'none'}),
 //   <base>/v/<poll id>/<phone id> = one vote (kept; {o: option index, t, g: round}), <base>/pr = poll results for phones,
 //   <base>/cfg = what the host shows on the screen (kept; {scene: blank|logo|qr|checkin|poll|slides, qr: QR on/off, rx: reactions on/off,
-//     deck: which speaker's folder the slides scene shows, sp: speakers may put their slides on the screen, at}).
+//     deck: which speaker's folder the slides scene shows, live: the speaker the host has started (only they control the screen), at}).
 // Presentations (encrypted with the slides key, see deck.js): <base>/dk = the speakers' folders and files (kept, from the screen),
 //   <base>/pv/<folder id> = current and next slide previews of one folder (kept), <base>/sa = "the screen is on" (every 8 s),
 //   <base>/sk = commands from the speakers' page and the host panel (next, prev, show on screen ...).
@@ -30,15 +30,15 @@ window.TAS3D_CHECKIN = {
     ['other', 'Other']
   ],
   // Host password: only its salted hash is here (PBKDF2-SHA256). It keeps guests out of the host panel; it is not strong security.
-  host: { salt: 'f8e2ab141cbb493600a15bdc94c1ac07', iterations: 150000, hash: 'c9529d95eea44f58496334901404e3fbf9d750e178011999ea5dcecf006c9d22' },
+  host: { salt: 'edaa75343e03677b0559f9c0f6e435ab', iterations: 150000, hash: '8954e5646d38bb5d211581f1b8c99e1cdc5cb5da114af8b9ca5c51e8ec775902' },
   // Slides key (made by tools/make_slide_keys.js; no password is written here): the speakers' password gives the key,
   // the host password opens it too ("wrap"). Previews and commands of the presentations are encrypted with it.
   slides: {
     iterations: 150000,
-    ssalt: '257c1ed3a3bab1584bfd637e5a440048',
-    check: '8e8e36347243adb761e9fc2ee6f8430274d60c99622368dc8457c35d218d9e0b7b8d1be7886f1bf1',
-    hsalt: 'ba8d13d05c37ba94b261dda5dea60f41',
-    wrap: 'ab18fe631040f253b5391f1058577e4857e8734a86e7f6a8f9f081786abf204358798f13513356a599e96609256606180a897ad7b206254762c8656a'
+    ssalt: '4564344c5f5c5d59c48e5cfb395f3c52',
+    check: 'b15a99081a9a4f15e15206b9833109d88978775d1b920ce986e55011cd5bea40bd52aee9200dc8bd',
+    hsalt: 'd6c48d2d9d4b939d25b712c6a483ce87',
+    wrap: '129ddf7e4e4b9bbda771f54a7a8b1c6678470a4bacb9fe137ca89db27c46342419c898bf56b9f73b804c2036ef0477b64b55d7b4bc13c4bb67407163'
   },
   // ready-made polls in the host panel (the host can also write a new one)
   polls: [
