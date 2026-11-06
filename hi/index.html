@@ -135,7 +135,7 @@ window.TAS3D_CHECKIN = {
 </script>
 <script>
 // TAS3D — tiny MQTT 3.1.1 client over WebSocket (just what check-in needs: connect, subscribe, publish QoS 0/1, retain, ping).
-// new TasMQ(url, { onConnect(), onMessage(topic, text, retained), onClose() }); .connect() .subscribe(filter) .publish(topic, text, {qos, retain}) → Promise .close()
+// new TasMQ(url, { onConnect(), onMessage(topic, text, retained), onClose() }); .connect() .subscribe(filter, qos) .publish(topic, text, {qos, retain}) → Promise .close()
 (function () {
   var enc = new TextEncoder(), dec = new TextDecoder();
   function u16(n) { return [(n >> 8) & 255, n & 255]; }
@@ -200,8 +200,8 @@ window.TAS3D_CHECKIN = {
     // SUBACK (9) and PINGRESP (13) need nothing
   };
   TasMQ.prototype._next = function () { this.pid = this.pid % 65535 + 1; return this.pid; };
-  TasMQ.prototype.subscribe = function (filter) {
-    return this._send(pack(0x82, u16(this._next()).concat(str(filter), [0])));
+  TasMQ.prototype.subscribe = function (filter, qos) {    // qos 1: the broker queues messages for us instead of dropping them under load
+    return this._send(pack(0x82, u16(this._next()).concat(str(filter), [qos ? 1 : 0])));
   };
   TasMQ.prototype.publish = function (topic, text, opt) {
     var me = this, qos = opt && opt.qos ? 1 : 0, retain = opt && opt.retain ? 1 : 0;
