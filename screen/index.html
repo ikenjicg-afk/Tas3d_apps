@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'e94fccff66';</script>
+<script>window.TAS3D_BUILD = 'e59c10d000';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -12,8 +12,10 @@
 <style>/* TAS3D 2026 — the projector screen (password, same as the host panel).
    Shows check-in (QR + count by role), or the poll results while a poll is on; the question chosen by the host as a card;
    reactions from the guests fly up on the right. 1rem = 1% of the width of a 16:9 screen, so it scales like a slide.
-   What it shows is chosen in the host panel: Blank, Logo, QR code, Check-in or Poll; QR on/off; reactions on/off.
-   Key: F — full screen (a browser only goes full screen after a click or key on this computer). ?demo — rehearsal. */
+   What it shows is chosen in the host panel: Blank, Logo, QR code, Check-in, Poll or Slides; QR on/off; reactions on/off.
+   Slides: "Connect folder" (move the mouse) — the folder "TAS3D 2026 Presentations" on this computer, a subfolder per speaker (slides.js).
+   Keys: F — full screen (a browser only goes full screen after a click or key on this computer);
+   → ↓ Page Down Space — next slide, ← ↑ Page Up — previous (a presentation clicker works too). ?demo — rehearsal. */
 @font-face{font-family:"HelvTAS";src:url(../assets/helvtas-400.woff?v=666d43d4) format("woff");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"HelvTAS";src:url(../assets/helvtas-700.woff?v=be6674ce) format("woff");font-weight:700;font-style:normal;font-display:swap}
 :root{--bg:#0e0e0e;--fg:#f1f1ee;--mute:#8b8b87;--line:#1c1c1c;--rule:#333331;--track:#1f1f1e;--orange:#f0552a;--blue:#8ea0ff;--pad:2.2rem;--gap:1.45rem;color-scheme:dark;--tr-xl:-.02em;--tr-l:-.015em;--tr-m:-.005em}
@@ -114,6 +116,16 @@ body.qon .biglogo{opacity:.12}
 .bigqr h2{font-size:5.2rem;line-height:.95;letter-spacing:var(--tr-xl)}
 .bigqr p{font-size:1.5rem;color:var(--mute);margin-top:-1.4rem}
 
+/* slides: the speaker's PDF pages, pictures and videos, full screen */
+html.sc-slides .cols,html.sc-slides .stage{display:none}
+.slides{position:fixed;inset:0;z-index:1;background:#000;transition:opacity .45s}
+.slides .sl{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;visibility:hidden;background:#000}
+.slides .sl.on{visibility:visible}
+.slides .err{display:flex;align-items:center;justify-content:center;padding:4rem;color:var(--mute);font-size:2rem;text-align:center}
+body.qon .slides{opacity:.12}
+.ctl button.need{background:var(--orange);color:#fff}
+.ctl .st{align-self:center;padding:0 .6rem;font-size:max(12px,.85rem);color:var(--mute)}
+
 /* password */
 #login{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:var(--bg)}
 #login .in{width:min(420px,90vw);font-size:16px}
@@ -180,6 +192,7 @@ body.qon .biglogo{opacity:.12}
     <p class="pn" id="pN"></p>
   </section>
 </main>
+<section class="slides" id="slides" hidden aria-label="Slides"></section>
 <section class="biglogo" id="biglogo" hidden><i role="img" aria-label="TAS3D"></i></section>
 <section class="bigqr" id="bigqr" hidden>
   <img src="../assets/qr.svg?v=e3099c7f" alt="QR code for the guests' page" width="33" height="33">
@@ -188,11 +201,15 @@ body.qon .biglogo{opacity:.12}
 </section>
 <div class="card" id="card" aria-live="polite"><p class="k">Question from the audience</p><p class="t" id="cardT"></p></div>
 <div class="ctl" role="group" aria-label="Screen controls" id="ctl" hidden>
+  <button type="button" id="bDir" hidden>Connect folder</button>
+  <span class="st" id="dirSt" hidden></span>
   <button type="button" id="bFs">Full screen (F)</button>
 </div>
-<script src="../assets/config.js?v=c69604c0"></script>
-<script src="../assets/mqtt.js?v=4a011e62"></script>
-<script src="../assets/hub.js?v=3cca277f"></script>
+<script src="../assets/config.js?v=c8ce86cd"></script>
+<script src="../assets/mqtt.js?v=97b7e5d6"></script>
+<script src="../assets/hub.js?v=522173a4"></script>
+<script src="../assets/deck.js?v=b351041d"></script>
+<script src="../assets/slides.js?v=195a4c01"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -310,11 +327,15 @@ body.qon .biglogo{opacity:.12}
   function render(S, up) {
     var p = S.now && S.now.k === 'poll' ? S.now : null, cfg = S.cfg || { scene: 'checkin', qr: true, rx: true };
     scene = cfg.scene === 'poll' && !p ? 'checkin' : cfg.scene; qrOn = cfg.qr !== false;
+    if (slides) slides.setCfg(cfg);
+    // slides of a folder that is not here (yet): the big logo instead of an empty screen
+    var noSlides = scene === 'slides' && !(slides && slides.has(cfg.deck));
     document.documentElement.classList.toggle('sc-blank', scene === 'blank');     // not 'logo': .logo is the small logo
-    document.documentElement.classList.toggle('sc-logo', scene === 'logo');
-    $('biglogo').hidden = scene !== 'logo';
+    document.documentElement.classList.toggle('sc-logo', scene === 'logo' || noSlides);
+    document.documentElement.classList.toggle('sc-slides', scene === 'slides');
+    $('biglogo').hidden = scene !== 'logo' && !noSlides;
     document.documentElement.classList.toggle('noqr', !cfg.qr);
-    $('stage').hidden = scene === 'blank' || scene === 'logo' || scene === 'qr';
+    $('stage').hidden = scene === 'blank' || scene === 'logo' || scene === 'qr' || scene === 'slides';
     $('bigqr').hidden = scene !== 'qr';
     $('vCheck').hidden = scene !== 'checkin'; $('vPoll').hidden = scene !== 'poll';
     rxOn = cfg.rx !== false;
@@ -332,6 +353,7 @@ body.qon .biglogo{opacity:.12}
       bars(C.roles.map(function (r) { return rows[r[0]]; }), C.roles.map(function (r) { return S.counts[r[0]] || 0; }), S.total);
     }
     showCard(S.show);
+    folderButton();
     var ok = DEMO || up > 0;
     $('live').classList.toggle('off', !ok);
     $('liveT').textContent = DEMO ? 'Demo' : ok ? 'Live' : 'No connection';
@@ -343,11 +365,13 @@ body.qon .biglogo{opacity:.12}
     if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
     else { var e = d.documentElement; (e.requestFullscreen || e.webkitRequestFullscreen).call(e); }
   }
-  $('bFs').addEventListener('click', fullscreen);
+  $('bFs').addEventListener('click', function () { fullscreen(); this.blur(); });   // no focus left on it: Space is "next slide"
   document.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey || !$('login').hidden) return;
     var k = (e.key || '').toLowerCase();
     if (k === 'f' || k === 'а') fullscreen();
+    var step = { arrowright: 1, arrowdown: 1, pagedown: 1, ' ': 1, arrowleft: -1, arrowup: -1, pageup: -1, backspace: -1 }[k];
+    if (step && slides && slides.step(step)) e.preventDefault();
   });
   var idleT;
   function wake() { document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(function () { document.body.classList.add('idle'); }, 2500); }
@@ -355,10 +379,29 @@ body.qon .biglogo{opacity:.12}
   function keepAwake() { try { if (navigator.wakeLock && !document.hidden) navigator.wakeLock.request('screen').catch(function () {}); } catch (e) {} }
   document.addEventListener('visibilitychange', keepAwake);
 
+  // ---- the presentations folder (button at the top, appears with the mouse)
+  var slides = null;
+  function folderButton() {
+    var b = $('bDir'), st = $('dirSt');
+    if (!slides) { b.hidden = true; st.hidden = true; return; }
+    var s = slides.status();
+    b.hidden = false; st.hidden = !(s.err || !s.sound);
+    st.textContent = s.err ? s.err : !s.sound ? 'Video sound: click once anywhere' : '';
+    b.classList.toggle('need', !!s.need && s.need !== '');
+    b.textContent = s.scanning ? 'Reading the folder\u2026'
+      : s.need === 'reconnect' ? 'Reconnect folder: ' + s.folder
+      : s.need ? 'Connect folder (presentations)'
+      : 'Folder: ' + s.folder + ' \u00b7 ' + s.n + (s.kind === 'files' ? ' \u00b7 choose again for new files' : ' \u2713');
+    b.title = s.need ? '' : 'Choose another folder';
+  }
+  $('bDir').addEventListener('click', function () { this.blur(); if (!slides) return; var s = slides.status(); if (s.need) slides.connect(); else slides.choose(); });
+
   function go() {
     $('stage').hidden = false; $('ctl').hidden = false; wake(); keepAwake();
     if (DEMO) return demo();
     var hub = TasHub(function (S) { render(S, hub.up()); }, { onReact: onReact, screen: true });
+    try { if (window.TasSlidesScreen && TasSlidesKey.get()) slides = TasSlidesScreen({ hub: hub, view: $('slides'), onChange: function () { render(hub.state, hub.up()); } }); } catch (e) { slides = null; }
+    window.TasScreenSlides = slides;                  // tests
     render(hub.state, 0);
   }
   if (DEMO) go(); else TasAuth.gate(go);

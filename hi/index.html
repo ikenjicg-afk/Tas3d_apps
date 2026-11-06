@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'e94fccff66';</script>
+<script>window.TAS3D_BUILD = 'e59c10d000';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAS3D 2026</title>
 <meta name="robots" content="noindex">
@@ -124,6 +124,7 @@ h1{margin-top:10px;font-size:clamp(56px,17vw,112px);line-height:.9;letter-spacin
 .sheet .close{margin-top:22px;background:none;border:0;padding:10px 0;color:var(--mute);font-size:15px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
 .hostlink{position:relative;z-index:1;max-width:620px;margin:0 auto;padding:0 0 calc(18px + env(safe-area-inset-bottom,0px));font-size:12px}
 .hostlink a{color:#5d5d5a;letter-spacing:.03em;text-transform:uppercase;font-weight:700}
+.hostlink a+a{margin-left:22px}
 body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px))}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -174,7 +175,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     <button type="button" class="again" id="again" hidden>Test: check in again as a new guest</button>
   </section>
 </main>
-<p class="hostlink"><a href="../host/">Host</a></p>
+<p class="hostlink"><a href="../host/">Host</a><a href="../speakers/">Speakers</a></p>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="pollQ" hidden>
   <div class="sheet-in">
     <p class="kick" id="pollK">Poll</p>
@@ -190,8 +191,8 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
   <button type="button" role="tab" id="tab-react" aria-controls="pane-react" aria-selected="true">Reactions</button>
   <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false">Questions<em id="qbadge" hidden></em></button>
 </nav>
-<script src="../assets/config.js?v=c69604c0"></script>
-<script src="../assets/mqtt.js?v=4a011e62"></script>
+<script src="../assets/config.js?v=c8ce86cd"></script>
+<script src="../assets/mqtt.js?v=97b7e5d6"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN || { brokers: [], roles: [], reactions: [] };

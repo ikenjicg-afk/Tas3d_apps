@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'e94fccff66';</script>
+<script>window.TAS3D_BUILD = 'e59c10d000';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#0e0e0e">
 <style>
 /* TAS3D 2026 — host panel (password). Check-in numbers and Reset, polls that pop up on the guests' phones,
-   anonymous questions (Show on screen / Hide / Done), reactions, and the button that opens the projector screen. */
+   anonymous questions (Show on screen / Hide / Done), the speakers' presentations (Slides), and the button that opens the projector screen. */
 @font-face{font-family:"HelvTAS";src:url(../assets/helvtas-400.woff?v=666d43d4) format("woff");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"HelvTAS";src:url(../assets/helvtas-700.woff?v=be6674ce) format("woff");font-weight:700;font-style:normal;font-display:swap}
 :root{--bg:#0e0e0e;--fg:#f1f1ee;--mute:#8b8b87;--line:#1c1c1c;--rule:#333331;--card:#171716;--orange:#f0552a;--blue:#8ea0ff;--pad:max(16px,env(safe-area-inset-left,0px));--padr:max(16px,env(safe-area-inset-right,0px));color-scheme:dark}
@@ -52,7 +52,7 @@ button,input,textarea{font:inherit;color:inherit}
 @keyframes beat{50%{opacity:.3}}
 /* what the screen shows */
 .scr{margin-top:18px;padding:14px;background:var(--card);border:1px solid #262625}
-.seg{margin-top:10px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.seg{margin-top:10px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
 .seg button,.tog button{min-height:46px;padding:0 8px;border:1px solid #2f2f2e;background:#121211;color:var(--mute);font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--orange);border-color:var(--orange);color:#fff}
 .seg button[disabled]{opacity:.35;cursor:default}
@@ -65,8 +65,10 @@ button,input,textarea{font:inherit;color:inherit}
 .scrst #scrSt.off{color:var(--mute)}
 .qon{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--orange);background:#1a120f;font-size:15px}
 .qon span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media (max-width:520px){.seg{grid-template-columns:repeat(3,1fr)}}
-.tabs{margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--rule)}
+@media (max-width:620px){.seg{grid-template-columns:repeat(3,1fr)}}
+.tabs button{white-space:nowrap}
+@media (max-width:480px){.tabs button{font-size:12px;letter-spacing:.01em}.tabs em{margin-left:4px;padding:1px 5px}}
+.tabs{margin-top:20px;display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--rule)}
 .tabs button{min-height:52px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mute);cursor:pointer}
 .tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--orange)}
 .tabs em{font-style:normal;margin-left:6px;padding:1px 6px;background:#2a2a29;color:var(--fg);font-size:11px;border-radius:9px}
@@ -112,6 +114,12 @@ h2.sec{margin-top:30px;font-size:22px}
 .q .b{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
 .empty{margin-top:24px;color:var(--mute);font-size:17px}
 .foot{margin-top:40px;font-size:13px;color:var(--mute)}
+/* slides */
+.spk{margin-top:0;padding:14px;background:var(--card);border:1px solid #262625}
+.spk .tog{grid-template-columns:1fr}
+.spk .lnk{margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spk .lnk code{font:inherit;font-size:14px;color:var(--fg);overflow-wrap:anywhere}
+#deckui{margin-top:18px}
 .foot a{color:var(--mute)}
 </style>
 </head>
@@ -144,6 +152,7 @@ h2.sec{margin-top:30px;font-size:22px}
       <button type="button" data-s="qr" aria-pressed="false">QR code</button>
       <button type="button" data-s="checkin" aria-pressed="true">Check-in</button>
       <button type="button" data-s="poll" aria-pressed="false">Poll</button>
+      <button type="button" data-s="slides" aria-pressed="false">Slides</button>
     </div>
     <div class="tog">
       <button type="button" id="tQr" aria-pressed="true">QR code: <b>on</b></button>
@@ -155,6 +164,7 @@ h2.sec{margin-top:30px;font-size:22px}
     <button type="button" role="tab" data-tab="checkin" aria-selected="true">Check-in<em id="tN">0</em></button>
     <button type="button" role="tab" data-tab="poll" aria-selected="false">Poll<em id="tP" hidden></em></button>
     <button type="button" role="tab" data-tab="qs" aria-selected="false">Questions<em id="tQ">0</em></button>
+    <button type="button" role="tab" data-tab="slides" aria-selected="false">Slides</button>
   </div>
 
   <section class="pane" id="p-checkin">
@@ -202,13 +212,26 @@ h2.sec{margin-top:30px;font-size:22px}
     <p class="empty" id="qempty">No questions yet. They appear here as soon as guests send them.</p>
   </section>
 
+  <section class="pane" id="p-slides" hidden>
+    <div class="spk">
+      <p class="kick">Speakers</p>
+      <div class="tog"><button type="button" id="tSp" aria-pressed="true">Speakers can put their slides on the screen: <b>on</b></button></div>
+      <p class="hint" style="margin-top:10px">Send the speakers this link and the speakers' password. They choose their folder, show it on the screen and change the slides from their phone or laptop.</p>
+      <p class="lnk"><code id="spkUrl"></code><button type="button" class="btn" id="spkCopy">Copy link</button></p>
+    </div>
+    <div id="deckui"></div>
+    <p class="foot">The files stay on the screen computer, in the folder TAS3D 2026 Presentations — one folder per speaker; new files appear by themselves.
+      PDF, pictures (JPG, PNG) and videos (MP4) are shown; save PowerPoint and Keynote as PDF.</p>
+  </section>
+
   <p class="foot">Host only — do not show this page on the projector; open the Screen for that.
     You stay logged in on this device for 90 days.</p>
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=c69604c0"></script>
-<script src="../assets/mqtt.js?v=4a011e62"></script>
-<script src="../assets/hub.js?v=3cca277f"></script>
+<script src="../assets/config.js?v=c8ce86cd"></script>
+<script src="../assets/mqtt.js?v=97b7e5d6"></script>
+<script src="../assets/hub.js?v=522173a4"></script>
+<script src="../assets/deck.js?v=b351041d"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -273,6 +296,18 @@ h2.sec{margin-top:30px;font-size:22px}
     $('tRx').addEventListener('click', function () { hub.setCfg({ rx: !S.cfg.rx }); });
     $('qonHide').addEventListener('click', function () { hub.showQuestion(''); });
 
+    // ---- slides: the remote for every speaker's folder (made when the tab is first opened)
+    var deckUI = null;
+    function slidesUI() { if (!deckUI && TasSlidesKey.get()) deckUI = TasDeckUI($('deckui'), { mode: 'host' }); }
+    $('tSp').addEventListener('click', function () { hub.setCfg({ sp: !S.cfg.sp }); });
+    var spkUrl = new URL('../speakers/', location.href).href;
+    $('spkUrl').textContent = spkUrl.replace(/^https?:\/\//, '');
+    $('spkCopy').addEventListener('click', function () {
+      var b = this;
+      function done(ok) { b.textContent = ok ? 'Copied' : 'Select the link and copy it'; setTimeout(function () { b.textContent = 'Copy link'; }, 2500); }
+      try { navigator.clipboard.writeText(spkUrl).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+    });
+
     // ---- questions
     $('hide').addEventListener('click', function () { hub.showQuestion(''); });
 
@@ -293,7 +328,8 @@ h2.sec{margin-top:30px;font-size:22px}
       $('live').classList.toggle('off', !n);
       $('liveT').textContent = n ? 'Live' : 'No connection';
       document.querySelectorAll('.tabs button').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
-      $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs';
+      $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs'; $('p-slides').hidden = tab !== 'slides';
+      if (tab === 'slides') slidesUI();
       var hasPoll = !!(S.now && S.now.k === 'poll');
       // is the screen page running somewhere? (it says so every 8 s)
       var on = S.screenSeen && Date.now() - S.screenSeen < 20000, st = $('scrSt');
@@ -303,8 +339,9 @@ h2.sec{margin-top:30px;font-size:22px}
       document.querySelectorAll('.seg button').forEach(function (b) {
         var sc = b.getAttribute('data-s');
         b.setAttribute('aria-pressed', S.cfg.scene === sc ? 'true' : 'false');
-        b.disabled = sc === 'poll' && !hasPoll;
+        b.disabled = (sc === 'poll' && !hasPoll) || (sc === 'slides' && !S.cfg.deck);
       });
+      $('tSp').setAttribute('aria-pressed', S.cfg.sp ? 'true' : 'false'); $('tSp').querySelector('b').textContent = S.cfg.sp ? 'on' : 'off';
       $('tQr').setAttribute('aria-pressed', S.cfg.qr ? 'true' : 'false'); $('tQr').querySelector('b').textContent = S.cfg.qr ? 'on' : 'off';
       $('tRx').setAttribute('aria-pressed', S.cfg.rx ? 'true' : 'false'); $('tRx').querySelector('b').textContent = S.cfg.rx ? 'on' : 'off';
       $('qon').hidden = !S.show; $('qonT').textContent = S.show ? 'Question: ' + S.show : '';

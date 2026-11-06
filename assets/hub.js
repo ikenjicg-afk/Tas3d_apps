@@ -9,22 +9,28 @@
   var AUTH = 'tas3d-host-' + C.room;
   function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
   function unhex(h) { var a = new Uint8Array(h.length / 2); for (var i = 0; i < a.length; i++) a[i] = parseInt(h.substr(i * 2, 2), 16); return a; }
+  function readAuth() { try { return JSON.parse(localStorage.getItem(AUTH) || 'null'); } catch (e) { return null; } }
   window.TasAuth = {
+    // logged in: the right password was typed on this device, and (since the presentations) the slides key came with it
     ok: function () {
-      try { var a = JSON.parse(localStorage.getItem(AUTH) || 'null'); return !!(a && a.h === C.host.hash && a.until > Date.now()); } catch (e) { return false; }
+      var a = readAuth();
+      return !!(a && a.h === C.host.hash && a.until > Date.now() && (!C.slides || /^[0-9a-f]{64}$/.test(a.k || '')));
     },
     check: function (pass) {
       if (!window.crypto || !crypto.subtle) return Promise.reject(new Error('This browser cannot check the password here.'));
       return crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveBits']).then(function (key) {
         return crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: unhex(C.host.salt), iterations: C.host.iterations }, key, 256);
       }).then(function (bits) {
-        var good = hex(bits) === C.host.hash;
-        if (good) TasAuth.keep();
-        return good;
+        if (hex(bits) !== C.host.hash) return false;
+        // the same password opens the slides key (deck.js)
+        return (C.slides && window.TasSlidesKey ? TasSlidesKey.fromHost(pass) : Promise.resolve('')).then(function (k) { TasAuth.keep(k); return true; });
       });
     },
     // the login is kept on this device for 90 days (and renewed every time a host page opens), so closing a tab does not log out
-    keep: function () { try { localStorage.setItem(AUTH, JSON.stringify({ h: C.host.hash, until: Date.now() + 90 * 24 * 3600 * 1000 })); } catch (e) {} },
+    keep: function (k) {
+      var a = readAuth(), keep = k || (a && a.h === C.host.hash ? a.k : '');
+      try { localStorage.setItem(AUTH, JSON.stringify({ h: C.host.hash, until: Date.now() + 90 * 24 * 3600 * 1000, k: keep || undefined })); } catch (e) {}
+    },
     logout: function () { try { localStorage.removeItem(AUTH); } catch (e) {} },
     // shows the password form (#login) until the right password is typed, then calls go()
     gate: function (go) {
@@ -32,6 +38,8 @@
       if (TasAuth.ok()) { TasAuth.keep(); form.hidden = true; return go(); }
       form.hidden = false;
       var input = form.querySelector('input'), err = form.querySelector('.err'), btn = form.querySelector('button');
+      var was = readAuth();                            // logged in before the presentations were added: one more time
+      if (was && was.h === C.host.hash && was.until > Date.now()) err.textContent = 'Please enter the password once more: it now opens the presentations too.';
       setTimeout(function () { try { input.focus(); } catch (e) {} }, 50);
       form.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -59,7 +67,7 @@
       now: null,                             // the current poll {k, id, q, o, open, at}
       votes: {},                             // phone id -> {o, t} for the current poll
       rx: {},                                // reactions since this page was opened
-      cfg: { scene: 'checkin', qr: true, rx: true, at: 0 },   // what the screen shows, set by the host
+      cfg: { scene: 'checkin', qr: true, rx: true, deck: '', sp: true, at: 0 },   // what the screen shows, set by the host
       total: 0, counts: {}, pollCounts: [], pollTotal: 0,
       screenSeen: 0,                         // when a screen page last said "I am on" (time of this device)
       screenBuild: ''                        // which version of the site that screen runs
@@ -122,7 +130,7 @@
         }
       }
     }
-    var SCENES = { blank: 1, logo: 1, qr: 1, checkin: 1, poll: 1 };
+    var SCENES = { blank: 1, logo: 1, qr: 1, checkin: 1, poll: 1, slides: 1 };
     // the same reaction can come through both servers (they pass messages to each other): count it once
     var seenRx = {}, seenRxList = [];
     function firstTime(id) {
@@ -136,7 +144,8 @@
       var d = json(x); if (!d) return;
       var at = +d.at || 0;
       if (at < S.cfg.at) return;                       // an older state from a broker that missed a change
-      S.cfg = { scene: SCENES[d.scene] ? d.scene : 'checkin', qr: d.qr !== false, rx: d.rx !== false, at: at };
+      S.cfg = { scene: SCENES[d.scene] ? d.scene : 'checkin', qr: d.qr !== false, rx: d.rx !== false,
+        deck: typeof d.deck === 'string' && /^[a-z0-9]{1,40}$/.test(d.deck) ? d.deck : '', sp: d.sp !== false, at: at };
       changed();
     }
     function onReact(x) {
@@ -260,9 +269,9 @@
       closePoll: function () { if (S.now && S.now.k === 'poll') setNow({ k: 'poll', id: S.now.id, q: S.now.q, o: S.now.o, open: false }); },
       reopenPoll: function () { if (S.now && S.now.k === 'poll') setNow({ k: 'poll', id: S.now.id, q: S.now.q, o: S.now.o, open: true }); },
       endPoll: function () { clearVotes(); setNow({ k: 'none' }); if (S.cfg.scene === 'poll') api.setCfg({ scene: 'checkin' }); },
-      // what the screen shows: {scene}, {qr}, {rx}
+      // what the screen shows: {scene}, {qr}, {rx}, {deck} (slides of which folder), {sp} (speakers may show their slides)
       setCfg: function (p) {
-        var n = { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx };
+        var n = { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx, deck: S.cfg.deck, sp: S.cfg.sp };
         for (var k in p) n[k] = p[k];
         n.at = Math.max(Date.now(), S.cfg.at + 1);
         pub(B + '/cfg', JSON.stringify(n), { qos: 1, retain: true });

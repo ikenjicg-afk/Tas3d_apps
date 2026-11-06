@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>window.TAS3D_BUILD = 'e59c10d000';</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Speakers — TAS3D 2026</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="../assets/favicon.svg?v=e35b67db" type="image/svg+xml">
+<link rel="preload" href="../assets/helvtas-400.woff?v=666d43d4" as="font" type="font/woff" crossorigin>
+<meta name="theme-color" content="#0e0e0e">
+<style>
+/* TAS3D 2026 — the speakers' page (speakers' password; the host password works too).
+   A speaker chooses their folder, puts it on the projector screen and changes the slides from a phone or a laptop
+   (← → keys on a laptop). The files themselves are on the screen computer; this page gets small encrypted previews (deck.js). */
+@font-face{font-family:"HelvTAS";src:url(../assets/helvtas-400.woff?v=666d43d4) format("woff");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"HelvTAS";src:url(../assets/helvtas-700.woff?v=be6674ce) format("woff");font-weight:700;font-style:normal;font-display:swap}
+:root{--bg:#0e0e0e;--fg:#f1f1ee;--mute:#8b8b87;--line:#1c1c1c;--rule:#333331;--card:#171716;--orange:#f0552a;--blue:#8ea0ff;--pad:max(16px,env(safe-area-inset-left,0px));--padr:max(16px,env(safe-area-inset-right,0px));color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;padding:18px var(--padr) calc(40px + env(safe-area-inset-bottom,0px)) var(--pad);background:var(--bg);color:var(--fg);font-family:"HelvTAS",Helvetica,Arial,sans-serif;font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased;overflow-x:clip}
+p,h1,h2{margin:0}
+h1,h2{font-weight:400}
+a{color:inherit}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.w{max-width:620px;margin:0 auto}
+.logo{display:block;width:96px;aspect-ratio:900/212;background:var(--fg);-webkit-mask:url(../assets/logo-tas3d.png?v=a118d385) center/contain no-repeat;mask:url(../assets/logo-tas3d.png?v=a118d385) center/contain no-repeat}
+.btn{min-height:44px;padding:0 16px;border:0;border-radius:0;background:#242423;color:var(--fg);font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.btn.o{background:var(--orange);color:#fff}
+.btn.sure{background:var(--orange);color:#fff}
+
+#login h1{margin-top:clamp(40px,10vh,100px);font-size:clamp(48px,14vw,84px);line-height:.9;letter-spacing:-.02em}
+#login p.sub{margin-top:12px;color:var(--mute)}
+#login input{display:block;width:100%;margin-top:28px;min-height:56px;padding:0 16px;background:var(--card);border:1px solid #2c2c2b;border-radius:0;font-size:20px}
+#login input:focus{outline:none;border-color:var(--orange)}
+#login button{margin-top:12px;width:100%;min-height:58px;font-size:17px}
+#login .err{margin-top:12px;min-height:22px;color:var(--orange);font-weight:700}
+#login .back{display:inline-block;margin-top:24px;color:var(--mute);font-size:14px}
+
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.live{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+.live i{width:9px;height:9px;border-radius:50%;background:var(--orange);animation:beat 2s ease-in-out infinite}
+.live.off{color:var(--mute)}.live.off i{background:var(--mute);animation:none}
+@keyframes beat{50%{opacity:.3}}
+.ttl{margin-top:22px;font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mute)}
+#deckui{margin-top:10px}
+.foot{margin-top:40px;font-size:13px;color:var(--mute)}
+.foot+.foot{margin-top:14px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<form class="w" id="login" hidden autocomplete="off">
+  <span class="logo" role="img" aria-label="TAS3D"></span>
+  <h1>Speakers</h1>
+  <p class="sub">TAS3D 2026 — show your presentation on the screen and change the slides from here. Enter the speakers' password.</p>
+  <input type="password" id="pass" placeholder="Speakers' password" aria-label="Speakers' password" autocomplete="current-password">
+  <button type="submit" class="btn o">Log in</button>
+  <p class="err" role="alert"></p>
+  <a class="back" href="../hi/">← Guest page</a>
+</form>
+
+<main class="w" id="app" hidden>
+  <div class="top">
+    <span class="logo" role="img" aria-label="TAS3D"></span>
+    <span class="live off" id="live"><i aria-hidden="true"></i><span id="liveT">…</span></span>
+  </div>
+  <p class="ttl">Speakers · TAS3D 2026</p>
+  <div id="deckui"></div>
+  <p class="foot">Your files are in your folder on the computer at the projector. To add or change a file, send it to the host.
+    PDF, pictures (JPG, PNG) and videos (MP4) are shown; save PowerPoint and Keynote as PDF.</p>
+  <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
+</main>
+<script src="../assets/config.js?v=c8ce86cd"></script>
+<script src="../assets/mqtt.js?v=97b7e5d6"></script>
+<script src="../assets/deck.js?v=b351041d"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function start() {
+    $('login').hidden = true; $('app').hidden = false;
+    TasSlidesKey.keepSpeakers();
+    var ui = TasDeckUI($('deckui'), { mode: 'speaker' });
+    function status() {
+      var n = ui.client.up();
+      $('live').classList.toggle('off', !n);
+      $('liveT').textContent = n ? 'Live' : 'No connection';
+    }
+    setInterval(status, 1000); status();
+    var t = null, b = $('logout');
+    b.addEventListener('click', function () {
+      if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = 'Log out for sure?'; t = setTimeout(function () { b.classList.remove('sure'); b.textContent = 'Log out'; }, 4000); return; }
+      clearTimeout(t); TasSlidesKey.logoutSpeakers(); location.href = '../hi/';
+    });
+    // a new version of the site: reload (everything comes back from the server)
+    TasUpdate(function (v) { TasUpdate.reload(v); });
+  }
+  if (TasSlidesKey.get()) return start();
+  var form = $('login'), input = $('pass'), err = form.querySelector('.err'), btn = form.querySelector('button');
+  form.hidden = false;
+  setTimeout(function () { try { input.focus(); } catch (e) {} }, 50);
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!input.value) return;
+    btn.disabled = true; err.textContent = '';
+    TasSlidesKey.speakers(input.value).then(function (good) {
+      btn.disabled = false;
+      if (good) { input.value = ''; start(); }
+      else { err.textContent = 'Wrong password.'; input.select(); }
+    }, function (x) { btn.disabled = false; err.textContent = x.message; });
+  });
+})();
+</script>
+</body>
+</html>

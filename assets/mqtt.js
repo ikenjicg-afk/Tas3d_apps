@@ -68,12 +68,17 @@
   TasMQ.prototype.subscribe = function (filter, qos) {    // qos 1: the broker queues messages for us instead of dropping them under load
     return this._send(pack(0x82, u16(this._next()).concat(str(filter), [qos ? 1 : 0])));
   };
+  TasMQ.prototype.unsubscribe = function (filter) {
+    return this._send(pack(0xA2, u16(this._next()).concat(str(filter))));
+  };
   TasMQ.prototype.publish = function (topic, text, opt) {
     var me = this, qos = opt && opt.qos ? 1 : 0, retain = opt && opt.retain ? 1 : 0;
-    var body = str(topic), id = 0;
-    if (qos) { id = this._next(); body = body.concat(u16(id)); }
-    body = body.concat(Array.prototype.slice.call(enc.encode(text || '')));
-    var bytes = pack(0x30 | (qos << 1) | retain, body);
+    var head = str(topic), id = 0;
+    if (qos) { id = this._next(); head = head.concat(u16(id)); }
+    // built as bytes, not as an array of numbers: previews of slides are tens of KB
+    var pl = enc.encode(text || ''), n = head.length + pl.length, ln = len(n);
+    var bytes = new Uint8Array(1 + ln.length + n);
+    bytes[0] = 0x30 | (qos << 1) | retain; bytes.set(ln, 1); bytes.set(head, 1 + ln.length); bytes.set(pl, 1 + ln.length + head.length);
     if (!qos) return Promise.resolve(this._send(bytes));
     return new Promise(function (ok, no) {
       // no confirmation in 8 s: the connection is not working — give up on it (the caller tries again / elsewhere)
