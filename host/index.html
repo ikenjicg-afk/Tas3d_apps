@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>window.TAS3D_BUILD = 'e94fccff66';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -205,9 +206,9 @@ h2.sec{margin-top:30px;font-size:22px}
     You stay logged in on this device for 90 days.</p>
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=941bcd70"></script>
+<script src="../assets/config.js?v=c69604c0"></script>
 <script src="../assets/mqtt.js?v=4a011e62"></script>
-<script src="../assets/hub.js?v=88516a3b"></script>
+<script src="../assets/hub.js?v=3cca277f"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -225,7 +226,7 @@ h2.sec{margin-top:30px;font-size:22px}
     document.querySelectorAll('.tabs button').forEach(function (b) {
       b.addEventListener('click', function () { tab = b.getAttribute('data-tab'); try { localStorage.setItem('tas3d-host-tab', tab); } catch (e) {} render(); });
     });
-    $('openScreen').addEventListener('click', function () { window.open('../screen/', 'tas3d-screen'); });
+    $('openScreen').addEventListener('click', function () { window.open('../screen/' + (window.TAS3D_BUILD ? '?v=' + window.TAS3D_BUILD : ''), 'tas3d-screen'); });
     var opened = Date.now();
     twoClick($('logout'), 'Log out', 'Log out for sure?', function () { TasAuth.logout(); location.href = '../hi/'; });
 
@@ -297,7 +298,8 @@ h2.sec{margin-top:30px;font-size:22px}
       // is the screen page running somewhere? (it says so every 8 s)
       var on = S.screenSeen && Date.now() - S.screenSeen < 20000, st = $('scrSt');
       st.classList.toggle('off', !on);
-      st.textContent = on ? 'Screen: on' : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off — press Screen ↗';
+      var old = on && window.TAS3D_BUILD && S.screenBuild && S.screenBuild !== window.TAS3D_BUILD;
+      st.textContent = old ? 'Screen: old version — refresh it' : on ? 'Screen: on' : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off — press Screen ↗';
       document.querySelectorAll('.seg button').forEach(function (b) {
         var sc = b.getAttribute('data-s');
         b.setAttribute('aria-pressed', S.cfg.scene === sc ? 'true' : 'false');
@@ -365,6 +367,8 @@ h2.sec{margin-top:30px;font-size:22px}
       $('onair').hidden = !S.show; $('onairT').textContent = S.show;
     }
     render();
+    // a new version of the site: reload (nothing is lost, everything comes back from the server) unless typing
+    TasUpdate(function (b) { var a = document.activeElement; if (!a || !/INPUT|TEXTAREA/.test(a.tagName)) TasUpdate.reload(b); });
   }
 })();
 </script>

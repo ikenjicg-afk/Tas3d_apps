@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>window.TAS3D_BUILD = 'e94fccff66';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAS3D 2026</title>
 <meta name="robots" content="noindex">
@@ -189,7 +190,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
   <button type="button" role="tab" id="tab-react" aria-controls="pane-react" aria-selected="true">Reactions</button>
   <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false">Questions<em id="qbadge" hidden></em></button>
 </nav>
-<script src="../assets/config.js?v=941bcd70"></script>
+<script src="../assets/config.js?v=c69604c0"></script>
 <script src="../assets/mqtt.js?v=4a011e62"></script>
 <script>
 (function () {
@@ -626,6 +627,13 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
 
   $('again').addEventListener('click', function () {
     st = fresh(); save(); pick = ''; net = ''; stats = null; justDone = false; tab = 'react'; show('ask');
+  });
+
+  // a new version of the site: reload when nothing is going on (the phone keeps its answers)
+  if (window.TasUpdate) TasUpdate(function (b) {
+    var a = document.activeElement;
+    if (busy || vbusy || qbusy || (st.role && !st.sent) || sheetOpen || (a && /INPUT|TEXTAREA/.test(a.tagName))) return;
+    TasUpdate.reload(b);
   });
 
   // ---- start

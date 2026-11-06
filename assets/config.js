@@ -54,3 +54,23 @@ window.TAS3D_CHECKIN = {
   } catch (e) {}
   c.base = c.topic + '/' + c.room;
 })(window.TAS3D_CHECKIN);
+// A new version of the site was published: fn(newBuild). TAS3D_BUILD is put into each page by tools/build_checkin.py.
+(function () {
+  window.TasUpdate = function (fn) {
+    var mine = window.TAS3D_BUILD;
+    if (!mine || location.protocol === 'file:') return;
+    function check() {
+      fetch(location.pathname + '?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (h) {
+        var m = /TAS3D_BUILD\s*=\s*'([a-z0-9]+)'/.exec(h);
+        if (m && m[1] !== mine) fn(m[1]);
+      }).catch(function () {});
+    }
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+    setInterval(check, 120000);
+    setTimeout(check, 20000);
+  };
+  // open the new version: a new address, so no cached copy of the old page is used
+  window.TasUpdate.reload = function (build) {
+    try { var u = new URL(location.href); u.searchParams.set('v', build); location.replace(u.toString()); } catch (e) { location.reload(); }
+  };
+})();

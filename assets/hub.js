@@ -61,7 +61,8 @@
       rx: {},                                // reactions since this page was opened
       cfg: { scene: 'checkin', qr: true, rx: true, at: 0 },   // what the screen shows, set by the host
       total: 0, counts: {}, pollCounts: [], pollTotal: 0,
-      screenSeen: 0                          // when a screen page last said "I am on" (time of this device)
+      screenSeen: 0,                         // when a screen page last said "I am on" (time of this device)
+      screenBuild: ''                        // which version of the site that screen runs
     };
     C.reactions.forEach(function (r) { S.rx[r[0]] = 0; });
     try { var sv = JSON.parse(localStorage.getItem(KEY) || 'null'); if (sv && sv.seen && typeof sv.round === 'string') S.db = sv; } catch (e) {}
@@ -84,8 +85,10 @@
         var c = new TasMQ(url, {
           onConnect: function () {
             L.wait = 2000; L.r = -1; subsFor(c); changed(); pushStats(); pushPR();
-            // a broker that missed the last Reset learns about it now
-            setTimeout(function () { if (c.ok && (L.r < S.db.at || L.r === -1)) pushRound(L); }, 2500);
+            // a broker that missed the last Reset learns about it now — only a round this page knows to be newer,
+            // and only after waiting long enough for the broker's own (slow network: never overwrite a newer one)
+            setTimeout(function () { if (c.ok && S.db.at > 0 && L.r !== -1 && L.r < S.db.at) pushRound(L); }, 3000);
+            setTimeout(function () { if (c.ok && S.db.at > 0 && L.r === -1) pushRound(L); }, 8000);
           },
           onMessage: function (t, x) { onMsg(t, x, L); },
           onClose: function () { changed(); setTimeout(open, L.wait); L.wait = Math.min(L.wait * 2, 30000); }
@@ -108,7 +111,7 @@
       if (t === B + '/show') { if (x !== S.show) { S.show = x; changed(); } return; }
       if (t === B + '/now') return onNow(x);
       if (t === B + '/cfg') return onCfg(x);
-      if (t === B + '/scr') { S.screenSeen = Date.now(); return changed(); }
+      if (t === B + '/scr') { S.screenSeen = Date.now(); S.screenBuild = String(x || ''); return changed(); }
       if (t === B + '/r') {
         var d = json(x); if (!d) return;
         var at = +d.at || 0, id = d.id != null ? String(d.id) : String(at);
@@ -280,7 +283,8 @@
     };
     setInterval(changed, 2000);                         // status and "2 min ago" stay right
     // the screen page says "I am on" every 8 s, so the host panel can show whether the screen is running
-    if (opt.screen) setInterval(function () { pub(B + '/scr', '1', {}); }, 8000);
+    if (opt.screen) { var beat = function () { pub(B + '/scr', window.TAS3D_BUILD || '1', {}); }; setInterval(beat, 8000); setTimeout(beat, 1500); }
     return api;
   };
+
 })();
