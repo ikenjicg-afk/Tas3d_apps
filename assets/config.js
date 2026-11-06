@@ -1,0 +1,55 @@
+// TAS3D 2026 — check-in by QR. Shared settings for hi/ (guests' phones) and live/ (the screen on stage). English only.
+// No server of our own: check-ins go through free public MQTT brokers (no account, no keys).
+// A phone sends its answer to every broker at once; the screen listens to all of them, so one broker being down is fine.
+// Each answer is kept on the broker ("retained"), so the screen gets everything back after a reload.
+// room: random part of the topic, so other people's tests on these public brokers do not mix with ours.
+// Topics: <base>/c/<phone id> = answer of one phone, <base>/s = total for phones, <base>/r = current round (changes on Reset),
+//   <base>/x = reactions (not kept; text "fire:2,clap:1"), <base>/q/<question id> = anonymous question (kept),
+//   <base>/show = the question shown over the slides (kept; plain text, empty = nothing shown),
+//   <base>/now = the current poll (kept; {k:'poll', id, q, o:[options], open, at} or {k:'none'}),
+//   <base>/v/<poll id>/<phone id> = one vote (kept; {o: option index, t, g: round}), <base>/pr = poll results for phones,
+//   <base>/cfg = what the host shows on the screen (kept; {scene: blank|qr|checkin|poll, qr: QR on/off, rx: reactions on/off, at}).
+window.TAS3D_CHECKIN = {
+  room: '24s57u4s6z',
+  topic: 'testtopic/tas3d2026',
+  // Checked from Tashkent on 06.11.2026: both EMQX addresses work. HiveMQ and Mosquitto did not open there, so they are not used.
+  brokers: [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker-cn.emqx.io:8084/mqtt'
+  ],
+  roles: [
+    ['vis', 'Visualiser'],
+    ['arch', 'Architect'],
+    ['dev', 'Developer'],
+    ['stud', 'Student'],
+    ['teach', 'Teacher'],
+    ['other', 'Other']
+  ],
+  // Host password: only its salted hash is here (PBKDF2-SHA256). It keeps guests out of the host panel; it is not strong security.
+  host: { salt: 'f8e2ab141cbb493600a15bdc94c1ac07', iterations: 150000, hash: 'c9529d95eea44f58496334901404e3fbf9d750e178011999ea5dcecf006c9d22' },
+  // ready-made polls in the host panel (the host can also write a new one)
+  polls: [
+    ['How many years have you been in 3D?', ['Less than 1', '1–3', '3–5', '5–10', '10+']],
+    ['Which renderer do you use most?', ['Corona', 'V-Ray', 'D5 Render', 'Unreal Engine', 'Twinmotion', 'Other']],
+    ['Where are you from?', ['Tashkent', 'Another city in Uzbekistan', 'Another country']],
+    ['Is this your first TAS3D?', ['Yes, first time', 'No, I was here in 2025']],
+    ['How was this talk?', ['Loved it', 'It was good', 'So-so']]
+  ],
+  // reactions on the guests' remote: [key, emoji, label]. The overlay programs know the same keys.
+  reactions: [
+    ['fire', '\uD83D\uDD25', 'Fire'],
+    ['clap', '\uD83D\uDC4F', 'Applause'],
+    ['wow', '\uD83D\uDE2E', 'Wow'],
+    ['love', '\u2764\uFE0F', 'Love'],
+    ['haha', '\uD83D\uDE02', 'Haha'],
+    ['like', '\uD83D\uDC4D', 'Like']
+  ]
+};
+// For tests: ?broker=ws://localhost:9001/mqtt (comma-separated) replaces the list above.
+(function (c) {
+  try {
+    var b = new URLSearchParams(location.search).get('broker');
+    if (b) c.brokers = b.split(',').filter(function (u) { return /^wss?:\/\//.test(u); });
+  } catch (e) {}
+  c.base = c.topic + '/' + c.room;
+})(window.TAS3D_CHECKIN);
