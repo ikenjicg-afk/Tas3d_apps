@@ -333,7 +333,7 @@ window.TAS3D_CHECKIN = {
   var attempt = 0, timer = null, busy = false;
   function choose(role) {
     if (st.role) return;                          // this phone has already chosen (or is sending)
-    st.role = role; st.sent = false; st.total = undefined; save();
+    st.role = role; st.sent = false; st.t = Date.now(); st.total = undefined; save();
     attempt = 0; render(); go();
   }
   function go() {
@@ -355,14 +355,25 @@ window.TAS3D_CHECKIN = {
     });
   }
   window.addEventListener('online', function () { attempt = Math.min(attempt, 1); go(); });
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) go(); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) return; go(); if (st.sent) peek(); });
 
+  // the screen was reset ("Сбросить"): an answer given before that no longer counts, the buttons come back
+  function onRound(text) {
+    var at = 0; try { at = +JSON.parse(text).at || 0; } catch (e) {}
+    if (!at || !st.role || (st.t || 0) >= at) return;
+    clearTimeout(timer); attempt = 0;
+    st = fresh(); save(); net.k = ''; show('ask');
+  }
+  function onMsg(t, text) {
+    if (t === C.base + '/s') onStats(text);
+    else if (t === C.base + '/r') onRound(text);
+  }
   function onStats(text) {
     try { var d = JSON.parse(text); if (typeof d.n === 'number') { st.total = d.n; save(); render(); } } catch (e) {}
   }
   function send(role) {
     var topic = C.base + '/c/' + st.id;
-    var msg = JSON.stringify({ r: role, l: lang, t: Date.now() });
+    var msg = JSON.stringify({ r: role, l: lang, t: st.t || Date.now() });
     return new Promise(function (ok, no) {
       var settled = false, left = C.brokers.length, all = [];
       if (!left) return no(new Error('no brokers'));
@@ -378,11 +389,11 @@ window.TAS3D_CHECKIN = {
         var c = new TasMQ(url, {
           onConnect: function () {
             c.publish(topic, msg, { qos: 1, retain: true }).then(function () {
-              if (!settled) c.subscribe(C.base + '/s');
+              if (!settled) { c.subscribe(C.base + '/s'); c.subscribe(C.base + '/r'); }
               end(true);
             }, function () {});
           },
-          onMessage: function (t, text) { if (t === C.base + '/s') onStats(text); },
+          onMessage: onMsg,
           onClose: function () { left--; if (left <= 0) end(false); }
         });
         all.push(c);
@@ -391,11 +402,14 @@ window.TAS3D_CHECKIN = {
     });
   }
   // the total from the screen, once (when the page is opened again later)
+  var peeking = false;
   function peek() {
+    if (peeking) return;
+    peeking = true; setTimeout(function () { peeking = false; }, 6000);
     C.brokers.slice(0, 2).forEach(function (url) {
       var c = new TasMQ(url, {
-        onConnect: function () { c.subscribe(C.base + '/s'); },
-        onMessage: function (t, text) { if (t === C.base + '/s') onStats(text); c.close(); }
+        onConnect: function () { c.subscribe(C.base + '/r'); c.subscribe(C.base + '/s'); },
+        onMessage: onMsg
       });
       c.connect();
       setTimeout(function () { c.close(); }, 5000);
