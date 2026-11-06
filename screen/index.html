@@ -11,7 +11,7 @@
 <style>/* TAS3D 2026 — the projector screen (password, same as the host panel).
    Shows check-in (QR + count by role), or the poll results while a poll is on; the question chosen by the host as a card;
    reactions from the guests fly up on the right. 1rem = 1% of the width of a 16:9 screen, so it scales like a slide.
-   What it shows is chosen in the host panel: Blank, QR code, Check-in or Poll; QR on/off; reactions on/off.
+   What it shows is chosen in the host panel: Blank, Logo, QR code, Check-in or Poll; QR on/off; reactions on/off.
    Key: F — full screen (a browser only goes full screen after a click or key on this computer). ?demo — rehearsal. */
 @font-face{font-family:"HelvTAS";src:url(../assets/helvtas-400.woff?v=666d43d4) format("woff");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"HelvTAS";src:url(../assets/helvtas-700.woff?v=be6674ce) format("woff");font-weight:700;font-style:normal;font-display:swap}
@@ -91,7 +91,7 @@ html.noqr .main.pollv .rows{margin-top:2.6rem}
 
 /* reactions and the question card on top of everything */
 .rx{position:fixed;bottom:-12vh;z-index:5;font-size:4.4rem;line-height:1;pointer-events:none;will-change:transform,opacity;animation:rise var(--d,3.6s) cubic-bezier(.25,.6,.35,1) forwards;filter:drop-shadow(0 .06em .12em rgba(0,0,0,.35))}
-@keyframes rise{0%{transform:translate(0,0) scale(.6);opacity:0}10%{opacity:1;transform:translate(calc(var(--s) * .3),-12vh) scale(1)}50%{transform:translate(calc(var(--s) * -1),-40vh) scale(1.05)}80%{opacity:.9}100%{transform:translate(var(--s),-66vh) scale(1.1);opacity:0}}
+@keyframes rise{0%{transform:translate(0,0) scale(.6);opacity:0}10%{opacity:1;transform:translate(calc(var(--s) * .3),calc(var(--h) * -.18)) scale(1)}50%{transform:translate(calc(var(--s) * -1),calc(var(--h) * -.6)) scale(1.05)}80%{opacity:.9}100%{transform:translate(var(--s),calc(var(--h) * -1)) scale(1.1);opacity:0}}
 .card{position:fixed;left:50%;top:50%;z-index:4;width:max-content;max-width:min(74vw,1500px);padding:3rem 3.6rem 3.4rem;background:#0e0e0e;border-left:.6rem solid var(--orange);box-shadow:0 2rem 6rem rgba(0,0,0,.6);transform:translate(-50%,-46%) scale(.97);opacity:0;visibility:hidden;transition:transform .5s cubic-bezier(.2,.8,.2,1),opacity .35s,visibility 0s .5s}
 .card.on{transform:translate(-50%,-50%);opacity:1;visibility:visible;transition:transform .5s cubic-bezier(.2,.8,.2,1),opacity .35s}
 .card .k{font-size:max(12px,1.2rem);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--orange)}
@@ -102,7 +102,12 @@ html.noqr .main.pollv .rows{margin-top:2.6rem}
 body.qon .stage,body.qon .bigqr{opacity:.12}
 
 /* scenes */
-html.blank .cols,html.blank .stage{display:none}
+html.sc-blank .cols,html.sc-blank .stage,html.sc-logo .cols,html.sc-logo .stage{display:none}
+.biglogo{position:fixed;inset:0;z-index:1;display:flex;align-items:center;justify-content:center}
+.biglogo i{display:block;width:min(56vw,96vh);aspect-ratio:1600/363;background:var(--fg);-webkit-mask:url(../assets/logo-tas3d-big.png?v=e9db4ae2) center/contain no-repeat;mask:url(../assets/logo-tas3d-big.png?v=e9db4ae2) center/contain no-repeat}
+body.qon .biglogo{opacity:.12}
+.rx .lgm{display:block;width:10rem;aspect-ratio:1600/363;background:#fff;-webkit-mask:url(../assets/logo-tas3d-big.png?v=e9db4ae2) center/contain no-repeat;mask:url(../assets/logo-tas3d-big.png?v=e9db4ae2) center/contain no-repeat}
+.biglogo{transition:opacity .45s}
 .bigqr{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.4rem}
 .bigqr img{display:block;width:min(66vh,40vw);height:auto;aspect-ratio:1;background:#fff}
 .bigqr h2{font-size:5.2rem;line-height:.95;letter-spacing:var(--tr-xl)}
@@ -174,6 +179,7 @@ html.blank .cols,html.blank .stage{display:none}
     <p class="pn" id="pN"></p>
   </section>
 </main>
+<section class="biglogo" id="biglogo" hidden><i role="img" aria-label="TAS3D"></i></section>
 <section class="bigqr" id="bigqr" hidden>
   <img src="../assets/qr.svg?v=e3099c7f" alt="QR code for the guests' page" width="33" height="33">
   <h2>Scan to join</h2>
@@ -183,9 +189,9 @@ html.blank .cols,html.blank .stage{display:none}
 <div class="ctl" role="group" aria-label="Screen controls" id="ctl" hidden>
   <button type="button" id="bFs">Full screen (F)</button>
 </div>
-<script src="../assets/config.js?v=f3d2ec4e"></script>
+<script src="../assets/config.js?v=941bcd70"></script>
 <script src="../assets/mqtt.js?v=4a011e62"></script>
-<script src="../assets/hub.js?v=10e01f41"></script>
+<script src="../assets/hub.js?v=88516a3b"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -247,26 +253,40 @@ html.blank .cols,html.blank .stage{display:none}
   }
 
   // ---- reactions: a steady stream, about 14 per second; the rest are dropped
-  var queue = [], alive = 0, rxOn = true;
+  // ~11 per second at most, at most 70 at once, queue of 30: even 200 people tapping do not fill the screen
+  var queue = [], alive = 0, rxOn = true, scene = 'checkin', qrOn = true;
   function onReact(text) {
     if (!rxOn) return;
     String(text).split(',').forEach(function (p) {
-      var m = /^([a-z]+):(\d+)$/.exec(p.trim());
-      if (!m || !EMO[m[1]]) return;
+      var m = /^([a-z][a-z0-9]*):(\d+)$/.exec(p.trim());
+      if (!m || !EMO.hasOwnProperty(m[1])) return;
       for (var i = 0; i < Math.min(+m[2], 5); i++) queue.push(m[1]);
     });
-    if (queue.length > 40) queue.splice(0, queue.length - 40);
+    if (queue.length > 30) queue.splice(0, queue.length - 30);
+  }
+  // where they take off: left, right and the middle at the bottom — but never over a QR code that people are scanning
+  function zone() {
+    var qrLeft = qrOn && (scene === 'checkin' || scene === 'poll'), qrMid = scene === 'qr';
+    var z = [];
+    if (!qrLeft) z.push([2, 22, 66]);                  // [from vw, to vw, how high vh]
+    z.push([78, 97, 66]);
+    if (!qrMid) z.push(qrLeft ? [42, 70, 42] : [30, 70, 42]);
+    if (qrMid) z.push([2, 22, 66]);
+    return z[Math.floor(Math.random() * z.length)];
   }
   setInterval(function () {
-    if (!queue.length || alive >= 90) return;
-    var e = document.createElement('span');
-    e.className = 'rx'; e.textContent = EMO[queue.shift()];
-    e.style.left = (74 + Math.random() * 21) + 'vw';
+    if (!queue.length || alive >= 70) return;
+    var z = zone(), e = document.createElement('span');
+    var k = queue.shift();
+    e.className = 'rx';
+    if (k === 'tas3d') e.innerHTML = '<i class="lgm" aria-hidden="true"></i>'; else e.textContent = EMO[k];
+    e.style.left = (z[0] + Math.random() * (z[1] - z[0])) + 'vw';
+    e.style.setProperty('--h', z[2] + 'vh');
     e.style.setProperty('--s', (Math.random() * 6 - 3).toFixed(2) + 'vw');
     e.style.setProperty('--d', (3.1 + Math.random() * 1.3).toFixed(2) + 's');
     alive++; document.body.appendChild(e);
     e.addEventListener('animationend', function () { e.remove(); alive--; });
-  }, 70);
+  }, 88);
 
   // ---- the question card
   var cur = null;
@@ -288,10 +308,12 @@ html.blank .cols,html.blank .stage{display:none}
 
   function render(S, up) {
     var p = S.now && S.now.k === 'poll' ? S.now : null, cfg = S.cfg || { scene: 'checkin', qr: true, rx: true };
-    var scene = cfg.scene === 'poll' && !p ? 'checkin' : cfg.scene;
-    document.documentElement.classList.toggle('blank', scene === 'blank');
+    scene = cfg.scene === 'poll' && !p ? 'checkin' : cfg.scene; qrOn = cfg.qr !== false;
+    document.documentElement.classList.toggle('sc-blank', scene === 'blank');     // not 'logo': .logo is the small logo
+    document.documentElement.classList.toggle('sc-logo', scene === 'logo');
+    $('biglogo').hidden = scene !== 'logo';
     document.documentElement.classList.toggle('noqr', !cfg.qr);
-    $('stage').hidden = scene === 'blank' || scene === 'qr';
+    $('stage').hidden = scene === 'blank' || scene === 'logo' || scene === 'qr';
     $('bigqr').hidden = scene !== 'qr';
     $('vCheck').hidden = scene !== 'checkin'; $('vPoll').hidden = scene !== 'poll';
     rxOn = cfg.rx !== false;
@@ -335,7 +357,7 @@ html.blank .cols,html.blank .stage{display:none}
   function go() {
     $('stage').hidden = false; $('ctl').hidden = false; wake(); keepAwake();
     if (DEMO) return demo();
-    var hub = TasHub(function (S) { render(S, hub.up()); }, { onReact: onReact });
+    var hub = TasHub(function (S) { render(S, hub.up()); }, { onReact: onReact, screen: true });
     render(hub.state, 0);
   }
   if (DEMO) go(); else TasAuth.gate(go);

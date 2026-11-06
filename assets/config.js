@@ -35,8 +35,9 @@ window.TAS3D_CHECKIN = {
     ['Is this your first TAS3D?', ['Yes, first time', 'No, I was here in 2025']],
     ['How was this talk?', ['Loved it', 'It was good', 'So-so']]
   ],
-  // reactions on the guests' remote: [key, emoji, label]. The overlay programs know the same keys.
+  // reactions on the guests' remote: [key, emoji, label]. 'tas3d' is the logo.
   reactions: [
+    ['tas3d', '', 'TAS3D'],                       // the TAS3D logo instead of an emoji
     ['fire', '\uD83D\uDD25', 'Fire'],
     ['clap', '\uD83D\uDC4F', 'Applause'],
     ['wow', '\uD83D\uDE2E', 'Wow'],

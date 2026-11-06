@@ -19,15 +19,17 @@
         return crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: unhex(C.host.salt), iterations: C.host.iterations }, key, 256);
       }).then(function (bits) {
         var good = hex(bits) === C.host.hash;
-        if (good) try { localStorage.setItem(AUTH, JSON.stringify({ h: C.host.hash, until: Date.now() + 24 * 3600 * 1000 })); } catch (e) {}
+        if (good) TasAuth.keep();
         return good;
       });
     },
+    // the login is kept on this device for 90 days (and renewed every time a host page opens), so closing a tab does not log out
+    keep: function () { try { localStorage.setItem(AUTH, JSON.stringify({ h: C.host.hash, until: Date.now() + 90 * 24 * 3600 * 1000 })); } catch (e) {} },
     logout: function () { try { localStorage.removeItem(AUTH); } catch (e) {} },
     // shows the password form (#login) until the right password is typed, then calls go()
     gate: function (go) {
       var form = document.getElementById('login');
-      if (TasAuth.ok()) { form.hidden = true; return go(); }
+      if (TasAuth.ok()) { TasAuth.keep(); form.hidden = true; return go(); }
       form.hidden = false;
       var input = form.querySelector('input'), err = form.querySelector('.err'), btn = form.querySelector('button');
       setTimeout(function () { try { input.focus(); } catch (e) {} }, 50);
@@ -58,7 +60,8 @@
       votes: {},                             // phone id -> {o, t} for the current poll
       rx: {},                                // reactions since this page was opened
       cfg: { scene: 'checkin', qr: true, rx: true, at: 0 },   // what the screen shows, set by the host
-      total: 0, counts: {}, pollCounts: [], pollTotal: 0
+      total: 0, counts: {}, pollCounts: [], pollTotal: 0,
+      screenSeen: 0                          // when a screen page last said "I am on" (time of this device)
     };
     C.reactions.forEach(function (r) { S.rx[r[0]] = 0; });
     try { var sv = JSON.parse(localStorage.getItem(KEY) || 'null'); if (sv && sv.seen && typeof sv.round === 'string') S.db = sv; } catch (e) {}
@@ -72,7 +75,7 @@
     var links = [];
     function subsFor(c) {
       c.subscribe(B + '/r', 1); c.subscribe(B + '/c/+', 1); c.subscribe(B + '/q/+', 1);
-      c.subscribe(B + '/show', 1); c.subscribe(B + '/now', 1); c.subscribe(B + '/cfg', 1); c.subscribe(B + '/x');
+      c.subscribe(B + '/show', 1); c.subscribe(B + '/now', 1); c.subscribe(B + '/cfg', 1); c.subscribe(B + '/x'); c.subscribe(B + '/scr');
       if (S.now && S.now.k === 'poll') c.subscribe(B + '/v/' + S.now.id + '/+', 1);
     }
     C.brokers.forEach(function (url) {
@@ -105,6 +108,7 @@
       if (t === B + '/show') { if (x !== S.show) { S.show = x; changed(); } return; }
       if (t === B + '/now') return onNow(x);
       if (t === B + '/cfg') return onCfg(x);
+      if (t === B + '/scr') { S.screenSeen = Date.now(); return changed(); }
       if (t === B + '/r') {
         var d = json(x); if (!d) return;
         var at = +d.at || 0, id = d.id != null ? String(d.id) : String(at);
@@ -115,7 +119,16 @@
         }
       }
     }
-    var SCENES = { blank: 1, qr: 1, checkin: 1, poll: 1 };
+    var SCENES = { blank: 1, logo: 1, qr: 1, checkin: 1, poll: 1 };
+    // the same reaction can come through both servers (they pass messages to each other): count it once
+    var seenRx = {}, seenRxList = [];
+    function firstTime(id) {
+      if (!id) return true;
+      if (seenRx[id]) return false;
+      seenRx[id] = 1; seenRxList.push(id);
+      if (seenRxList.length > 600) delete seenRx[seenRxList.shift()];
+      return true;
+    }
     function onCfg(x) {
       var d = json(x); if (!d) return;
       var at = +d.at || 0;
@@ -125,8 +138,10 @@
     }
     function onReact(x) {
       if (!S.cfg.rx) return;                           // reactions are switched off by the host
+      var m0 = /^#([a-z0-9]{6,60})(,|$)/.exec(x);       // "#<id>,fire:2,clap:1"
+      if (!firstTime(m0 && m0[1])) return;
       String(x).split(',').forEach(function (p) {
-        var m = /^([a-z]+):(\d+)$/.exec(p.trim());
+        var m = /^([a-z][a-z0-9]*):(\d+)$/.exec(p.trim());
         if (m && S.rx.hasOwnProperty(m[1])) S.rx[m[1]] += Math.min(+m[2], 5);
       });
       if (opt.onReact) opt.onReact(x);
@@ -264,6 +279,8 @@
       }
     };
     setInterval(changed, 2000);                         // status and "2 min ago" stay right
+    // the screen page says "I am on" every 8 s, so the host panel can show whether the screen is running
+    if (opt.screen) setInterval(function () { pub(B + '/scr', '1', {}); }, 8000);
     return api;
   };
 })();

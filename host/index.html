@@ -49,13 +49,9 @@ button,input,textarea{font:inherit;color:inherit}
 .live i{width:9px;height:9px;border-radius:50%;background:var(--orange);animation:beat 2s ease-in-out infinite}
 .live.off{color:var(--mute)}.live.off i{background:var(--mute);animation:none}
 @keyframes beat{50%{opacity:.3}}
-.rx{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
-.rx span{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:var(--card);border:1px solid #262625;font-size:15px;font-variant-numeric:tabular-nums}
-.rx span.bump{animation:bump .5s}
-@keyframes bump{30%{background:#2a1a14;border-color:var(--orange)}}
 /* what the screen shows */
 .scr{margin-top:18px;padding:14px;background:var(--card);border:1px solid #262625}
-.seg{margin-top:10px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.seg{margin-top:10px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .seg button,.tog button{min-height:46px;padding:0 8px;border:1px solid #2f2f2e;background:#121211;color:var(--mute);font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--orange);border-color:var(--orange);color:#fff}
 .seg button[disabled]{opacity:.35;cursor:default}
@@ -63,9 +59,12 @@ button,input,textarea{font:inherit;color:inherit}
 .tog button[aria-pressed="true"]{color:var(--fg);border-color:#4a4a48}
 .tog button[aria-pressed="true"] b{color:var(--orange)}
 .tog b{font-weight:700}
+.scrst{display:flex;justify-content:space-between;gap:10px}
+.scrst #scrSt{color:var(--orange)}
+.scrst #scrSt.off{color:var(--mute)}
 .qon{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--orange);background:#1a120f;font-size:15px}
 .qon span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media (max-width:380px){.seg{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.seg{grid-template-columns:repeat(3,1fr)}}
 .tabs{margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--rule)}
 .tabs button{min-height:52px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mute);cursor:pointer}
 .tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--orange)}
@@ -134,14 +133,13 @@ h2.sec{margin-top:30px;font-size:22px}
     <div class="r">
       <span class="live off" id="live"><i aria-hidden="true"></i><span id="liveT">…</span></span>
       <button type="button" class="btn o" id="openScreen">Screen ↗</button>
-      <button type="button" class="btn" id="logout">Log out</button>
     </div>
   </div>
-  <div class="rx" id="rx" aria-label="Reactions since this page was opened"></div>
   <div class="scr" aria-label="What the screen shows">
-    <p class="kick">On the screen</p>
+    <p class="kick scrst"><span>On the screen</span><span id="scrSt" class="off">Screen: checking…</span></p>
     <div class="seg" role="group" aria-label="Screen">
       <button type="button" data-s="blank" aria-pressed="false">Blank</button>
+      <button type="button" data-s="logo" aria-pressed="false">Logo</button>
       <button type="button" data-s="qr" aria-pressed="false">QR code</button>
       <button type="button" data-s="checkin" aria-pressed="true">Check-in</button>
       <button type="button" data-s="poll" aria-pressed="false">Poll</button>
@@ -203,11 +201,13 @@ h2.sec{margin-top:30px;font-size:22px}
     <p class="empty" id="qempty">No questions yet. They appear here as soon as guests send them.</p>
   </section>
 
-  <p class="foot">Host only — do not show this page on the projector; open the Screen for that.</p>
+  <p class="foot">Host only — do not show this page on the projector; open the Screen for that.
+    You stay logged in on this device for 90 days.</p>
+  <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=f3d2ec4e"></script>
+<script src="../assets/config.js?v=941bcd70"></script>
 <script src="../assets/mqtt.js?v=4a011e62"></script>
-<script src="../assets/hub.js?v=10e01f41"></script>
+<script src="../assets/hub.js?v=88516a3b"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -217,31 +217,18 @@ h2.sec{margin-top:30px;font-size:22px}
   function start() {
     $('panel').hidden = false;
     var tab = 'checkin';
-    try { tab = sessionStorage.getItem('tas3d-host-tab') || 'checkin'; } catch (e) {}
-    var hub = TasHub(render, { onReact: bumpRx });
+    try { tab = localStorage.getItem('tas3d-host-tab') || 'checkin'; } catch (e) {}
+    var hub = TasHub(render);
     var S = hub.state;
 
     // ---- tabs
     document.querySelectorAll('.tabs button').forEach(function (b) {
-      b.addEventListener('click', function () { tab = b.getAttribute('data-tab'); try { sessionStorage.setItem('tas3d-host-tab', tab); } catch (e) {} render(); });
+      b.addEventListener('click', function () { tab = b.getAttribute('data-tab'); try { localStorage.setItem('tas3d-host-tab', tab); } catch (e) {} render(); });
     });
     $('openScreen').addEventListener('click', function () { window.open('../screen/', 'tas3d-screen'); });
-    $('logout').addEventListener('click', function () { TasAuth.logout(); location.href = '../hi/'; });
+    var opened = Date.now();
+    twoClick($('logout'), 'Log out', 'Log out for sure?', function () { TasAuth.logout(); location.href = '../hi/'; });
 
-    // ---- reactions
-    var rxEl = {};
-    C.reactions.forEach(function (r) {
-      var s = document.createElement('span'); s.title = r[2];
-      s.innerHTML = '<b aria-hidden="true"></b><em style="font-style:normal">0</em>';
-      s.querySelector('b').textContent = r[1];
-      $('rx').appendChild(s); rxEl[r[0]] = s;
-    });
-    function bumpRx(text) {
-      String(text).split(',').forEach(function (p) {
-        var m = /^([a-z]+):/.exec(p.trim()); var s = m && rxEl[m[1]];
-        if (s) { s.classList.remove('bump'); void s.offsetWidth; s.classList.add('bump'); }
-      });
-    }
 
     // ---- check-in
     var roleRows = {};
@@ -306,8 +293,11 @@ h2.sec{margin-top:30px;font-size:22px}
       $('liveT').textContent = n ? 'Live' : 'No connection';
       document.querySelectorAll('.tabs button').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
       $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs';
-      C.reactions.forEach(function (r) { rxEl[r[0]].querySelector('em').textContent = S.rx[r[0]]; });
       var hasPoll = !!(S.now && S.now.k === 'poll');
+      // is the screen page running somewhere? (it says so every 8 s)
+      var on = S.screenSeen && Date.now() - S.screenSeen < 20000, st = $('scrSt');
+      st.classList.toggle('off', !on);
+      st.textContent = on ? 'Screen: on' : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off — press Screen ↗';
       document.querySelectorAll('.seg button').forEach(function (b) {
         var sc = b.getAttribute('data-s');
         b.setAttribute('aria-pressed', S.cfg.scene === sc ? 'true' : 'false');
