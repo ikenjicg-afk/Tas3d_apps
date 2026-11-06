@@ -18,8 +18,9 @@
     try { ws = new WebSocket(this.url, ['mqtt']); } catch (e) { setTimeout(function () { me._closed(); }, 0); return this; }
     this.ws = ws; ws.binaryType = 'arraybuffer';
     ws.onopen = function () {
-      // CONNECT: protocol "MQTT", level 4, clean session, keep-alive 30 s
-      ws.send(pack(0x10, str('MQTT').concat([4, 0x02], u16(30), str(me.id))));
+      // CONNECT: protocol "MQTT", level 4, clean session, keep-alive 120 s (a background tab pings only once a minute;
+      // a dead connection is still noticed in 40 s by the check below while the page is in front)
+      ws.send(pack(0x10, str('MQTT').concat([4, 0x02], u16(120), str(me.id))));
     };
     ws.onmessage = function (e) { me.rx = Date.now(); if (e.data instanceof ArrayBuffer) me._feed(new Uint8Array(e.data)); };
     ws.onerror = function () {};
@@ -28,7 +29,8 @@
   };
   TasMQ.prototype._closed = function () {
     if (this.dead) return;
-    this.dead = true; this.ok = false; clearInterval(this.ping);
+    this.dead = true; this.ok = false; clearInterval(this.ping); clearTimeout(this.chk);
+    if (this.vis) document.removeEventListener('visibilitychange', this.vis);
     for (var k in this.wait) { this.wait[k][1](new Error('closed')); }
     this.wait = {};
     if (this.o.onClose) this.o.onClose();
@@ -50,8 +52,13 @@
     if (type === 2) {                                   // CONNACK
       if (b[1] === 0) {
         this.ok = true;
-        // ping every 15 s; a connection that has not answered for 40 s is dead (phone lost the network): close it, it reconnects
-        this.ping = setInterval(function () { if (Date.now() - me.rx > 40000) return me.close(); me._send(new Uint8Array([0xC0, 0])); }, 15000);
+        // ping every 15 s; a connection that has not answered for 40 s is dead (phone lost the network): close it, it reconnects.
+        // In a background tab the browser slows timers down to once a minute, so there the limit is longer.
+        var beat = function () { if (Date.now() - me.rx > (document.hidden ? 170000 : 40000)) return me.close(); me._send(new Uint8Array([0xC0, 0])); };
+        this.ping = setInterval(beat, 15000);
+        // back in front (a phone unlocked, a window shown again): check the connection at once
+        this.vis = function () { if (!document.hidden && me.ok) { beat(); me.chk = setTimeout(function () { if (me.ok && Date.now() - me.rx > 6000) me.close(); }, 6000); } };
+        document.addEventListener('visibilitychange', this.vis);
         if (this.o.onConnect) this.o.onConnect();
       } else this.close();
     } else if (type === 3) {                            // PUBLISH from the broker

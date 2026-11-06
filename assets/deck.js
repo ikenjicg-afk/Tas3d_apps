@@ -119,7 +119,8 @@
   window.TasDeckClient = function (onChange, opt) {
     opt = opt || {};
     var box = TasBox(TasSlidesKey.get());
-    var S = { list: null, pv: {}, sa: null, saAt: 0, cfg: { scene: 'checkin', deck: '', live: '', at: -1 }, scrAt: 0, scrBuild: '' };
+    // screens: every open screen by its session (sn) — a second screen open somewhere (an old tab, a laptop at home) does not confuse the remote
+    var S = { list: null, pv: {}, sa: null, saAt: 0, screens: {}, cfg: { scene: 'checkin', deck: '', live: '', at: -1, w: '' }, scrAt: 0, scrBuild: '' };
     var chT = 0, fns = onChange ? [onChange] : [];
     function changed() { if (!chT) chT = setTimeout(function () { chT = 0; fns.forEach(function (f) { try { f(S); } catch (e) {} }); }, 30); }
     // the same message comes through both servers (and their bridge): decrypt it once
@@ -136,8 +137,9 @@
     function onMsg(t, x) {
       if (t === B + '/cfg') {
         var c = json(x); if (!c) return;
-        var at = +c.at || 0; if (at < S.cfg.at) return;
-        S.cfg = { scene: String(c.scene || 'checkin'), deck: typeof c.deck === 'string' ? c.deck : '', live: typeof c.live === 'string' ? c.live : '', at: at };
+        var at = +c.at || 0, w = String(c.w || '');
+        if (at < S.cfg.at || (at === S.cfg.at && w < S.cfg.w)) return;     // the same rule as the host panel and the screen (hub.js)
+        S.cfg = { scene: String(c.scene || 'checkin'), deck: typeof c.deck === 'string' ? c.deck : '', live: typeof c.live === 'string' ? c.live : '', at: at, w: w };
         return changed();
       }
       if (t === B + '/scr') { S.scrAt = Date.now(); S.scrBuild = String(x || ''); return changed(); }
@@ -147,22 +149,40 @@
       box.open(t, x).then(function (d) {
         if (!d || typeof d !== 'object') return;
         if (t === B + '/dk') { if (Array.isArray(d.decks) && newer(d, S.list)) { S.list = d; changed(); } }
-        else if (t === B + '/sa') { if (!S.sa || +d.t >= +S.sa.t) S.sa = d; S.saAt = Date.now(); changed(); }
+        else if (t === B + '/sa' && typeof d.sn === 'string') {
+          var now = Date.now(); S.screens[d.sn] = { at: now, d: d };
+          // the screen that matters: the most recent one with the folder open, else the most recent one
+          var best = null, bestAt = 0;
+          for (var k in S.screens) {
+            var x = S.screens[k]; if (now - x.at > 60000) { delete S.screens[k]; continue; }
+            var score = x.at + (x.d.f ? 30000 : 0);
+            if (score > bestAt) { bestAt = score; best = x; }
+          }
+          if (best) { S.sa = best.d; S.saAt = best.at; }
+          changed();
+        }
         else if (t.indexOf(B + '/pv/') === 0) { var id = t.slice(B.length + 4); if (newer(d, S.pv[id])) { S.pv[id] = d; changed(); } }
       });
     }
     function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+    // a command goes to every screen that has the folder open (one is usual; a second one, e.g. a monitor backstage, follows too)
+    var sent = {};
     function cmd(op, deck, extra) {
-      var n = rid(), sn = S.sa && Date.now() - S.saAt < 30000 ? S.sa.sn : S.list ? S.list.sn : '';
-      var body = { sn: sn, n: n, op: op, d: deck || '', from: opt.from || 'spk' };
-      for (var k in extra || {}) body[k] = extra[k];
-      box.seal(B + '/sk', body).then(function (x) { return links.pub(B + '/sk', x, { qos: 1 }); }).catch(function () {});
+      var n = rid(), now = Date.now(), sns = [];
+      for (var k in S.screens) if (now - S.screens[k].at < 30000 && S.screens[k].d.f) sns.push(k);
+      if (!sns.length && S.sa) sns.push(S.sa.sn);
+      var body = { sn: sns, n: n, op: op, d: deck || '', from: opt.from || 'spk' };
+      for (var e in extra || {}) body[e] = extra[e];
+      sent[n] = body; send(body);
       return n;
     }
+    function send(body) { return box.seal(B + '/sk', body).then(function (x) { return links.pub(B + '/sk', x, { qos: 1 }); }).catch(function () {}); }
+    // the same command again (the screen does it only once): when the screen has not confirmed it in time
+    function resend(n) { if (sent[n]) send(sent[n]); }
     function hello() { if (links.up()) cmd('hello'); }
     setInterval(changed, 3000);                        // "the screen is off" etc. stays right
     return {
-      state: S, cmd: cmd, up: function () { return links.up(); },
+      state: S, cmd: cmd, resend: resend, up: function () { return links.up(); },
       listen: function (f) { fns.push(f); changed(); },
       // the speakers' page listens to the previews of one folder only
       watch: function (id) {
@@ -172,7 +192,7 @@
         if (watching) links.sub(B + '/pv/' + watching);
       },
       screenOn: function () { return (S.saAt && Date.now() - S.saAt < 20000) || (S.scrAt && Date.now() - S.scrAt < 20000); },
-      live: function () { return !!(S.sa && S.sa.f && Date.now() - S.saAt < 20000); }
+      live: function () { var now = Date.now(); for (var k in S.screens) if (S.screens[k].d.f && now - S.screens[k].at < 20000) return true; return false; }
     };
   };
 
@@ -241,14 +261,6 @@
     if (!it) return '';
     return it.n + (it.k === 'pdf' && it.c > 1 ? ' · page ' + (it.p + 1) + ' of ' + it.c : it.k === 'vid' ? ' · video' : '');
   }
-  function twoTap(b, label, sure, fn) {                 // a second tap within 4 s confirms
-    var t = 0;
-    b.addEventListener('click', function () {
-      if (b.getAttribute('data-sure') !== '1' && sure) { b.setAttribute('data-sure', '1'); b.textContent = sure; t = setTimeout(function () { b.removeAttribute('data-sure'); b.textContent = label; }, 4000); return; }
-      clearTimeout(t); b.removeAttribute('data-sure'); fn();
-    });
-  }
-
   // TasDeckUI(root, {mode: 'host' | 'speaker', client, setLive(id)})
   //   host — every folder: Start (that speaker may now control the screen) / Stop, show, change slides;
   //   speaker — chooses their folder; looks through it any time; once the host has pressed Start, shows it and controls the screen.
@@ -267,7 +279,7 @@
     var wrap = add(root, 'div', 'dk');
     add(wrap, 'p', 'dk-st', 'st');
     var list = add(wrap, 'div', '', 'list');
-    add(list, 'p', 'dk-h', 'lh', host ? 'Speakers’ folders · Start gives a speaker the screen' : 'Choose your folder');
+    add(list, 'p', 'dk-h', 'lh', host ? 'Speakers’ folders · Start / Stop' : 'Choose your folder');
     add(list, 'div', 'dk-items', 'items');
     add(list, 'p', 'dk-empty', 'empty');
     var deck = add(wrap, 'div', '', 'deck');
@@ -308,6 +320,8 @@
       if (!open || !cl.live()) return;
       var d = find(open), p = S.pv[open], n = cl.cmd(op, open, extra);
       pend = { n: n, at: Date.now() };
+      setTimeout(function () { if (pend && pend.n === n) cl.resend(n); }, 2000);
+      setTimeout(function () { if (pend && pend.n === n) cl.resend(n); }, 3600);
       // show the next slide at once (its preview is already here); the screen confirms in a moment
       if (p && d) {
         if (op === 'next' && p.i + 1 < d.total) { pend.i = p.i + 1; pend.cur = p.nxt || ''; pend.it = p.nx; }
@@ -324,13 +338,7 @@
     play.addEventListener('click', function () { var p = S.pv[open]; command(p && p.v && p.v.play ? 'pause' : 'play'); });
     restart.addEventListener('click', function () { command('restart'); });
     show.addEventListener('click', function () { command(onScreen(open) ? 'hide' : 'show'); });
-    live.addEventListener('click', function () {
-      if (S.cfg.live === open) return setLive('');
-      if (S.cfg.live && find(S.cfg.live) && live.getAttribute('data-sure') !== '1') {   // someone else is presenting: tap again
-        live.setAttribute('data-sure', '1'); render(); setTimeout(function () { live.removeAttribute('data-sure'); render(); }, 4000); return;
-      }
-      live.removeAttribute('data-sure'); setLive(open);
-    });
+    live.addEventListener('click', function () { setLive(S.cfg.live === open ? '' : open); });
     document.addEventListener('keydown', function (e) {
       if (!open || deck.hidden || root.offsetParent === null || e.metaKey || e.ctrlKey || e.altKey) return;
       var a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
@@ -361,7 +369,7 @@
     }
     function renderList(lv) {
       var ds = decks(), box = R.items;
-      var sig = JSON.stringify([ds.map(function (d) { return [d.id, d.name, d.total, d.files.length]; }), S.cfg.scene === 'slides' ? S.cfg.deck : '', S.cfg.live, lv]);
+      var sig = JSON.stringify([ds.map(function (d) { return [d.id, d.name, d.total, d.files.length]; }), S.cfg.scene === 'slides' ? S.cfg.deck : '', S.cfg.live]);
       R.empty.textContent = !S.list ? 'Waiting for the list of folders from the screen…' : ds.length ? '' : 'The folder on the screen computer has no speakers’ folders yet.';
       if (box.getAttribute('data-s') !== sig) {
         box.setAttribute('data-s', sig); box.innerHTML = '';
@@ -379,9 +387,7 @@
           row.appendChild(b);
           if (host) {
             var isLive = S.cfg.live === d.id, sb = el('button', 'dk-b sm' + (isLive ? '' : ' o'), isLive ? 'Stop' : 'Start'); sb.type = 'button';
-            sb.disabled = !lv && !isLive;
-            if (isLive) sb.addEventListener('click', function () { setLive(''); });
-            else twoTap(sb, 'Start', S.cfg.live && find(S.cfg.live) ? 'Stop ' + find(S.cfg.live).name.split(' ')[0] + '?' : '', function () { setLive(d.id); });
+            sb.addEventListener('click', function () { setLive(isLive ? '' : d.id); });
             row.appendChild(sb);
           } else row.appendChild(el('span', 'dk-go', '›'));
           box.appendChild(row);
@@ -394,16 +400,16 @@
     }
     function renderDeck(d, lv) {
       var p = S.pv[open] || null, isOn = onScreen(open), isLive = S.cfg.live === open, ctl = mayControl(open);
-      if (pend && (Date.now() - pend.at > 5000 || (p && p.ack === pend.n))) pend = null;
+      if (pend && (Date.now() - pend.at > 6000 || (p && p.ack === pend.n))) pend = null;
       R.name.textContent = d ? d.name : 'Loading…';
       // ---- who controls what
       var onB, onT;
       if (host) {
         onB = isLive ? 'Presenting · the speaker controls the screen' : isOn ? 'On the screen now' : 'Not on the screen';
-        onT = isLive ? 'Press Stop when the talk is over; then the screen is yours again.' : 'Start lets this speaker show the slides and change them from their phone.';
+        onT = isLive ? 'Press Stop when the talk is over: the screen goes to the logo and is yours again.' : 'Start: the screen goes to the logo, and this speaker can show the slides and change them from their phone.';
       } else if (isLive) {
         onB = isOn ? 'Your slides are on the screen' : 'Your talk is on · you have the screen';
-        onT = isOn ? 'Change the slides with ← →. “Take off the screen” when you finish.' : 'Press “Show on the screen” when you are ready.';
+        onT = isOn ? 'Change the slides with ← →. When you finish: “Take off the screen” (the screen goes to the logo).' : 'Press “Show on the screen” when you are ready.';
       } else {
         onB = isOn ? 'On the screen · the host controls it' : 'Waiting for the host';
         onT = isOn ? 'The host is showing your slides.' : 'You can look through your slides here. When the host starts your talk, you can put them on the screen.';
@@ -412,10 +418,9 @@
       R.on.classList.toggle('hot', isLive || (host && isOn));
       // ---- host: Start / Stop
       if (host) {
-        var other = S.cfg.live && S.cfg.live !== open ? find(S.cfg.live) : null, sure = live.getAttribute('data-sure') === '1';
-        live.textContent = isLive ? 'Stop · take the screen back' : sure && other ? 'Tap again: stop ' + other.name + ' and start' : 'Start · give this speaker the screen';
+        var other = S.cfg.live && S.cfg.live !== open ? find(S.cfg.live) : null;
+        live.textContent = isLive ? 'Stop · the screen goes to the logo' : other ? 'Start · instead of ' + other.name : 'Start · give this speaker the screen';
         live.className = 'dk-b dk-live' + (isLive ? '' : ' o');
-        live.disabled = !lv && !isLive;
       }
       // ---- preview
       var total = d ? d.total : 0, i = pend && pend.i != null ? pend.i : p ? p.i : 0;

@@ -78,7 +78,7 @@
       if (!d || typeof d.n !== 'string' || d.n.length > 40 || seen.has(d.n)) return;   // the same command comes through both brokers
       seen.add(d.n); seenQ.push(d.n); if (seenQ.length > 3000) seen.delete(seenQ.shift());
       if (d.op === 'hello') { if (Date.now() - helloAt > 1000) { helloAt = Date.now(); pubSa(); } return; }
-      if (d.sn !== sn) return;
+      if (!(Array.isArray(d.sn) ? d.sn.indexOf(sn) >= 0 : d.sn === sn)) return;   // for this screen (and this session) only
       const dk = byId[d.d]; if (!dk) return;
       const i = pos[dk.id] || 0, on = isOn(dk);
       // the host controls everything; a speaker controls the screen only after the host's Start (cfg.live),
@@ -256,10 +256,11 @@
     }
     async function buildDeck(folder, files) {
       files.sort((a, b) => nat(a.path, b.path));
-      const d = { id: await shortId(folder || rootName), name: folder ? (folder.replace(/^\d+[\s._\-–—]*/, '') || folder) : rootName, files: [], items: [], total: 0 };
+      const nm = (folder || '').normalize('NFC');      // one form of letters (Mac gives decomposed ones, e.g. й)
+      const d = { id: await shortId(folder || rootName), name: nm ? (nm.replace(/^\d+[\s._\-–—]*/, '') || nm) : rootName.normalize('NFC'), files: [], items: [], total: 0 };
       for (const f of files) {
         const m = await inspect(f);
-        const e = { name: f.path, k: m.k, c: m.c, dur: m.dur, w: m.w, sig: f.sig, get: f.get, from: d.items.length };
+        const e = { name: f.path.normalize('NFC'), k: m.k, c: m.c, dur: m.dur, w: m.w, sig: f.sig, get: f.get, from: d.items.length };
         for (let p = 0; p < e.c; p++) d.items.push([d.files.length, p]);
         d.files.push(e);
       }

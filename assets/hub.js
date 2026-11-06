@@ -67,7 +67,7 @@
       now: null,                             // the current poll {k, id, q, o, open, at}
       votes: {},                             // phone id -> {o, t} for the current poll
       rx: {},                                // reactions since this page was opened
-      cfg: { scene: 'checkin', qr: true, rx: true, deck: '', live: '', at: 0 },   // what the screen shows, set by the host
+      cfg: { scene: 'checkin', qr: true, rx: true, deck: '', live: '', at: 0, w: '' },   // what the screen shows, set by the host
       total: 0, counts: {}, pollCounts: [], pollTotal: 0,
       screenSeen: 0,                         // when a screen page last said "I am on" (time of this device)
       screenBuild: ''                        // which version of the site that screen runs
@@ -141,12 +141,20 @@
       return true;
     }
     function idOk(x) { return typeof x === 'string' && /^[a-z0-9]{1,40}$/.test(x); }
+    // who wrote a setting: when two changes have the same time, the same one wins on every device
+    var WID = Math.random().toString(36).slice(2, 10), fixT = 0;
+    function cfgOut() { return { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx, deck: S.cfg.deck, live: S.cfg.live, at: S.cfg.at, w: S.cfg.w }; }
     function onCfg(x) {
       var d = json(x); if (!d) return;
-      var at = +d.at || 0;
-      if (at < S.cfg.at) return;                       // an older state from a broker that missed a change
+      var at = +d.at || 0, w = String(d.w || '');
+      if (at < S.cfg.at || (at === S.cfg.at && w < S.cfg.w)) {
+        // an older state: a server that missed a change, or two changes at the same moment (host and screen).
+        // Put the newest back on the servers, so every device (and every one that opens later) shows the same.
+        if (S.cfg.at > 0) { clearTimeout(fixT); fixT = setTimeout(function () { pub(B + '/cfg', JSON.stringify(cfgOut()), { qos: 1, retain: true }); }, 600 + Math.random() * 600); }
+        return;
+      }
       S.cfg = { scene: SCENES[d.scene] ? d.scene : 'checkin', qr: d.qr !== false, rx: d.rx !== false,
-        deck: idOk(d.deck) ? d.deck : '', live: idOk(d.live) ? d.live : '', at: at };
+        deck: idOk(d.deck) ? d.deck : '', live: idOk(d.live) ? d.live : '', at: at, w: w };
       changed();
     }
     function onReact(x) {
@@ -274,7 +282,7 @@
       setCfg: function (p) {
         var n = { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx, deck: S.cfg.deck, live: S.cfg.live };
         for (var k in p) n[k] = p[k];
-        n.at = Math.max(Date.now(), S.cfg.at + 1);
+        n.at = Math.max(Date.now(), S.cfg.at + 1); n.w = WID;
         pub(B + '/cfg', JSON.stringify(n), { qos: 1, retain: true });
         onCfg(JSON.stringify(n));
       },
