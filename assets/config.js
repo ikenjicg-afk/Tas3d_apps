@@ -37,8 +37,9 @@ window.TAS3D_CHECKIN = {
   // Slides key (made by tools/make_slide_keys.js; no password is written here): the speakers' password gives the key,
   // the host password opens it too ("wrap"). Previews and commands of the presentations are encrypted with it.
   // the opening game: the hall renders TAS3D 2026 out of noise together. Samples needed = checked-in guests × per (at least min);
+  // normal: 400 people tapping ≈ 1–1.5 minutes;
   // one phone counts at most cap taps a second
-  game: { per: { short: 80, normal: 150, long: 300 }, min: 500, cap: 12 },
+  game: { per: { short: 120, normal: 250, long: 400 }, min: 1000, cap: 12 },
   slides: {
     iterations: 150000,
     ssalt: '4564344c5f5c5d59c48e5cfb395f3c52',

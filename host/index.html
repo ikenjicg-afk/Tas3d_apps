@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '5614ea08e6';</script>
+<script>window.TAS3D_BUILD = '88604bfeac';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -78,6 +78,13 @@ button,input,textarea{font:inherit;color:inherit}
 .gcard .gbar{margin-top:14px;height:12px;background:#232322}
 .gcard .gbar b{display:block;height:100%;width:0;background:var(--orange);transition:width .3s}
 .gcard h2{font-variant-numeric:tabular-nums}
+.warn{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(0,0,0,.72)}
+.warn-in{width:min(560px,100%);padding:20px;background:#151514;border:2px solid var(--orange)}
+.warn-in .kick{color:var(--orange)}
+.warn-in h2{margin-top:8px;font-size:26px;line-height:1.15}
+.warn-in .b{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.warn-in .btn{min-height:54px}
+@media (min-width:700px){.warn{align-items:center}}
 .glen{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .glen button{min-height:46px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .glen button[aria-pressed="true"]{background:var(--fg);color:#0e0e0e;border-color:var(--fg)}
@@ -262,6 +269,7 @@ h2.sec{margin-top:30px;font-size:22px}
       <div class="rows" id="gRoles"></div>
       <div class="b">
         <button type="button" class="btn o" id="gNew">Show the game</button>
+        <button type="button" class="btn o" id="gBack" hidden>Back on the screen</button>
         <button type="button" class="btn o" id="gGo" hidden>Start rendering</button>
         <button type="button" class="btn" id="gFin" hidden>Finish now</button>
         <button type="button" class="btn" id="gOff" hidden>Close the game</button>
@@ -281,14 +289,23 @@ h2.sec{margin-top:30px;font-size:22px}
       <b style="color:var(--fg)">Finish now</b> if the hall gets tired. <b style="color:var(--fg)">Close the game</b> puts the logo back.</p>
   </section>
 
+  <div class="warn" id="warn" role="alertdialog" aria-modal="true" aria-labelledby="warnH" hidden>
+    <div class="warn-in">
+      <p class="kick" id="warnK">The game is on the screen</p>
+      <h2 id="warnH">Switch the screen anyway?</h2>
+      <p class="hint" id="warnT" style="margin-top:8px"></p>
+      <div class="b"><button type="button" class="btn" id="warnNo">Keep the game</button><button type="button" class="btn o" id="warnYes">Switch</button></div>
+    </div>
+  </div>
+
   <p class="foot">Host only — do not show this page on the projector: the computer at the projector opens the screen (TAS3D Screen.html or “Open the screen on this device”).
     You stay logged in on this device for 90 days.</p>
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=fc381e29"></script>
+<script src="../assets/config.js?v=13c03e36"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
 <script src="../assets/hub.js?v=e79636fd"></script>
-<script src="../assets/deck.js?v=ac441415"></script>
+<script src="../assets/deck.js?v=ffa6c881"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -335,7 +352,26 @@ h2.sec{margin-top:30px;font-size:22px}
       d.querySelector('span').textContent = r[1];
       $('roles').appendChild(d); roleRows[r[0]] = d;
     });
-    twoClick($('reset'), 'Reset', 'Reset for sure?', function () { hub.reset(); });
+    // ---- while the game is on the screen, anything that would replace it asks first (a tap by mistake does nothing)
+    var warnGo = null;
+    function gameOn() { return (S.game.st === 'ready' || S.game.st === 'run') && S.cfg.scene === 'game'; }
+    function guard(what, fn) {
+      if (!gameOn()) return fn();
+      warnGo = fn;
+      $('warnK').textContent = S.game.st === 'run' ? 'The hall is rendering right now' : 'The game is on the screen';
+      $('warnT').textContent = 'You pressed “' + what + '”. ' + (S.game.st === 'run'
+        ? 'The phones keep counting, but the hall will no longer see the render on the screen.'
+        : 'The game is waiting for Start; the screen will show something else instead.');
+      $('warn').hidden = false;
+      try { $('warnNo').focus(); } catch (e) {}
+    }
+    function warnClose() { $('warn').hidden = true; warnGo = null; }
+    $('warnNo').addEventListener('click', warnClose);
+    $('warn').addEventListener('click', function (e) { if (e.target === this) warnClose(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('warn').hidden) warnClose(); });
+    $('warnYes').addEventListener('click', function () { var f = warnGo; warnClose(); if (f) f(); });
+
+    twoClick($('reset'), 'Reset', 'Reset for sure?', function () { guard('Reset', function () { hub.reset(); }); });
 
     // ---- polls
     C.polls.forEach(function (p) {
@@ -343,7 +379,7 @@ h2.sec{margin-top:30px;font-size:22px}
       d.innerHTML = '<div><p></p><small></small></div>';
       d.querySelector('p').textContent = p[0]; d.querySelector('small').textContent = p[1].join(' · ');
       var b = document.createElement('button'); b.type = 'button'; b.className = 'btn o'; b.textContent = 'Start';
-      b.addEventListener('click', function () { hub.startPoll(p[0], p[1].slice()); window.scrollTo(0, 0); });
+      b.addEventListener('click', function () { guard('Start poll', function () { hub.startPoll(p[0], p[1].slice()); window.scrollTo(0, 0); }); });
       d.appendChild(b); $('presets').appendChild(d);
     });
     function newOpts() { return $('nO').value.split('\n').map(function (x) { return x.trim().slice(0, 60); }).filter(Boolean); }
@@ -356,14 +392,18 @@ h2.sec{margin-top:30px;font-size:22px}
     $('nStart').addEventListener('click', function () {
       var o = newOpts(), q = $('nQ').value.trim();
       if (!q || o.length < 2 || o.length > 6) return;
-      hub.startPoll(q.slice(0, 140), o); $('nQ').value = ''; $('nO').value = ''; checkNew(); window.scrollTo(0, 0);
+      guard('Start poll', function () { hub.startPoll(q.slice(0, 140), o); $('nQ').value = ''; $('nO').value = ''; checkNew(); window.scrollTo(0, 0); });
     });
     $('aClose').addEventListener('click', function () { if (S.now && S.now.open) hub.closePoll(); else hub.reopenPoll(); });
     twoClick($('aEnd'), 'End poll', 'End for sure?', function () { hub.endPoll(); });
 
     // ---- what the screen shows
     document.querySelectorAll('.seg button').forEach(function (b) {
-      b.addEventListener('click', function () { hub.setCfg({ scene: b.getAttribute('data-s') }); });
+      b.addEventListener('click', function () {
+        var sc = b.getAttribute('data-s');
+        if (sc === S.cfg.scene) return;
+        guard(b.textContent, function () { hub.setCfg({ scene: sc }); });
+      });
     });
     $('tQr').addEventListener('click', function () { hub.setCfg({ qr: !S.cfg.qr }); });
     $('tRx').addEventListener('click', function () { hub.setCfg({ rx: !S.cfg.rx }); });
@@ -378,14 +418,15 @@ h2.sec{margin-top:30px;font-size:22px}
     });
     $('gNew').addEventListener('click', function () { hub.newGame(C.game.per[gLen]); });
     $('gGo').addEventListener('click', function () { hub.startGame(); });
+    $('gBack').addEventListener('click', function () { hub.setCfg({ scene: 'game' }); });
     twoClick($('gFin'), 'Finish now', 'Finish for sure?', function () { hub.finishGame(); });
-    $('gOff').addEventListener('click', function () { hub.closeGame(); });
+    $('gOff').addEventListener('click', function () { guard('Close the game', function () { hub.closeGame(); }); });
 
     // ---- slides: the remote for every speaker's folder (made when the tab is first opened)
     var deckUI = null;
     // Start / Stop: one change (who presents + the logo on the screen), so every device sees both at once
-    function setLive(id) { hub.setCfg({ live: id, scene: 'logo' }); }
-    function slidesUI() { if (!deckUI && dc) deckUI = TasDeckUI($('deckui'), { mode: 'host', client: dc, setLive: setLive }); }
+    function setLive(id) { guard(id ? 'Start (slides)' : 'Stop (slides)', function () { hub.setCfg({ live: id, scene: 'logo' }); }); }
+    function slidesUI() { if (!deckUI && dc) deckUI = TasDeckUI($('deckui'), { mode: 'host', client: dc, setLive: setLive, guard: guard }); }
     $('lvbStop').addEventListener('click', function () { setLive(''); });
     var spkUrl = new URL('../speakers/', location.href).href;
     $('spkUrl').textContent = spkUrl.replace(/^https?:\/\//, '');
@@ -493,9 +534,10 @@ h2.sec{margin-top:30px;font-size:22px}
       });
       $('gNew').hidden = gon && g.st !== 'done'; $('gNew').textContent = g.st === 'done' ? 'Play again' : 'Show the game';
       $('gGo').hidden = g.st !== 'ready'; $('gFin').hidden = g.st !== 'run'; $('gOff').hidden = !gon;
+      $('gBack').hidden = !gon || S.cfg.scene === 'game';
       $('tG').hidden = !gon; $('tG').textContent = g.st === 'run' ? Math.floor(gp * 100) + '%' : g.st === 'done' ? '✓' : 'On'; $('tG').classList.toggle('hot', g.st === 'run');
       $('gLen').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-k') === gLen ? 'true' : 'false'); });
-      $('gLenH').textContent = C.game.per[gLen] + ' taps per checked-in guest (at least ' + C.game.min + ' in all). ' + (gLen === 'short' ? 'About 20–30 seconds in a full hall.' : gLen === 'normal' ? 'About 30–60 seconds in a full hall.' : 'About 1–2 minutes in a full hall.');
+      $('gLenH').textContent = C.game.per[gLen] + ' taps per checked-in guest (at least ' + C.game.min + ' in all). ' + (gLen === 'short' ? 'About 40–60 seconds for 400 people.' : gLen === 'normal' ? 'About 1–1.5 minutes for 400 people.' : 'About 2 minutes for 400 people.');
 
       // earlier polls of this round
       var past = hub.pastPolls(), psig = JSON.stringify(past.map(function (x) { return [x.id, x.n, x.total]; }));
@@ -520,7 +562,7 @@ h2.sec{margin-top:30px;font-size:22px}
           var nn = document.createElement('p'); nn.className = 'hint'; nn.style.marginTop = '8px'; nn.textContent = x.total + (x.total === 1 ? ' vote' : ' votes'); box.appendChild(nn);
           var bb = document.createElement('div'); bb.className = 'b';
           var sh = document.createElement('button'); sh.type = 'button'; sh.className = 'btn'; sh.textContent = 'Show results';
-          sh.addEventListener('click', function () { hub.showPoll(x.id); });
+          sh.addEventListener('click', function () { guard('Show results', function () { hub.showPoll(x.id); }); });
           bb.appendChild(sh); box.appendChild(bb);
           $('pastList').appendChild(box);
         });
@@ -541,7 +583,7 @@ h2.sec{margin-top:30px;font-size:22px}
           var b = document.createElement('div'); b.className = 'b';
           var sh = document.createElement('button'); sh.type = 'button';
           if (on) { sh.className = 'btn'; sh.textContent = 'Hide from screen'; sh.onclick = function () { hub.showQuestion(''); }; }
-          else { sh.className = 'btn o'; sh.textContent = 'Show on screen'; sh.onclick = function () { hub.showQuestion(q.q); }; }
+          else { sh.className = 'btn o'; sh.textContent = 'Show on screen'; sh.onclick = function () { guard('Show the question', function () { hub.showQuestion(q.q); }); }; }
           var dn = document.createElement('button'); dn.type = 'button'; dn.className = 'btn'; dn.textContent = 'Done';
           dn.onclick = function () { hub.doneQuestion(q.id); };
           b.appendChild(sh); b.appendChild(dn);

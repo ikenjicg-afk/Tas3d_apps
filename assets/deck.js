@@ -337,7 +337,10 @@
     next.addEventListener('click', function () { command('next'); });
     play.addEventListener('click', function () { var p = S.pv[open]; command(p && p.v && p.v.play ? 'pause' : 'play'); });
     restart.addEventListener('click', function () { command('restart'); });
-    show.addEventListener('click', function () { command(onScreen(open) ? 'hide' : 'show'); });
+    show.addEventListener('click', function () {
+      var op = onScreen(open) ? 'hide' : 'show';
+      if (op === 'show' && opt.guard) opt.guard('Show on the screen', function () { command('show'); }); else command(op);
+    });
     live.addEventListener('click', function () { setLive(S.cfg.live === open ? '' : open); });
     document.addEventListener('keydown', function (e) {
       if (!open || deck.hidden || root.offsetParent === null || e.metaKey || e.ctrlKey || e.altKey) return;

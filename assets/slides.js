@@ -85,6 +85,7 @@
       // and before that may only look through their own slides while they are not on the screen
       const boss = d.from === 'host' || cfg.live === dk.id;
       if (!boss && (on || /^(show|hide|play|pause|restart)$/.test(d.op))) return;
+      if (d.from !== 'host' && /^(show|hide)$/.test(d.op) && opt.locked && opt.locked()) return;   // the opening game is on the screen
       switch (d.op) {
         case 'next': setPos(dk, i + 1); break;
         case 'prev': setPos(dk, i - 1); break;
