@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '530539b341';</script>
+<script>window.TAS3D_BUILD = '9e4e2f7335';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -335,7 +335,7 @@ h2.sec{margin-top:30px;font-size:22px}
     <p class="kick" style="margin-top:18px">Music volume</p>
     <div class="vol"><input type="range" id="vB" min="0" max="100" step="1" value="50" aria-label="Music volume"><b id="vBv">50%</b></div>
     <ol class="mlist" id="mList"></ol>
-    <p class="foot">The folder “Sound” on the screen computer (Settings, bottom right, drag it there): its first 6 tracks by name are Track 1–6
+    <p class="foot">The folder “Sound” — inside “TAS3D 2026 Presentations” (picked up by itself), or dragged into Settings on the screen computer: its first 6 tracks by name are Track 1–6
       (e.g. “1 Fanfare.mp3”, “2 Walk-on.mp3” …); the music goes into a folder “Music” inside it. MP3, M4A, WAV. New files appear by themselves.
       The hall mixer stays the main volume; these sliders are for quick changes from here.</p>
   </section>
@@ -512,12 +512,14 @@ h2.sec{margin-top:30px;font-size:22px}
     });
     function mmss(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
     function renderSound() {
-      var au = dc && dc.state.au, fresh = au && Date.now() - dc.state.auAt < 30000, ok = !!(fresh && au.f);
+      // the sound state is current while the screen that sent it is on (it is sent on changes and every 15 s)
+      var au = dc && dc.state.au, scr = au && dc.state.screens[au.sn];
+      var fresh = !!(au && ((scr && Date.now() - scr.at < 30000) || Date.now() - dc.state.auAt < 30000)), ok = !!(fresh && au.f);
       var on = dc && dc.screenOn();
       $('sndSt').textContent = !dc ? 'Log in again to use the sound.' : !on ? 'The screen is off. Sound plays on the computer at the projector.'
-        : !au || !fresh ? 'The screen does not report the sound yet — refresh the screen if this stays.'
+        : !au || !fresh ? 'Waiting for the screen… If this stays, refresh the screen on the computer at the projector (it may run an older version).'
         : au.need === 'reconnect' ? 'On the screen computer: Settings (bottom right) → “Allow access” for the folder “' + au.folder + '”.'
-        : !au.f ? 'On the screen computer: Settings (bottom right) → drag the folder “Sound” there.'
+        : !au.f ? 'No sound folder yet. Put the folder “Sound” into “TAS3D 2026 Presentations” (it is picked up by itself), or drag it into Settings (bottom right) on the screen computer.'
         : 'Sound folder: ' + au.folder + (au.blk ? ' · the browser there blocks sound until someone clicks once on the screen computer.' : '');
       $('sndSt').classList.toggle('bad', !ok || !!(au && au.blk));
       var slots = ok ? au.slots : [];

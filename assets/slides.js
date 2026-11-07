@@ -291,6 +291,17 @@
       try {
         const top = await readTree();
         top.dirs.sort((a, b) => nat(a.name, b.name));
+        // a folder "Sound" (and "Music") here is the sound, not a speaker: it is used for the Sound tab by itself
+        const sdir = top.dirs.find((x) => SNDNAME.test(x.name)), mdir = top.dirs.find((x) => /^(music|музыка)/i.test(x.name));
+        top.dirs = top.dirs.filter((x) => x !== sdir && x !== mdir);
+        if ((sdir || mdir) && (!sroot || sroot.kind === 'auto')) {
+          const files = [];
+          if (sdir) sdir.files.forEach((f) => files.push({ path: f.path, sig: f.sig, get: f.get }));
+          if (mdir) mdir.files.forEach((f) => files.push({ path: 'Music/' + f.path, sig: f.sig, get: f.get }));
+          const was = sroot && sroot.kind === 'auto' ? sroot.sig : '', sig = JSON.stringify(files.map((f) => f.sig));
+          sroot = { kind: 'auto', files, sig }; sname = (sdir || mdir).name + ' (in ' + top.name + ')'; sneed = ''; serr = '';
+          if (sig !== was) soundScan();
+        } else if (!sdir && !mdir && sroot && sroot.kind === 'auto') { sroot = null; sneed = 'connect'; sname = ''; slots = []; bgList = []; sSig = ''; pubAu(); }
         const sig = JSON.stringify([top.name, top.dirs.map((x) => [x.name, x.files.map((f) => f.sig)]), top.files.map((f) => f.sig)]);
         if (sig !== sigAll) {
           const list = [];
@@ -364,7 +375,14 @@
     })();
     async function soundRead() {                      // → {slots: [...], bg: [...]}
       const top = [], bg = [];
-      if (sroot.kind === 'handle') {
+      if (sroot.kind === 'auto') {                     // from the presentations folder: Sound/… and Sound/Music/… (or Music/… next to it)
+        for (const f of sroot.files) {
+          const parts = f.path.split('/'), nm = parts[parts.length - 1];
+          if (!AUD.test(nm) || parts.some((q) => SKIP.test(q))) continue;
+          const it = { name: nm, sig: f.sig, get: f.get };
+          if (parts.length === 1) top.push(it); else if (parts.length === 2 && BGNAME.test(parts[0])) bg.push(it);
+        }
+      } else if (sroot.kind === 'handle') {
         for await (const e of sroot.h.values()) {
           if (SKIP.test(e.name)) continue;
           if (e.kind === 'file' && AUD.test(e.name)) { const f = await e.getFile(); top.push({ name: e.name, sig: e.name + '|' + f.size + '|' + f.lastModified, get: () => e.getFile() }); }
@@ -480,6 +498,7 @@
       }, true), 80);
     }
     setInterval(() => { if (cur || bgOn) pubAu(); }, 5000);
+    setInterval(pubAu, 15000); setTimeout(pubAu, 2000);
 
     // ---------- PDF (pdf.js, loaded only when there is a PDF)
     let libP = null;
