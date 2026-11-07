@@ -254,7 +254,7 @@
       recountPoll();
     }
     // ---- the opening game
-    var G = { id: '', ph: {}, t0: 0, ms: 0 }, GK = KEY + '-game', gsT = null, gsLast = '', gfixT = 0;
+    var G = { id: '', ph: {}, t0: 0, ms: 0 }, GK = KEY + '-game', gsT = null, gsLast = '', gsAt = 0, gfixT = 0;
     if (opt.screen) { try { var kg = JSON.parse(localStorage.getItem(GK) || 'null'); if (kg && kg.id) G = kg; } catch (e) {} }
     function onGame(x) {
       var d = json(x); if (!d) return;
@@ -277,6 +277,7 @@
       if (g.st === 'run' && !G.t0) G.t0 = Date.now() + 3000;      // the phones count down 3, 2, 1 first
       if (g.st === 'done' && !G.ms && G.t0) G.ms = Math.max(0, Date.now() - G.t0);
       gameScore();
+      if (g.st !== (was.st || '') || g.id !== was.id) { gsLast = ''; pushGS(); }   // start / done: the phones hear it at once
     }
     function onTap(gid, dev, x) {
       if (!opt.screen || gid !== G.id || S.game.st === 'off' || !/^[a-z0-9]{12,40}$/.test(dev || '')) return;
@@ -293,18 +294,21 @@
       for (var d in G.ph) { var p = G.ph[d]; roles[p.r] = (roles[p.r] || 0) + p.n; players[p.r] = (players[p.r] || 0) + 1; total += p.n; np++; }
       S.gs = { id: G.id, total: total, target: S.game.target, roles: roles, players: players, np: np, ms: G.ms, st: S.game.st, t: Date.now() };
       if (S.game.st === 'run' && S.game.target && total >= S.game.target) api.setGame({ st: 'done' });   // rendered!
-      if (!gsT) gsT = setTimeout(pushGS, 250);
+      schedGS();
       changed();
     }
+    // the score goes out at most every 2 s: every phone in the hall receives it, so each extra send is N messages.
+    // pushGS always takes the pending timer down with it, so direct calls cannot pile up extra timer chains.
+    function schedGS() { if (!gsT) gsT = setTimeout(pushGS, Math.max(250, gsAt + 2000 - Date.now())); }
     function pushGS() {
-      gsT = null;
+      clearTimeout(gsT); gsT = null; gsAt = Date.now();
       if (!opt.screen || !G.id || !S.gs) return;
       try { localStorage.setItem(GK, JSON.stringify(G)); } catch (e) {}
       var o = { id: G.id, total: S.gs.total, target: S.game.target, roles: S.gs.roles, players: S.gs.players, np: S.gs.np, ms: G.ms, st: S.game.st };
       var txt = JSON.stringify(o); if (txt === gsLast) return; gsLast = txt;
       pub(B + '/gs', txt, { retain: true });
     }
-    if (opt.screen) setInterval(function () { if (G.id && S.game.st === 'run') { gsLast = ''; pushGS(); } }, 3000);
+    if (opt.screen) setInterval(function () { if (G.id && S.game.st === 'run' && Date.now() - gsAt > 2500) { gsLast = ''; pushGS(); } }, 3000);
 
     // the polls of this round with their results (kept on the servers too, so a new device sees them)
     function onPH(x) {
@@ -337,7 +341,7 @@
       for (var id in S.db.seen) { var r = S.db.seen[id].r; c[r] = (c[r] || 0) + 1; total++; }
       S.counts = c; S.total = total;
       store();
-      if (!statT) statT = setTimeout(pushStats, 1000);
+      if (!statT) statT = setTimeout(pushStats, 2000);
       changed();
     }
     function recountPoll() {
@@ -348,15 +352,19 @@
       }
       S.pollCounts = n; S.pollTotal = total;
       if (S.now && S.now.k === 'poll' && S.ph[S.now.id] && (total || !S.ph[S.now.id].total)) { S.ph[S.now.id].n = n; S.ph[S.now.id].total = total; }
-      if (!prT) prT = setTimeout(pushPR, 800);
+      if (!prT) prT = setTimeout(pushPR, 1500);
       if (!phT) phT = setTimeout(pushPH, 1500);
       store(); changed();
     }
-    function pushStats() { statT = null; pub(B + '/s', JSON.stringify({ n: S.total, g: S.db.round, t: Date.now() }), { retain: true }); }
+    // the total and the poll results also go to every phone, so only one device sends them:
+    // the screen while it is on (its heartbeat is fresh), otherwise the host panel.
+    function otherSends() { return !opt.screen && S.screenSeen && Date.now() - S.screenSeen < 20000; }
+    function pushStats() { statT = null; if (otherSends()) return; pub(B + '/s', JSON.stringify({ n: S.total, g: S.db.round, t: Date.now() }), { retain: true }); }
     function phText() { return JSON.stringify({ g: S.db.round, polls: Object.keys(S.ph).map(function (k) { var p = S.ph[k]; return { id: p.id, q: p.q, o: p.o, n: p.n, total: p.total, at: p.at }; }) }); }
     function pushPH() { phT = null; if (Object.keys(S.ph).length) pub(B + '/ph', phText(), { qos: 1, retain: true }); }
     function pushPR() {
       prT = null;
+      if (otherSends()) return;
       if (!S.now || S.now.k !== 'poll') return;
       pub(B + '/pr', JSON.stringify({ id: S.now.id, n: S.pollCounts, total: S.pollTotal, t: Date.now() }), { retain: true });
     }
