@@ -58,9 +58,13 @@
     const seal = (t, o) => box.seal(t, o);
     async function pub(t, o, retain) { try { await links.pub(t, await seal(t, o), { qos: 1, retain: !!retain }); } catch (e) {} }
     function pubSa() {
-      pub(B + '/sa', { sn, seq: ++seq, t: Date.now(), f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1 });
+      pub(B + '/sa', { sn, seq: ++seq, t: Date.now(), f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot && !sneed ? 1 : 0 });
     }
     setInterval(pubSa, 8000); setTimeout(pubSa, 1500);
+    // closing or reloading this page: "bye" (sealed in advance, so it goes out at once) — the remotes forget this screen
+    let byeText = '';
+    box.seal(B + '/sa', { sn, bye: 1, t: Date.now() }).then((x) => { byeText = x; });
+    window.addEventListener('pagehide', () => { if (byeText) try { links.pub(B + '/sa', byeText, {}).catch(() => {}); } catch (e) {} });
     let helloAt = 0;
     function pubDk() {
       pub(B + '/dk', { sn, seq: ++seq, t: Date.now(), folder: rootName, decks: decks.map((d) => ({
@@ -77,7 +81,11 @@
       const d = await box.open(t, x);
       if (!d || typeof d.n !== 'string' || d.n.length > 40 || seen.has(d.n)) return;   // the same command comes through both brokers
       seen.add(d.n); seenQ.push(d.n); if (seenQ.length > 3000) seen.delete(seenQ.shift());
-      if (d.op === 'hello') { if (Date.now() - helloAt > 1000) { helloAt = Date.now(); pubSa(); } return; }
+      if (d.op === 'hello') { if (Date.now() - helloAt > 1000) { helloAt = Date.now(); pubSa(); pubAu(); } return; }
+      if (d.op === 'snd') {                            // sound: the host only
+        if (d.from === 'host' && (Array.isArray(d.sn) ? d.sn.indexOf(sn) >= 0 : d.sn === sn)) sound(d);
+        return;
+      }
       if (!(Array.isArray(d.sn) ? d.sn.indexOf(sn) >= 0 : d.sn === sn)) return;   // for this screen (and this session) only
       const dk = byId[d.d]; if (!dk) return;
       const i = pos[dk.id] || 0, on = isOn(dk);
@@ -167,8 +175,17 @@
       // both are asked for right away: the dropped item is readable only during the drop event
       const hp = it.getAsFileSystemHandle && !NOFS ? it.getAsFileSystemHandle().catch(() => null) : null;
       const en = it.webkitGetAsEntry && it.webkitGetAsEntry();
+      const isSound = (n) => SNDNAME.test(n || '');
+      const nm0 = (en && en.name) || '';
+      if (/^(music|музыка)/i.test(nm0)) { serr = 'Put the folder “Music” inside the folder “Sound” and drag “Sound” here.'; changed(); return false; }
       if (hp) {                                       // Chrome, Edge: a real folder, remembered and watched for new files
-        const h = await hp; if (h && h.kind === 'directory') { await useHandle(h, true); return true; }
+        const h = await hp;
+        if (h && h.kind === 'directory' && /^(music|музыка)/i.test(h.name)) { serr = 'Put the folder “Music” inside the folder “Sound” and drag “Sound” here.'; changed(); return false; }
+        if (h && h.kind === 'directory') { if (isSound(h.name)) await useSoundHandle(h, true); else await useHandle(h, true); return true; }
+      }
+      if (en && en.isDirectory && isSound(en.name)) {
+        const list = []; await readEntries(en, en.name + '/', list, 0);
+        sroot = { kind: 'files', list }; sname = en.name; sneed = ''; serr = ''; await soundScan(); return true;
       }
       if (en && en.isDirectory) {                     // Safari, Firefox: read the files now
         scanning = true; changed();
@@ -302,6 +319,167 @@
     }
     // new files appear by themselves (a folder chosen with Connect folder in Chrome or Edge)
     setInterval(() => { if (root && root.kind === 'handle' && !need) scan(); }, 15000);
+
+    // ---------- sound: the folder "Sound" on this computer. Its first 6 tracks (by name) are the slots the host plays
+    // (fanfare for a speaker, transitions); a folder "Music" inside is the music the host chooses (coffee break …): the host
+    // picks a track, it plays and goes on to the next. Volumes from the panel; a slot playing turns the music down for a while.
+    const AUD = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac)$/i, SNDNAME = /^(sounds?|audio|звук|звуки)\b/i, BGNAME = /^(music|музыка|background|bg|фон)/i;
+    let sroot = null, ssaved = null, sname = '', sneed = 'connect', sscan = false, serr = '', sSig = '';
+    let slots = [], bgList = [], cur = null, bgEl = null, bgIdx = 0, bgOn = false, ducked = false, rampT = null;
+    const VOLK = 'tas3d-vol-' + C.room;
+    let vj = 1, vb = 0.5;
+    try { const v = JSON.parse(localStorage.getItem(VOLK) || 'null'); if (v) { vj = +v.j; vb = +v.b; } } catch (e) {}
+    if (!(vj >= 0 && vj <= 1)) vj = 1; if (!(vb >= 0 && vb <= 1)) vb = 0.5;
+    const gain = (v) => v * v;                          // a slider feels even this way (ears hear the low end better)
+    const sInput = document.createElement('input');
+    sInput.type = 'file'; sInput.multiple = true; sInput.hidden = true; sInput.id = 'soundDir';
+    sInput.setAttribute('webkitdirectory', ''); sInput.setAttribute('directory', '');
+    document.body.appendChild(sInput);
+    sInput.addEventListener('change', () => {
+      if (!sInput.files || !sInput.files.length) return;
+      const list = Array.from(sInput.files).map((f) => ({ rel: f.webkitRelativePath || f.name, file: f }));
+      sroot = { kind: 'files', list }; sname = (list[0].rel.split('/')[0]) || 'Sound'; sneed = ''; serr = ''; soundScan();
+    });
+    async function useSoundHandle(h, save) {
+      sroot = { kind: 'handle', h }; ssaved = h; sname = h.name; sneed = ''; serr = '';
+      if (save) { try { await kv('snd', h); } catch (e) {} }
+      await soundScan();
+    }
+    async function soundConnect(fresh) {
+      if (!fresh && ssaved && sneed === 'reconnect') {
+        try { if ((await ssaved.requestPermission({ mode: 'read' })) === 'granted') return useSoundHandle(ssaved, false); } catch (e) {}
+      }
+      if (window.showDirectoryPicker && !NOFS) {
+        try { await useSoundHandle(await window.showDirectoryPicker({ id: 'tas3d-sound', mode: 'read' }), true); }
+        catch (e) { if (e && e.name !== 'AbortError') { serr = 'This folder cannot be opened: ' + (e.message || e.name); changed(); } }
+      } else { sInput.value = ''; sInput.click(); }
+    }
+    (async () => {                                    // the sound folder chosen last time
+      if (NOFS || !window.indexedDB) return;
+      let h = null; try { h = await kv('snd'); } catch (e) {}
+      if (!h || h.kind !== 'directory') return;
+      ssaved = h; sname = h.name;
+      let q = 'prompt'; try { q = await h.queryPermission({ mode: 'read' }); } catch (e) {}
+      if (q === 'granted') useSoundHandle(h, false); else { sneed = 'reconnect'; changed(); pubSa(); pubAu(); }
+    })();
+    async function soundRead() {                      // → {slots: [...], bg: [...]}
+      const top = [], bg = [];
+      if (sroot.kind === 'handle') {
+        for await (const e of sroot.h.values()) {
+          if (SKIP.test(e.name)) continue;
+          if (e.kind === 'file' && AUD.test(e.name)) { const f = await e.getFile(); top.push({ name: e.name, sig: e.name + '|' + f.size + '|' + f.lastModified, get: () => e.getFile() }); }
+          else if (e.kind === 'directory' && BGNAME.test(e.name)) {
+            for await (const x of e.values()) if (x.kind === 'file' && AUD.test(x.name) && !SKIP.test(x.name)) { const f = await x.getFile(); bg.push({ name: x.name, sig: 'bg/' + x.name + '|' + f.size + '|' + f.lastModified, get: () => x.getFile() }); }
+          }
+        }
+      } else {
+        for (const x of sroot.list) {
+          const parts = x.rel.split('/').slice(1); if (parts.some((q) => SKIP.test(q))) continue;
+          const nm = parts[parts.length - 1]; if (!AUD.test(nm)) continue;
+          const it = { name: nm, sig: parts.join('/') + '|' + x.file.size + '|' + x.file.lastModified, get: () => Promise.resolve(x.file) };
+          if (parts.length === 1) top.push(it); else if (parts.length === 2 && BGNAME.test(parts[0])) bg.push(it);
+        }
+      }
+      top.sort((a, b) => nat(a.name, b.name)); bg.sort((a, b) => nat(a.name, b.name));
+      return { slots: top.slice(0, 6), bg };
+    }
+    async function soundScan() {
+      if (!sroot || sscan) return;
+      sscan = true; changed();
+      try {
+        const r = await soundRead(), sig = JSON.stringify([r.slots.map((x) => x.sig), r.bg.map((x) => x.sig)]);
+        if (sig !== sSig) {
+          sSig = sig;
+          r.slots.forEach((x, i) => { const o = slots[i]; x.dur = o && o.sig === x.sig ? o.dur : 0; });
+          slots = r.slots; bgList = r.bg;
+          if (bgIdx >= bgList.length) bgIdx = 0;
+          for (const x of slots) if (!x.dur) audioLength(x).then((d) => { x.dur = d; pubAu(); }, () => {});
+        }
+        serr = '';
+      } catch (e) {
+        serr = 'The sound folder cannot be read now: ' + (e.message || e.name);
+        if (sroot.kind === 'handle' && e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) sneed = 'reconnect';
+        if (e && e.name === 'NotFoundError') { sneed = 'connect'; sroot = null; }
+      }
+      sscan = false; changed(); pubSa(); pubAu();
+    }
+    setInterval(() => { if (sroot && sroot.kind === 'handle' && !sneed) soundScan(); }, 20000);
+    async function audioLength(x) {
+      const a = new Audio(), url = URL.createObjectURL(await x.get());
+      try { a.preload = 'metadata'; a.src = url; await once(a, 'loadedmetadata', 8000); return isFinite(a.duration) ? Math.round(a.duration) : 0; }
+      finally { a.removeAttribute('src'); URL.revokeObjectURL(url); }
+    }
+    function playAudio(a) {
+      const p = a.play();
+      if (p && p.catch) p.catch((e) => { if (e && e.name === 'NotAllowedError') { soundBlocked = true; changed(); pubSa(); pubAu(); } });
+    }
+    function ramp(el, to, ms, done) {                  // smooth volume changes (no clicks)
+      if (!el) return done && done();
+      const from = el.volume, t0 = performance.now();
+      const step = () => { const k = Math.min(1, (performance.now() - t0) / ms); el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); if (k < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    }
+    function bgLevel() { return gain(vb) * (ducked ? 0.25 : 1); }
+    function duck(on) { ducked = on; if (bgEl) ramp(bgEl, bgLevel(), on ? 400 : 1200); }
+    async function playSlot(i) {
+      const x = slots[i]; if (!x) return;
+      stopSlot(120);
+      let f; try { f = await x.get(); } catch (e) { return; }
+      const url = URL.createObjectURL(f), a = new Audio(url);
+      a.volume = gain(vj);
+      const me = { a, i, url, at: Date.now() };
+      cur = me;
+      a.addEventListener('ended', () => { if (cur === me) { cur = null; duck(false); pubAu(); } URL.revokeObjectURL(url); });
+      a.addEventListener('loadedmetadata', () => { if (isFinite(a.duration)) { x.dur = Math.round(a.duration); pubAu(); } });
+      playAudio(a); duck(true); pubAu();
+    }
+    function stopSlot(ms) {
+      const me = cur; if (!me) return;
+      cur = null;
+      ramp(me.a, 0, ms || 500, () => { me.a.pause(); URL.revokeObjectURL(me.url); });
+      duck(false); pubAu();
+    }
+    async function bgLoad(i, play) {
+      if (!bgList.length) return;
+      if (bgEl) { const old = bgEl; bgEl = null; ramp(old, 0, 400, () => { old.pause(); URL.revokeObjectURL(old.src); }); }
+      bgIdx = ((i % bgList.length) + bgList.length) % bgList.length;
+      let f; try { f = await bgList[bgIdx].get(); } catch (e) { return; }
+      const a = new Audio(URL.createObjectURL(f));
+      a.volume = 0; bgEl = a;
+      a.addEventListener('ended', () => { if (bgEl === a) bgLoad(bgIdx + 1, bgOn); });
+      if (play) { playAudio(a); ramp(a, bgLevel(), 800); }
+      pubAu();
+    }
+    function bg(v, i) {
+      if (v === 'play') { bgOn = true; if (!bgEl) bgLoad(bgIdx, true); else { playAudio(bgEl); ramp(bgEl, bgLevel(), 800); } }
+      else if (v === 'pause') { bgOn = false; const el = bgEl; if (el) ramp(el, 0, 700, () => { if (!bgOn) el.pause(); }); }
+      else if (v === 'next' || v === 'prev') bgLoad(bgIdx + (v === 'next' ? 1 : -1), bgOn);
+      else if (v === 'track' && Number.isInteger(i) && bgList[i]) { bgOn = true; bgLoad(i, true); }
+      pubAu();
+    }
+    function sound(d) {
+      if (d.a === 'play' && Number.isInteger(d.i)) playSlot(d.i);
+      else if (d.a === 'stop') stopSlot(500);
+      else if (d.a === 'bg') bg(String(d.v || ''), d.i);
+      else if (d.a === 'vol') {
+        if (typeof d.j === 'number' && d.j >= 0 && d.j <= 1) { vj = d.j; if (cur) cur.a.volume = gain(vj); }
+        if (typeof d.b === 'number' && d.b >= 0 && d.b <= 1) { vb = d.b; if (bgEl && bgOn) bgEl.volume = bgLevel(); }
+        try { localStorage.setItem(VOLK, JSON.stringify({ j: vj, b: vb })); } catch (e) {}
+        pubAu();
+      }
+    }
+    // what the panel shows: tracks, what plays, volumes
+    let auT = null;
+    function pubAu() {
+      clearTimeout(auT);
+      auT = setTimeout(() => pub(B + '/au', {
+        sn, seq: ++seq, t: Date.now(), f: sroot && !sneed ? 1 : 0, need: sscan ? 'reading' : sneed, folder: sname,
+        slots: slots.map((x) => ({ n: x.name, d: x.dur || 0 })),
+        bg: { n: bgList.length, list: bgList.slice(0, 200).map((x) => x.name), i: bgIdx, cur: bgList[bgIdx] ? bgList[bgIdx].name : '', on: bgOn ? 1 : 0 },
+        pl: cur ? cur.i : -1, pe: cur ? Date.now() - cur.at : 0, vj, vb, blk: soundBlocked ? 1 : 0
+      }, true), 80);
+    }
+    setInterval(() => { if (cur || bgOn) pubAu(); }, 5000);
 
     // ---------- PDF (pdf.js, loaded only when there is a PDF)
     let libP = null;
@@ -472,7 +650,8 @@
       if (!soundBlocked) return;
       soundBlocked = false;
       if (shown && shown.k === 'vid') { shown.el.muted = false; }
-      changed(); pubSa();
+      if (bgOn && bgEl) playAudio(bgEl);               // the background music that was asked for before the click
+      changed(); pubSa(); pubAu();
     });
     function video(op) {
       if (!shown || shown.k !== 'vid') return;
@@ -495,7 +674,9 @@
       connect: () => connect(false),
       choose: () => connect(true),
       drop,                                          // a folder dragged onto the screen
-      unmute() { if (soundBlocked) { soundBlocked = false; if (shown && shown.k === 'vid') shown.el.muted = false; changed(); pubSa(); } },
+      unmute() { if (soundBlocked) { soundBlocked = false; if (shown && shown.k === 'vid') shown.el.muted = false; if (bgOn && bgEl) playAudio(bgEl); changed(); pubSa(); pubAu(); } },
+      soundConnect: () => soundConnect(false),
+      soundChoose: () => soundConnect(true),
       useHandle: (h) => useHandle(h, false),         // tests (headless Chrome here cannot keep a folder in IndexedDB)
       // what the screen shows (from the host's settings); called on every change
       setCfg(c) {
@@ -512,7 +693,9 @@
       has: (id) => !!(byId[id] && byId[id].total),
       // keys and the clicker on this computer
       step(n) { const d = byId[cfg.deck]; if (cfg.scene !== 'slides' || !d) return false; setPos(d, (pos[d.id] || 0) + n); pubPv(d); return true; },
-      status: () => ({ need, folder: rootName, n: decks.length, scanning, err, sound: !soundBlocked, kind: root ? root.kind : '' }),
+      status: () => ({ need, folder: rootName, n: decks.length, scanning, err, sound: !soundBlocked, kind: root ? root.kind : '',
+        snd: { need: sneed, folder: sname, slots: slots.length, bg: bgList.length, scanning: sscan, err: serr, kind: sroot ? sroot.kind : '',
+          playing: cur ? cur.i : -1, bgOn, bgCur: bgList[bgIdx] ? bgList[bgIdx].name : '', vj, vb, bgVol: bgEl ? bgEl.volume : 0 } }),
       _decks: () => decks
     };
   };

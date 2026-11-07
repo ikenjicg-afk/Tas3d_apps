@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '88604bfeac';</script>
+<script>window.TAS3D_BUILD = '530539b341';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Speakers — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -55,7 +55,7 @@ button,input{font:inherit;color:inherit}
 <form class="w" id="login" hidden autocomplete="off">
   <span class="logo" role="img" aria-label="TAS3D"></span>
   <h1>Speakers</h1>
-  <p class="sub">TAS3D 2026 — show your presentation on the screen and change the slides from here. Enter the speakers' password.</p>
+  <p class="sub">TAS3D 2026 — show your presentation on the screen and change the slides from here. Scan the host's QR code, or enter the speakers' password.</p>
   <input type="password" id="pass" placeholder="Speakers' password" aria-label="Speakers' password" autocomplete="current-password">
   <button type="submit" class="btn o">Log in</button>
   <p class="err" role="alert"></p>
@@ -75,7 +75,7 @@ button,input{font:inherit;color:inherit}
 </main>
 <script src="../assets/config.js?v=13c03e36"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
-<script src="../assets/deck.js?v=ffa6c881"></script>
+<script src="../assets/deck.js?v=c0e5924a"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -97,9 +97,17 @@ button,input{font:inherit;color:inherit}
     // a new version of the site: reload (everything comes back from the server)
     TasUpdate(function (v) { TasUpdate.reload(v); });
   }
+  // opened from the host's QR code: the key is in the link (after #, never sent anywhere) — no password needed
+  var m = /(?:^#|&)k=([0-9a-f]{64})/.exec(location.hash || '');
+  if (m) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    return TasSlidesKey.useKey(m[1]).then(function (ok) { if (ok || TasSlidesKey.get()) start(); else showLogin('This QR code is old. Ask the host for a new one, or enter the speakers\u2019 password.'); });
+  }
   if (TasSlidesKey.get()) return start();
+  showLogin('');
+  function showLogin(msg) {
   var form = $('login'), input = $('pass'), err = form.querySelector('.err'), btn = form.querySelector('button');
-  form.hidden = false;
+  form.hidden = false; err.textContent = msg;
   setTimeout(function () { try { input.focus(); } catch (e) {} }, 50);
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -111,6 +119,7 @@ button,input{font:inherit;color:inherit}
       else { err.textContent = 'Wrong password.'; input.select(); }
     }, function (x) { btn.disabled = false; err.textContent = x.message; });
   });
+  }
 })();
 </script>
 </body>

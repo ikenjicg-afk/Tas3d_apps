@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '88604bfeac';</script>
+<script>window.TAS3D_BUILD = '530539b341';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -159,6 +159,7 @@ html.sc-game .cols,html.sc-game .stage{display:none}
 @keyframes gpulse{50%{transform:scale(1.08)}}
 .game .shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.82) 0,rgba(0,0,0,.42) 30%,rgba(0,0,0,0) 54%)}
 .game .hud{position:absolute;left:3.6rem;right:15rem;bottom:3rem}
+.game.run .hud,.game.run .shade{display:none}         /* while the hall renders: only the noise meter */
 .game .gk{font-size:1.5rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--orange)}
 .game .gt{margin-top:.7rem;font-size:5.6rem;line-height:1;letter-spacing:-.02em}
 .game .gs{margin-top:1.1rem;font-size:1.8rem;color:#dcdcd8;font-variant-numeric:tabular-nums}
@@ -304,17 +305,23 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     <div class="drop" id="drop"><b>Drag the folder here</b><span>TAS3D 2026 Presentations — one folder per speaker inside</span><br><button type="button" class="sbtn" id="fPick">Choose the folder…</button></div>
     <p class="tip" id="fTip"></p>
   </div>
+  <div id="sndBox" hidden>
+    <h3>Sound folder</h3>
+    <p id="sSt"></p>
+    <button type="button" class="sbtn o" id="sAllow" hidden>Allow access</button>
+    <div class="drop"><b>Drag the folder “Sound” here</b><span>its first 6 tracks are the host's buttons (fanfare, transitions); a folder “Music” inside is the music the host chooses</span><br><button type="button" class="sbtn" id="sPick">Choose the folder…</button></div>
+  </div>
   <h3>Video sound</h3>
   <p id="sndSt"></p>
   <h3>Connection</h3>
   <p id="netSt"></p>
 </div>
-<div class="dropall" id="dropall" hidden>Drop the folder “TAS3D 2026 Presentations”</div>
+<div class="dropall" id="dropall" hidden>Drop the folder: “TAS3D 2026 Presentations” or “Sound”</div>
 <script src="../assets/config.js?v=13c03e36"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
 <script src="../assets/hub.js?v=e79636fd"></script>
-<script src="../assets/deck.js?v=ffa6c881"></script>
-<script src="../assets/slides.js?v=e81f938c"></script>
+<script src="../assets/deck.js?v=c0e5924a"></script>
+<script src="../assets/slides.js?v=5f65e9a7"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -588,6 +595,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     // the finale with motion only when the hall finishes it now (not when the page opens later)
     if (gGame.st === 'done' && gLastSt === 'run' && gGame.id === gLastId) { box.classList.remove('fin'); void box.offsetWidth; box.classList.add('fin'); }
     if (gGame.st !== 'done') box.classList.remove('fin');
+    box.classList.toggle('run', gGame.st === 'run');
     gLastSt = gGame.st; gLastId = gGame.id;
     $('gQr').hidden = !(qrOn && gGame.st === 'ready');
     if (gGame.st === 'done') {                         // the last buckets come in, then the sharp picture
@@ -626,17 +634,19 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     var sp = gHist.length > 1 ? (gHist[gHist.length - 1][1] - gHist[0][1]) / Math.max(1, (gHist[gHist.length - 1][0] - gHist[0][0]) / 1000) : 0;
     $('gSp').textContent = st === 'run' ? fmtN(sp) + ' samples/s' : st === 'done' ? 'clean' : '';
     var np = gS ? gS.np : 0;
-    $('gK').textContent = st === 'ready' ? 'The opening game' : st === 'run' ? 'Rendering · ' + Math.floor(p * 100) + '%' : 'Rendered by the whole hall';
-    $('gT').textContent = st === 'ready' ? 'Let’s render TAS3D 2026' : st === 'run' ? 'Tap RENDER on your phone' : 'TAS3D 2026 is open';
+    var nm = function (k) { for (var i = 0; i < C.roles.length; i++) if (C.roles[i][0] === k) return C.roles[i][1]; return k; };
+    var many = function (k) { var w = nm(k); return /s$/.test(w) ? w : w + 's'; };
+    $('gK').textContent = st === 'ready' ? 'The opening game' : st === 'run' ? 'Rendering · ' + Math.floor(p * 100) + '%' : 'TAS3D 2026 is open';
     var roles = gS && gS.roles || {}, players = gS && gS.players || {}, all = 0, lead = '', best = 0, hard = '', hardV = 0;
     for (var r in roles) { all += roles[r]; if (roles[r] > best) { best = roles[r]; lead = r; } var pc = players[r] ? roles[r] / players[r] : 0; if (pc > hardV) { hardV = pc; hard = r; } }
+    // the end: which group of people rendered most
+    $('gT').textContent = st === 'ready' ? 'Let’s render TAS3D 2026' : st === 'run' ? 'Tap RENDER on your phone' : lead ? many(lead) + ' win!' : 'Rendered by the whole hall';
     if (st === 'ready') $('gS').textContent = 'Check in on your phone — a big RENDER button comes up there. The whole hall renders this picture together.';
     else if (st === 'run') $('gS').textContent = fmtN(shown) + ' of ' + fmtN(target) + ' samples · ' + np + (np === 1 ? ' person' : ' people') + ' rendering';
     else {
-      var nm = function (k) { for (var i = 0; i < C.roles.length; i++) if (C.roles[i][0] === k) return C.roles[i][1]; return k; };
-      $('gS').textContent = (gS && gS.ms ? 'Rendered in ' + mmss(gS.ms) + ' by ' : 'Rendered by ') + np + (np === 1 ? ' person' : ' people')
-        + (lead ? ' · most samples: ' + nm(lead) + ' (' + Math.round(best / all * 100) + '%)' : '')
-        + (hard && hard !== lead ? ' · hardest workers: ' + nm(hard) + ', ' + Math.round(hardV) + ' each' : '');
+      $('gS').textContent = (lead ? Math.round(best / all * 100) + '% of all samples' : '')
+        + (gS && gS.ms ? ' · rendered in ' + mmss(gS.ms) : '') + ' by ' + np + (np === 1 ? ' person' : ' people')
+        + (hard && hard !== lead ? ' · hardest workers: ' + many(hard) + ', ' + Math.round(hardV) + ' samples each' : '');
     }
     C.roles.forEach(function (rr) {
       var d = gRow[rr[0]], v = roles[rr[0]] || 0;
@@ -699,7 +709,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     var sig = JSON.stringify([key, s, up, $('setp').hidden]);
     if (sig === setSig) return;
     setSig = sig;
-    var attention = !key || !s || !!s.need || !!s.err || !s.sound;
+    var attention = !key || !s || !!s.need || !!s.err || !s.sound || s.snd.need === 'reconnect';
     $('setDot').hidden = !attention;
     $('keyBox').hidden = key; $('dirBox').hidden = !key;
     if (s) {
@@ -713,6 +723,16 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
       $('fAllow').hidden = s.need !== 'reconnect';
       $('fAllow').textContent = 'Allow access to “' + s.folder + '”';
       $('drop').querySelector('b').textContent = s.need ? 'Drag the folder here' : 'Drag another folder here to replace it';
+      var sd = s.snd;
+      $('sndBox').hidden = false;
+      $('sSt').className = sd.need || sd.err ? 'bad' : 'ok';
+      $('sSt').textContent = sd.scanning ? 'Reading the folder…'
+        : sd.need === 'reconnect' ? '“' + sd.folder + '” was connected before. After each start the browser asks once:'
+        : sd.need ? 'Not connected yet.'
+        : 'Connected: ' + sd.folder + ' · ' + sd.slots + ' of 6 tracks' + (sd.bg ? ' · music: ' + sd.bg + (sd.bg === 1 ? ' track' : ' tracks') : ' · no folder “Music” inside (no music)') + '.';
+      if (sd.err && !sd.scanning) $('sSt').textContent += ' ' + sd.err;
+      $('sAllow').hidden = sd.need !== 'reconnect';
+      $('sAllow').textContent = 'Allow access to “' + sd.folder + '”';
       $('fTip').textContent = (IS_MAC ? 'Mac: drag it from Finder' : IS_WIN ? 'Windows: drag it from File Explorer' : 'Drag it from your files')
         + ' — the folder “TAS3D 2026 Presentations” itself (not Desktop or Documents). '
         + (KEEPS ? 'The browser asks to let the site view the files: press “View files”. Then it remembers the folder.'
@@ -731,6 +751,8 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   }
   $('fAllow').addEventListener('click', function () { if (slides) slides.connect(); });
   $('fPick').addEventListener('click', function () { if (slides) slides.choose(); });
+  $('sAllow').addEventListener('click', function () { if (slides) slides.soundConnect(); });
+  $('sPick').addEventListener('click', function () { if (slides) slides.soundChoose(); });
   // the folder dragged anywhere onto the screen
   var dragN = 0;
   function isFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0; }

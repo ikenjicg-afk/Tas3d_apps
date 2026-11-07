@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '88604bfeac';</script>
+<script>window.TAS3D_BUILD = '530539b341';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -78,20 +78,49 @@ button,input,textarea{font:inherit;color:inherit}
 .gcard .gbar{margin-top:14px;height:12px;background:#232322}
 .gcard .gbar b{display:block;height:100%;width:0;background:var(--orange);transition:width .3s}
 .gcard h2{font-variant-numeric:tabular-nums}
-.warn{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(0,0,0,.72)}
-.warn-in{width:min(560px,100%);padding:20px;background:#151514;border:2px solid var(--orange)}
-.warn-in .kick{color:var(--orange)}
-.warn-in h2{margin-top:8px;font-size:26px;line-height:1.15}
-.warn-in .b{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.warn-in .btn{min-height:54px}
-@media (min-width:700px){.warn{align-items:center}}
+.gwarn{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(0,0,0,.72)}
+.gwarn-in{width:min(560px,100%);padding:20px;background:#151514;border:2px solid var(--orange)}
+.gwarn-in .kick{color:var(--orange)}
+.gwarn-in h2{margin-top:8px;font-size:26px;line-height:1.15}
+.gwarn-in .b{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gwarn-in .btn{min-height:54px}
+@media (min-width:700px){.gwarn{align-items:center}}
 .glen{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .glen button{min-height:46px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .glen button[aria-pressed="true"]{background:var(--fg);color:#0e0e0e;border-color:var(--fg)}
-@media (max-width:480px){.tabs button{font-size:12px;letter-spacing:.01em}.tabs em{margin-left:4px;padding:1px 5px}}
-.tabs{margin-top:20px;display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--rule)}
-.tabs::-webkit-scrollbar{display:none}
-.tabs button{flex:1 0 auto}
+@media (max-width:480px){.tabs button{font-size:13px;letter-spacing:.02em}.tabs em{margin-left:4px;padding:1px 5px}}
+/* sound */
+.slots{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.slot{position:relative;min-height:84px;padding:12px 12px 14px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;text-align:left;cursor:pointer;overflow:hidden;touch-action:manipulation}
+.slot .k{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+.slot .t{display:block;margin-top:4px;font-size:16px;line-height:1.25;overflow-wrap:anywhere}
+.slot .d{display:block;margin-top:4px;font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
+.slot .bar{position:absolute;left:0;bottom:0;height:4px;width:0;background:#fff}
+.slot.on{background:var(--orange);border-color:var(--orange)}
+.slot.on .k,.slot.on .d{color:#fff}
+.slot[disabled]{opacity:.35;cursor:default}
+.vol{margin-top:10px;display:grid;grid-template-columns:minmax(0,1fr) 3.4em;gap:12px;align-items:center}
+.vol input{width:100%;accent-color:var(--orange);height:32px}
+.vol b{font-weight:400;font-variant-numeric:tabular-nums;text-align:right}
+.bgnow{margin-top:10px;font-size:16px}
+.mlist{margin:16px 0 0;padding:0;list-style:none;border-top:1px solid var(--rule)}
+.mlist li{border-bottom:1px solid var(--rule)}
+.mlist button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:baseline;width:100%;min-height:52px;padding:12px 0;background:none;border:0;color:var(--fg);font:inherit;font-size:16px;text-align:left;cursor:pointer}
+.mlist .i{color:var(--mute);font-variant-numeric:tabular-nums}
+.mlist .n{overflow-wrap:anywhere}
+.mlist .s{color:var(--mute);font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+.mlist li.cur button{box-shadow:inset 3px 0 0 var(--orange);padding-left:10px}
+.mlist li.cur .n,.mlist li.cur .s{color:var(--orange)}
+.hint.bad{color:var(--orange)}
+.spkqr{margin-top:12px;display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center}
+.spkqr .qrb{background:#fff;padding:6px;line-height:0;cursor:zoom-in}
+.spkqr .qrb svg{width:100%;height:auto}
+.bigqr{position:fixed;inset:0;z-index:31;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;background:#0e0e0e}
+.bigqr .qrb{width:min(86vw,72vh);background:#fff;padding:10px;line-height:0}
+.bigqr .qrb svg{width:100%;height:auto}
+.bigqr p{font-size:18px;text-align:center}
+.tabs{margin-top:20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--rule)}
+.tabs button{min-width:0}
 .tabs button{min-height:52px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mute);cursor:pointer}
 .tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--orange)}
 .tabs em{font-style:normal;margin-left:6px;padding:1px 6px;background:#2a2a29;color:var(--fg);font-size:11px;border-radius:9px}
@@ -195,6 +224,7 @@ h2.sec{margin-top:30px;font-size:22px}
     <button type="button" role="tab" data-tab="qs" aria-selected="false">Questions<em id="tQ">0</em></button>
     <button type="button" role="tab" data-tab="slides" aria-selected="false">Slides</button>
     <button type="button" role="tab" data-tab="game" aria-selected="false">Game<em id="tG" hidden></em></button>
+    <button type="button" role="tab" data-tab="snd" aria-selected="false">Sound<em id="tS" hidden></em></button>
   </div>
 
   <section class="pane" id="p-checkin">
@@ -252,8 +282,9 @@ h2.sec{margin-top:30px;font-size:22px}
       <p class="kick">Speakers</p>
       <p class="hint" style="margin-top:8px"><b style="color:var(--fg)">Start</b> — the screen goes to the logo and this speaker gets it: they put their slides on it and change them from their phone or laptop; nobody else can.
         <b style="color:var(--fg)">Stop</b> when the talk is over — the screen goes to the logo and is yours again. Before Start a speaker can only look through their own slides.</p>
-      <p class="hint" style="margin-top:8px">Send all speakers this link and the speakers' password:</p>
-      <p class="lnk"><code id="spkUrl"></code><button type="button" class="btn" id="spkCopy">Copy link</button></p>
+      <div class="spkqr"><div class="qrb" id="spkQr" role="button" tabindex="0" aria-label="Show the speakers' QR code big"></div>
+        <p class="hint">A speaker scans this with the phone camera — their page opens, no password needed. Tap the code to make it big.
+          <br><br>Only for speakers: whoever scans it can control their own slides after your Start.</p></div>
     </div>
     <div id="deckui"></div>
     <p class="foot">The files stay on the screen computer, in the folder TAS3D 2026 Presentations — one folder per speaker; new files appear by themselves.
@@ -289,8 +320,30 @@ h2.sec{margin-top:30px;font-size:22px}
       <b style="color:var(--fg)">Finish now</b> if the hall gets tired. <b style="color:var(--fg)">Close the game</b> puts the logo back.</p>
   </section>
 
-  <div class="warn" id="warn" role="alertdialog" aria-modal="true" aria-labelledby="warnH" hidden>
-    <div class="warn-in">
+  <section class="pane" id="p-snd" hidden>
+    <p class="hint" id="sndSt" style="margin-top:4px"></p>
+    <h2 class="sec">Tracks</h2>
+    <p class="hint" style="margin-top:6px">Tap to play on the screen computer (a speaker comes out, a break …); tap again to stop. The background music gets quieter while a track plays.</p>
+    <div class="slots" id="slots"></div>
+    <div class="b" style="margin-top:10px"><button type="button" class="btn" id="sStop">Stop the track</button></div>
+    <p class="kick" style="margin-top:18px">Tracks volume</p>
+    <div class="vol"><input type="range" id="vJ" min="0" max="100" step="1" value="100" aria-label="Tracks volume"><b id="vJv">100%</b></div>
+    <h2 class="sec">Music</h2>
+    <p class="hint" style="margin-top:6px">Coffee break, before the start …: tap a track — it plays, then the next one. Tap the playing one to pause.</p>
+    <p class="bgnow" id="bgNow">—</p>
+    <div class="b" style="margin-top:10px;display:flex;gap:8px"><button type="button" class="btn o" id="bgPlay">Play</button><button type="button" class="btn" id="bgNext">Next track</button></div>
+    <p class="kick" style="margin-top:18px">Music volume</p>
+    <div class="vol"><input type="range" id="vB" min="0" max="100" step="1" value="50" aria-label="Music volume"><b id="vBv">50%</b></div>
+    <ol class="mlist" id="mList"></ol>
+    <p class="foot">The folder “Sound” on the screen computer (Settings, bottom right, drag it there): its first 6 tracks by name are Track 1–6
+      (e.g. “1 Fanfare.mp3”, “2 Walk-on.mp3” …); the music goes into a folder “Music” inside it. MP3, M4A, WAV. New files appear by themselves.
+      The hall mixer stays the main volume; these sliders are for quick changes from here.</p>
+  </section>
+
+  <div class="bigqr" id="bigQr" hidden role="dialog" aria-label="Speakers' QR code"><div class="qrb" id="bigQrQ"></div><p>Speakers: scan with the camera</p><button type="button" class="btn" id="bigQrX">Close</button></div>
+
+  <div class="gwarn" id="warn" role="alertdialog" aria-modal="true" aria-labelledby="warnH" hidden>
+    <div class="gwarn-in">
       <p class="kick" id="warnK">The game is on the screen</p>
       <h2 id="warnH">Switch the screen anyway?</h2>
       <p class="hint" id="warnT" style="margin-top:8px"></p>
@@ -305,7 +358,8 @@ h2.sec{margin-top:30px;font-size:22px}
 <script src="../assets/config.js?v=13c03e36"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
 <script src="../assets/hub.js?v=e79636fd"></script>
-<script src="../assets/deck.js?v=ffa6c881"></script>
+<script src="../assets/deck.js?v=c0e5924a"></script>
+<script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -320,7 +374,7 @@ h2.sec{margin-top:30px;font-size:22px}
     var hub = TasHub(render, { onReact: function (x) { if (pvWin) pvWin.react(x); } });
     var S = hub.state;
     // presentations: one client for the screen copy and the Slides tab
-    var dc = TasSlidesKey.get() ? TasDeckClient(null, { all: true, from: 'host' }) : null;
+    var dc = TasSlidesKey.get() ? TasDeckClient(null, { all: true, from: 'host', sound: true }) : null;
     if (dc) dc.listen(function () { render(); });
 
     // ---- the live copy of the screen
@@ -428,13 +482,82 @@ h2.sec{margin-top:30px;font-size:22px}
     function setLive(id) { guard(id ? 'Start (slides)' : 'Stop (slides)', function () { hub.setCfg({ live: id, scene: 'logo' }); }); }
     function slidesUI() { if (!deckUI && dc) deckUI = TasDeckUI($('deckui'), { mode: 'host', client: dc, setLive: setLive, guard: guard }); }
     $('lvbStop').addEventListener('click', function () { setLive(''); });
-    var spkUrl = new URL('../speakers/', location.href).href;
-    $('spkUrl').textContent = spkUrl.replace(/^https?:\/\//, '');
-    $('spkCopy').addEventListener('click', function () {
-      var b = this;
-      function done(ok) { b.textContent = ok ? 'Copied' : 'Select the link and copy it'; setTimeout(function () { b.textContent = 'Copy link'; }, 2500); }
-      try { navigator.clipboard.writeText(spkUrl).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+    // the speakers' QR: their page with the presentations key after # (the key stays on the phones, it is not sent to any server)
+    var spkUrl = new URL('../speakers/', location.href).href + (TasSlidesKey.get() ? '#k=' + TasSlidesKey.get() : '');
+    if (window.TasQR) { var qsvg = TasQR(spkUrl); $('spkQr').innerHTML = qsvg; $('bigQrQ').innerHTML = qsvg; }
+    function bigQr(on) { $('bigQr').hidden = !on; }
+    $('spkQr').addEventListener('click', function () { bigQr(true); });
+    $('spkQr').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bigQr(true); } });
+    $('bigQrX').addEventListener('click', function () { bigQr(false); });
+
+    // ---- sound (the folder "Sound" on the screen computer): 6 tracks, background music, volumes
+    var volT = {}, volDrag = 0;
+    function sndCmd(extra) { if (dc) dc.cmd('snd', '', extra); }
+    for (var si = 0; si < 6; si++) (function (i) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'slot'; b.setAttribute('data-i', i);
+      b.innerHTML = '<span class="k"></span><span class="t"></span><span class="d"></span><i class="bar"></i>';
+      b.querySelector('.k').textContent = 'Track ' + (i + 1);
+      b.addEventListener('click', function () { var au = dc && dc.state.au; sndCmd(au && au.pl === i ? { a: 'stop' } : { a: 'play', i: i }); });
+      $('slots').appendChild(b);
+    })(si);
+    $('sStop').addEventListener('click', function () { sndCmd({ a: 'stop' }); });
+    $('bgPlay').addEventListener('click', function () { var au = dc && dc.state.au; sndCmd({ a: 'bg', v: au && au.bg && au.bg.on ? 'pause' : 'play' }); });
+    $('bgNext').addEventListener('click', function () { sndCmd({ a: 'bg', v: 'next' }); });
+    ['vJ', 'vB'].forEach(function (id) {
+      var el = $(id);
+      el.addEventListener('input', function () {
+        volDrag = Date.now(); $(id + 'v').textContent = el.value + '%';
+        clearTimeout(volT[id]); volT[id] = setTimeout(function () { sndCmd(id === 'vJ' ? { a: 'vol', j: +el.value / 100 } : { a: 'vol', b: +el.value / 100 }); }, 120);
+      });
     });
+    function mmss(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
+    function renderSound() {
+      var au = dc && dc.state.au, fresh = au && Date.now() - dc.state.auAt < 30000, ok = !!(fresh && au.f);
+      var on = dc && dc.screenOn();
+      $('sndSt').textContent = !dc ? 'Log in again to use the sound.' : !on ? 'The screen is off. Sound plays on the computer at the projector.'
+        : !au || !fresh ? 'The screen does not report the sound yet — refresh the screen if this stays.'
+        : au.need === 'reconnect' ? 'On the screen computer: Settings (bottom right) → “Allow access” for the folder “' + au.folder + '”.'
+        : !au.f ? 'On the screen computer: Settings (bottom right) → drag the folder “Sound” there.'
+        : 'Sound folder: ' + au.folder + (au.blk ? ' · the browser there blocks sound until someone clicks once on the screen computer.' : '');
+      $('sndSt').classList.toggle('bad', !ok || !!(au && au.blk));
+      var slots = ok ? au.slots : [];
+      $('slots').querySelectorAll('.slot').forEach(function (b, i) {
+        var x = slots[i], playing = ok && au.pl === i;
+        b.disabled = !x;
+        b.querySelector('.t').textContent = x ? x.n.replace(/\.[a-z0-9]+$/i, '') : 'empty';
+        b.querySelector('.d').textContent = !x ? '' : playing ? 'playing · tap to stop' : x.d ? mmss(x.d) : '';
+        b.classList.toggle('on', playing);
+        var bar = b.querySelector('.bar');
+        if (playing && x.d) { var el = (au.pe + (Date.now() - dc.state.auAt)) / 1000; bar.style.width = Math.min(100, el / x.d * 100) + '%'; } else bar.style.width = '0';
+      });
+      $('sStop').disabled = !ok || au.pl < 0;
+      var bgn = ok && au.bg ? au.bg.n : 0;
+      $('bgNow').textContent = !ok ? '—' : !bgn ? 'No folder “Music” inside “Sound”.' : (au.bg.on ? 'Playing: ' : 'Paused: ') + (au.bg.cur || '').replace(/\.[a-z0-9]+$/i, '');
+      // the music list: tap a track to play it
+      var ml = ok && au.bg && au.bg.list ? au.bg.list : [], msig = JSON.stringify([ml, au && au.bg && au.bg.i, au && au.bg && au.bg.on]);
+      if ($('mList').getAttribute('data-s') !== msig) {
+        $('mList').setAttribute('data-s', msig); $('mList').innerHTML = '';
+        ml.forEach(function (name, i) {
+          var cur = au.bg.i === i, li = document.createElement('li'), b = document.createElement('button');
+          li.className = cur ? 'cur' : ''; b.type = 'button';
+          b.innerHTML = '<span class="i"></span><span class="n"></span><span class="s"></span>';
+          b.querySelector('.i').textContent = String(i + 1);
+          b.querySelector('.n').textContent = name.replace(/\.[a-z0-9]+$/i, '');
+          b.querySelector('.s').textContent = cur ? (au.bg.on ? 'playing' : 'paused') : '';
+          b.addEventListener('click', function () { sndCmd(cur && au.bg.on ? { a: 'bg', v: 'pause' } : cur ? { a: 'bg', v: 'play' } : { a: 'bg', v: 'track', i: i }); });
+          li.appendChild(b); $('mList').appendChild(li);
+        });
+      }
+      $('bgPlay').textContent = ok && au.bg && au.bg.on ? 'Pause' : 'Play';
+      $('bgPlay').disabled = $('bgNext').disabled = !bgn;
+      if (ok && Date.now() - volDrag > 2500) {         // the sliders follow the screen (unless you are moving one)
+        $('vJ').value = Math.round(au.vj * 100); $('vJv').textContent = $('vJ').value + '%';
+        $('vB').value = Math.round(au.vb * 100); $('vBv').textContent = $('vB').value + '%';
+      }
+      $('vJ').disabled = $('vB').disabled = !ok;
+      $('tS').hidden = !(ok && (au.pl >= 0 || (au.bg && au.bg.on))); $('tS').textContent = '♪'; $('tS').classList.toggle('hot', ok && au.pl >= 0);
+    }
+    setInterval(function () { if (tab === 'snd') renderSound(); }, 500);
 
     // ---- questions
     $('hide').addEventListener('click', function () { hub.showQuestion(''); });
@@ -456,7 +579,7 @@ h2.sec{margin-top:30px;font-size:22px}
       $('live').classList.toggle('off', !n);
       $('liveT').textContent = n ? 'Live' : 'No connection';
       document.querySelectorAll('.tabs button').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
-      $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs'; $('p-slides').hidden = tab !== 'slides'; $('p-game').hidden = tab !== 'game';
+      $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs'; $('p-slides').hidden = tab !== 'slides'; $('p-game').hidden = tab !== 'game'; $('p-snd').hidden = tab !== 'snd';
       if (tab === 'slides') slidesUI();
       var hasPoll = !!(S.now && S.now.k === 'poll');
       // is the screen page running somewhere? (it says so every 8 s)
@@ -538,6 +661,8 @@ h2.sec{margin-top:30px;font-size:22px}
       $('tG').hidden = !gon; $('tG').textContent = g.st === 'run' ? Math.floor(gp * 100) + '%' : g.st === 'done' ? '✓' : 'On'; $('tG').classList.toggle('hot', g.st === 'run');
       $('gLen').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-k') === gLen ? 'true' : 'false'); });
       $('gLenH').textContent = C.game.per[gLen] + ' taps per checked-in guest (at least ' + C.game.min + ' in all). ' + (gLen === 'short' ? 'About 40–60 seconds for 400 people.' : gLen === 'normal' ? 'About 1–1.5 minutes for 400 people.' : 'About 2 minutes for 400 people.');
+
+      renderSound();
 
       // earlier polls of this round
       var past = hub.pastPolls(), psig = JSON.stringify(past.map(function (x) { return [x.id, x.n, x.total]; }));

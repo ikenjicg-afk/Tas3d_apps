@@ -58,6 +58,15 @@
         }, function () { return false; });
       });
     },
+    // the speakers' QR in the host panel carries the key (#k=...): the speaker scans it and is in, no password
+    useKey: function (k) {
+      if (!KEYRE.test(k || '')) return Promise.resolve(false);
+      return unseal(unhex(k), Z.check).then(function (t) {
+        if (dec.decode(t) !== 'tas3d-slides') return false;
+        try { localStorage.setItem(SK, JSON.stringify({ k: k, s: Z.ssalt, until: Date.now() + DAYS90 })); } catch (e) {}
+        return true;
+      }, function () { return false; });
+    },
     keepSpeakers: function () { var s = read(SK); if (s && KEYRE.test(s.k || '')) { s.until = Date.now() + DAYS90; try { localStorage.setItem(SK, JSON.stringify(s)); } catch (e) {} } },
     logoutSpeakers: function () { try { localStorage.removeItem(SK); } catch (e) {} },
     // the host password → the slides key (hex); called by TasAuth in hub.js
@@ -126,6 +135,7 @@
     // the same message comes through both servers (and their bridge): decrypt it once
     var lastRaw = {};
     var subs = [B + '/dk', B + '/sa', B + '/cfg', B + '/scr'];
+    if (opt.sound) subs.push(B + '/au');
     if (opt.all) subs.push(B + '/pv/+');
     var was = 0, links = null, watching = '';
     links = TasLinks(subs, onMsg, function () {
@@ -150,7 +160,9 @@
         if (!d || typeof d !== 'object') return;
         if (t === B + '/dk') { if (Array.isArray(d.decks) && newer(d, S.list)) { S.list = d; changed(); } }
         else if (t === B + '/sa' && typeof d.sn === 'string') {
-          var now = Date.now(); S.screens[d.sn] = { at: now, d: d };
+          var now = Date.now();
+          if (d.bye) delete S.screens[d.sn]; else S.screens[d.sn] = { at: now, d: d };
+          if (d.bye && S.sa && S.sa.sn === d.sn) { S.sa = null; S.saAt = 0; }
           // the screen that matters: the most recent one with the folder open, else the most recent one
           var best = null, bestAt = 0;
           for (var k in S.screens) {
@@ -162,23 +174,28 @@
           changed();
         }
         else if (t.indexOf(B + '/pv/') === 0) { var id = t.slice(B.length + 4); if (newer(d, S.pv[id])) { S.pv[id] = d; changed(); } }
+        else if (t === B + '/au') { if (newer(d, S.au)) { S.au = d; S.auAt = Date.now(); changed(); } }
       });
     }
     function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
     // a command goes to every screen that has the folder open (one is usual; a second one, e.g. a monitor backstage, follows too)
     var sent = {};
-    function cmd(op, deck, extra) {
-      var n = rid(), now = Date.now(), sns = [];
-      for (var k in S.screens) if (now - S.screens[k].at < 30000 && S.screens[k].d.f) sns.push(k);
+    function targets(op) {
+      var now = Date.now(), sns = [], need = op === 'snd' ? 'au' : 'f';   // sound: the screen with the sound folder
+      for (var k in S.screens) if (now - S.screens[k].at < 30000 && S.screens[k].d[need]) sns.push(k);
       if (!sns.length && S.sa) sns.push(S.sa.sn);
-      var body = { sn: sns, n: n, op: op, d: deck || '', from: opt.from || 'spk' };
+      return sns;
+    }
+    function cmd(op, deck, extra) {
+      var n = rid();
+      var body = { sn: targets(op), n: n, op: op, d: deck || '', from: opt.from || 'spk' };
       for (var e in extra || {}) body[e] = extra[e];
       sent[n] = body; send(body);
       return n;
     }
     function send(body) { return box.seal(B + '/sk', body).then(function (x) { return links.pub(B + '/sk', x, { qos: 1 }); }).catch(function () {}); }
     // the same command again (the screen does it only once): when the screen has not confirmed it in time
-    function resend(n) { if (sent[n]) send(sent[n]); }
+    function resend(n) { var b = sent[n]; if (!b) return; b.sn = targets(b.op); send(b); }   // to the screens open now (one may have reloaded)
     function hello() { if (links.up()) cmd('hello'); }
     setInterval(changed, 3000);                        // "the screen is off" etc. stays right
     return {
@@ -320,8 +337,7 @@
       if (!open || !cl.live()) return;
       var d = find(open), p = S.pv[open], n = cl.cmd(op, open, extra);
       pend = { n: n, at: Date.now() };
-      setTimeout(function () { if (pend && pend.n === n) cl.resend(n); }, 2000);
-      setTimeout(function () { if (pend && pend.n === n) cl.resend(n); }, 3600);
+      [1500, 3000, 5000, 8000].forEach(function (ms) { setTimeout(function () { if (pend && pend.n === n) cl.resend(n); }, ms); });
       // show the next slide at once (its preview is already here); the screen confirms in a moment
       if (p && d) {
         if (op === 'next' && p.i + 1 < d.total) { pend.i = p.i + 1; pend.cur = p.nxt || ''; pend.it = p.nx; }
@@ -403,7 +419,7 @@
     }
     function renderDeck(d, lv) {
       var p = S.pv[open] || null, isOn = onScreen(open), isLive = S.cfg.live === open, ctl = mayControl(open);
-      if (pend && (Date.now() - pend.at > 6000 || (p && p.ack === pend.n))) pend = null;
+      if (pend && (Date.now() - pend.at > 10000 || (p && p.ack === pend.n))) pend = null;
       R.name.textContent = d ? d.name : 'Loading…';
       // ---- who controls what
       var onB, onT;
