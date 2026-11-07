@@ -30,7 +30,7 @@
   TasMQ.prototype._closed = function () {
     if (this.dead) return;
     this.dead = true; this.ok = false; clearInterval(this.ping); clearTimeout(this.chk);
-    if (this.vis) document.removeEventListener('visibilitychange', this.vis);
+    if (this.vis && typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.vis);
     for (var k in this.wait) { this.wait[k][1](new Error('closed')); }
     this.wait = {};
     if (this.o.onClose) this.o.onClose();
@@ -54,11 +54,12 @@
         this.ok = true;
         // ping every 15 s; a connection that has not answered for 40 s is dead (phone lost the network): close it, it reconnects.
         // In a background tab the browser slows timers down to once a minute, so there the limit is longer.
-        var beat = function () { if (Date.now() - me.rx > (document.hidden ? 170000 : 40000)) return me.close(); me._send(new Uint8Array([0xC0, 0])); };
+        var doc = typeof document !== 'undefined' ? document : null;
+        var beat = function () { if (Date.now() - me.rx > (doc && doc.hidden ? 170000 : 40000)) return me.close(); me._send(new Uint8Array([0xC0, 0])); };
         this.ping = setInterval(beat, 15000);
         // back in front (a phone unlocked, a window shown again): check the connection at once
-        this.vis = function () { if (!document.hidden && me.ok) { beat(); me.chk = setTimeout(function () { if (me.ok && Date.now() - me.rx > 6000) me.close(); }, 6000); } };
-        document.addEventListener('visibilitychange', this.vis);
+        this.vis = function () { if (!doc.hidden && me.ok) { beat(); me.chk = setTimeout(function () { if (me.ok && Date.now() - me.rx > 6000) me.close(); }, 6000); } };
+        if (doc) doc.addEventListener('visibilitychange', this.vis);
         if (this.o.onConnect) this.o.onConnect();
       } else this.close();
     } else if (type === 3) {                            // PUBLISH from the broker

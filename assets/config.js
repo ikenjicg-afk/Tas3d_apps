@@ -13,6 +13,9 @@
 // Presentations (encrypted with the slides key, see deck.js): <base>/dk = the speakers' folders and files (kept, from the screen),
 //   <base>/pv/<folder id> = current and next slide previews of one folder (kept), <base>/sa = "the screen is on" (every 8 s),
 //   <base>/sk = commands from the speakers' page and the host panel (next, prev, show on screen ...).
+// The game: <base>/game = {id, st: off|ready|run|done, target, per, at, w} (kept, from the host);
+//   <base>/gt/<game>/<phone> = "role:taps so far" (every second while tapping); <base>/gs = the score (kept, from the screen).
+// <base>/ph = the polls of this round with their results (kept until Reset).
 window.TAS3D_CHECKIN = {
   room: '24s57u4s6z',
   topic: 'testtopic/tas3d2026',
@@ -33,6 +36,9 @@ window.TAS3D_CHECKIN = {
   host: { salt: 'edaa75343e03677b0559f9c0f6e435ab', iterations: 150000, hash: '8954e5646d38bb5d211581f1b8c99e1cdc5cb5da114af8b9ca5c51e8ec775902' },
   // Slides key (made by tools/make_slide_keys.js; no password is written here): the speakers' password gives the key,
   // the host password opens it too ("wrap"). Previews and commands of the presentations are encrypted with it.
+  // the opening game: the hall renders TAS3D 2026 out of noise together. Samples needed = checked-in guests × per (at least min);
+  // one phone counts at most cap taps a second
+  game: { per: { short: 80, normal: 150, long: 300 }, min: 500, cap: 12 },
   slides: {
     iterations: 150000,
     ssalt: '4564344c5f5c5d59c48e5cfb395f3c52',

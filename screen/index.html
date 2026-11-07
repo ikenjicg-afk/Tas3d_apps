@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '67f5e13b7b';</script>
+<script>window.TAS3D_BUILD = '5614ea08e6';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -130,6 +130,37 @@ html.sc-slides .cols,html.sc-slides .stage{display:none}
 body.qon .slides{opacity:.12}
 .slides .vt{position:absolute;left:2rem;bottom:2rem;padding:.4rem .8rem;background:rgba(0,0,0,.75);color:#fff;font-size:1.3rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 
+/* the opening game: the hall renders TAS3D out of noise */
+html.sc-game .cols,html.sc-game .stage{display:none}
+.game{position:fixed;inset:0;z-index:1;background:#000;overflow:hidden}
+.game canvas,.game .gimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.game canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+.game .gimg{opacity:0;transition:opacity 1.4s}
+.game.done .gimg{opacity:1}
+.game .shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.82) 0,rgba(0,0,0,.42) 30%,rgba(0,0,0,0) 54%)}
+.game .hud{position:absolute;left:3.6rem;right:15rem;bottom:3rem}
+.game .gk{font-size:1.5rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--orange)}
+.game .gt{margin-top:.7rem;font-size:5.6rem;line-height:1;letter-spacing:-.02em}
+.game .gs{margin-top:1.1rem;font-size:1.8rem;color:#dcdcd8;font-variant-numeric:tabular-nums}
+.game .groles{margin-top:2.4rem;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1.6rem}
+.game .groles p{display:flex;justify-content:space-between;gap:.6rem;font-size:1.25rem;white-space:nowrap}
+.game .groles p span:last-child{color:#bdbdb8;font-variant-numeric:tabular-nums}
+.game .groles i{display:block;margin-top:.5rem;height:.6rem;background:rgba(255,255,255,.14)}
+.game .groles i b{display:block;height:100%;width:0;background:#f1f1ee;transition:width .4s}
+.game .groles .lead p span:first-child{color:var(--orange)}
+.game .groles .lead i b{background:var(--orange)}
+.game .meter{position:absolute;right:3.6rem;top:3.4rem;bottom:3rem;width:8rem;display:flex;flex-direction:column;align-items:center}
+.game .meter .l{font-size:1.2rem;font-weight:700;letter-spacing:.08em;color:#dcdcd8}
+.game .meter .v{margin:.3rem 0 .9rem;font-size:3.2rem;font-variant-numeric:tabular-nums}
+.game .meter i{position:relative;flex:1;width:1.8rem;background:rgba(255,255,255,.12)}
+.game .meter i b{position:absolute;left:0;right:0;bottom:0;height:100%;background:linear-gradient(to top,#f1f1ee,var(--orange) 70%);transition:height .2s}
+.game .meter .sp{margin-top:.9rem;font-size:1.3rem;color:#dcdcd8;font-variant-numeric:tabular-nums;white-space:nowrap}
+.game.done .meter .v{color:#fff}
+.game .cd{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24rem;font-weight:700;color:#fff;text-shadow:0 0 5rem rgba(0,0,0,.7)}
+.game .gqr{position:absolute;left:3.6rem;top:3.4rem;display:flex;gap:1.4rem;align-items:center;padding:1rem;background:#fff;color:#0e0e0e}
+.game .gqr img{width:11rem;height:auto;display:block}
+.game .gqr p{font-size:1.4rem;font-weight:700;line-height:1.2;max-width:12rem}
+
 /* settings: bottom right, for the person at this computer (sizes in px: readable on any screen) */
 .gear{position:fixed;right:24px;bottom:24px;z-index:8;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#1b1b1b;color:var(--mute);border:0;font:inherit;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:opacity .4s}
 .gear:hover,.gear[aria-expanded="true"]{color:var(--fg)}
@@ -208,6 +239,20 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   </section>
 </main>
 <section class="slides" id="slides" hidden aria-label="Slides"></section>
+<section class="game" id="vGame" hidden aria-label="The opening game">
+  <canvas id="gC" width="960" height="540"></canvas>
+  <img class="gimg" id="gImg" alt="TAS3D 2026" decoding="async">
+  <div class="shade"></div>
+  <div class="gqr" id="gQr" hidden><img src="../assets/qr.svg?v=e3099c7f" alt=""><p>Scan, check in and tap RENDER</p></div>
+  <div class="hud">
+    <p class="gk" id="gK">The opening game</p>
+    <h2 class="gt" id="gT">Let’s render TAS3D 2026</h2>
+    <p class="gs" id="gS"></p>
+    <div class="groles" id="gRoles"></div>
+  </div>
+  <div class="meter"><span class="l">NOISE</span><span class="v" id="gV">100%</span><i><b id="gM"></b></i><span class="sp" id="gSp"></span></div>
+  <div class="cd" id="gCd" hidden></div>
+</section>
 <section class="biglogo" id="biglogo" hidden><i role="img" aria-label="TAS3D"></i></section>
 <section class="bigqr" id="bigqr" hidden>
   <img src="../assets/qr.svg?v=e3099c7f" alt="QR code for the guests' page" width="33" height="33">
@@ -244,9 +289,9 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   <p id="netSt"></p>
 </div>
 <div class="dropall" id="dropall" hidden>Drop the folder “TAS3D 2026 Presentations”</div>
-<script src="../assets/config.js?v=cfbdc676"></script>
-<script src="../assets/mqtt.js?v=f60fe4bb"></script>
-<script src="../assets/hub.js?v=bd8eef06"></script>
+<script src="../assets/config.js?v=fc381e29"></script>
+<script src="../assets/mqtt.js?v=7511af13"></script>
+<script src="../assets/hub.js?v=e79636fd"></script>
 <script src="../assets/deck.js?v=ac441415"></script>
 <script src="../assets/slides.js?v=bd633cd2"></script>
 <script>
@@ -376,9 +421,11 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     document.documentElement.classList.toggle('sc-blank', scene === 'blank');     // not 'logo': .logo is the small logo
     document.documentElement.classList.toggle('sc-logo', scene === 'logo' || noSlides);
     document.documentElement.classList.toggle('sc-slides', scene === 'slides');
+    document.documentElement.classList.toggle('sc-game', scene === 'game');
+    gameView(S, scene === 'game');
     $('biglogo').hidden = scene !== 'logo' && !noSlides;
     document.documentElement.classList.toggle('noqr', !cfg.qr);
-    $('stage').hidden = scene === 'blank' || scene === 'logo' || scene === 'qr' || scene === 'slides';
+    $('stage').hidden = scene === 'blank' || scene === 'logo' || scene === 'qr' || scene === 'slides' || scene === 'game';
     $('bigqr').hidden = scene !== 'qr';
     $('vCheck').hidden = scene !== 'checkin'; $('vPoll').hidden = scene !== 'poll';
     rxOn = cfg.rx !== false;
@@ -401,6 +448,138 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     $('liveT').textContent = DEMO ? 'Demo' : ok ? 'Live' : 'No connection';
     if (!PREVIEW) settings(up);
   }
+  // ---- the opening game: the picture comes out of render noise as the hall taps RENDER
+  var GR = null, gLastSt = '', gLastId = '', gCdEnd = 0, gShown = 0, gHist = [], gS = null, gGame = null, gOn = false, gTxtAt = 0;
+  // noise like a progressive render (V-Ray, Corona): at first most pixels are black and the rest grainy; the grain fades with the samples
+  function NoiseRender(canvas, src, fps) {
+    var gl = null, ok = false, noise = 1, raf = 0, last = 0, img = new Image(), loc = {}, ctx2 = null, base = null;
+    try { gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: false }) || canvas.getContext('experimental-webgl'); } catch (e) { gl = null; }
+    img.onload = function () { try { gl ? initGL() : init2D(); ok = true; } catch (e) { gl = null; try { init2D(); ok = true; } catch (x) {} } };
+    img.src = src;
+    function sh(type, code) { var o = gl.createShader(type); gl.shaderSource(o, code); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; }
+    function initGL() {
+      var pr = gl.createProgram();
+      gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p;varying vec2 uv;void main(){uv=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}'));
+      gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, [
+        'precision mediump float;uniform sampler2D img;uniform float n;uniform float seed;uniform vec2 res;varying vec2 uv;',
+        'float h(vec2 q){q=fract(q*vec2(.1031,.1030)+seed);q+=dot(q,q.yx+33.33);return fract((q.x+q.y)*q.x);}',
+        'void main(){vec2 px=floor(uv*res);vec3 c=texture2D(img,(px+.5)/res).rgb;',
+        'float got=step(n*n*.93,h(px+3.1));',                                   // pixels with no sample yet are black
+        'vec3 r=vec3(h(px+7.7),h(px+13.3),h(px+29.1))*2.-1.;',
+        'vec3 e=c*(1.+r*n*1.7)+(h(px+41.)-.5)*n*.22;',                           // grain, stronger while noisy
+        'e+=step(1.-.006*n,h(px+57.))*n*2.6;',                                   // fireflies
+        'gl_FragColor=vec4(clamp(e*got,0.,1.),1.);}'].join('')));
+      gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error('link');
+      gl.useProgram(pr);
+      var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      var pa = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(pa); gl.vertexAttribPointer(pa, 2, gl.FLOAT, false, 0, 0);
+      var t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+      loc = { n: gl.getUniformLocation(pr, 'n'), seed: gl.getUniformLocation(pr, 'seed'), res: gl.getUniformLocation(pr, 'res') };
+      gl.uniform2f(loc.res, canvas.width, canvas.height);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    function init2D() {                                // old graphics: the same idea, a smaller picture, drawn by the processor
+      canvas.width = 480; canvas.height = 270;
+      ctx2 = canvas.getContext('2d'); ctx2.drawImage(img, 0, 0, 480, 270);
+      base = ctx2.getImageData(0, 0, 480, 270);
+    }
+    function draw() {
+      if (!ok) return;
+      if (gl) { gl.uniform1f(loc.n, noise); gl.uniform1f(loc.seed, Math.random() * 97); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); return; }
+      var out = ctx2.createImageData(480, 270), s = base.data, d = out.data, n = noise, nn = n * n * 0.93;
+      for (var i = 0; i < s.length; i += 4) {
+        if (Math.random() < nn) { d[i + 3] = 255; continue; }
+        var f = Math.random() < 0.006 * n ? 2.6 * n * 255 : 0;
+        for (var k = 0; k < 3; k++) d[i + k] = s[i + k] * (1 + (Math.random() * 2 - 1) * n * 1.7) + (Math.random() - 0.5) * n * 56 + f;
+        d[i + 3] = 255;
+      }
+      ctx2.putImageData(out, 0, 0);
+    }
+    function frame(t) { raf = requestAnimationFrame(frame); if (t - last < 1000 / fps) return; last = t; if (onFrame) onFrame(); draw(); }
+    var onFrame = null;
+    return {
+      set: function (v) { noise = Math.max(0, Math.min(1, v)); },
+      start: function (cb) { onFrame = cb; if (!raf) raf = requestAnimationFrame(frame); },
+      stop: function () { if (raf) cancelAnimationFrame(raf); raf = 0; draw(); }
+    };
+  }
+  function pct(v, all) { var x = all ? v / all * 100 : 0; return x > 0 && x < 1 ? '<1%' : Math.round(x) + '%'; }
+  function fmtN(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  function mmss(ms) { var s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
+  var gRow = {};
+  C.roles.forEach(function (r) {
+    var d = document.createElement('div'); d.innerHTML = '<p><span></span><span>0%</span></p><i><b></b></i>';
+    d.querySelector('span').textContent = r[1]; $('gRoles').appendChild(d); gRow[r[0]] = d;
+  });
+  $('gImg').src = "../assets/game-final.jpg?v=de969ab4";
+  function gameView(S, on) {
+    var box = $('vGame');
+    box.hidden = !on; gOn = on;
+    gGame = S.game || { st: 'off' }; gS = S.gs && S.game && S.gs.id === S.game.id ? S.gs : null;
+    if (!on) { if (GR) GR.stop(); return; }
+    if (!GR) { if (PREVIEW) { $('gC').width = 480; $('gC').height = 270; } GR = NoiseRender($('gC'), "../assets/game-720.jpg?v=96227fa3", PREVIEW ? 8 : 24); }
+    // 3, 2, 1 when the host presses Start (not when this page opens in the middle of the game)
+    if (gGame.id !== gLastId) { gShown = 0; gHist = []; }
+    if (gGame.st === 'run' && gLastSt === 'ready' && gGame.id === gLastId) gCdEnd = Date.now() + 3000;
+    if (gGame.st === 'done' && gLastSt === 'run' && gGame.id === gLastId && !PREVIEW) burst();
+    gLastSt = gGame.st; gLastId = gGame.id;
+    $('gQr').hidden = !(qrOn && gGame.st === 'ready');
+    box.classList.toggle('done', gGame.st === 'done');
+    if (gGame.st === 'done') { GR.set(0); GR.stop(); gameText(true); return; }
+    GR.start(gameFrame);
+    gameText(true);
+  }
+  function gameFrame() {                               // every frame: the numbers glide to the real ones, the noise follows
+    var target = (gS && gS.target) || gGame.target || 0, total = gS ? gS.total : 0;
+    gShown += (total - gShown) * 0.18;
+    var p = gGame.st === 'run' && target ? Math.min(1, gShown / target) : 0;
+    GR.set(gGame.st === 'run' ? Math.pow(1 - p, 1.3) : 1);
+    var now = Date.now();
+    gHist.push([now, total]); while (gHist.length && now - gHist[0][0] > 3000) gHist.shift();
+    if (now - gTxtAt > 120) gameText(false);
+  }
+  function gameText(force) {
+    gTxtAt = Date.now();
+    var st = gGame.st, target = (gS && gS.target) || gGame.target || 0, total = gS ? gS.total : 0;
+    var shown = st === 'done' ? total : gShown, p = st === 'done' ? 1 : st === 'run' && target ? Math.min(1, shown / target) : 0;
+    var noise = st === 'done' ? 0 : st === 'run' ? Math.pow(1 - p, 1.3) : 1;
+    $('gV').textContent = Math.round(noise * 100) + '%';
+    $('gM').style.height = (noise * 100) + '%';
+    var cd = Date.now() < gCdEnd ? Math.ceil((gCdEnd - Date.now()) / 1000) : 0;
+    $('gCd').hidden = !cd && !(gCdEnd && Date.now() < gCdEnd + 700);
+    $('gCd').textContent = cd ? String(cd) : 'Render!';
+    var sp = gHist.length > 1 ? (gHist[gHist.length - 1][1] - gHist[0][1]) / Math.max(1, (gHist[gHist.length - 1][0] - gHist[0][0]) / 1000) : 0;
+    $('gSp').textContent = st === 'run' ? fmtN(sp) + ' samples/s' : st === 'done' ? 'clean' : '';
+    var np = gS ? gS.np : 0;
+    $('gK').textContent = st === 'ready' ? 'The opening game' : st === 'run' ? 'Rendering · ' + Math.floor(p * 100) + '%' : 'Rendered by the whole hall';
+    $('gT').textContent = st === 'ready' ? 'Let’s render TAS3D 2026' : st === 'run' ? 'Tap RENDER on your phone' : 'TAS3D 2026 is open';
+    var roles = gS && gS.roles || {}, players = gS && gS.players || {}, all = 0, lead = '', best = 0, hard = '', hardV = 0;
+    for (var r in roles) { all += roles[r]; if (roles[r] > best) { best = roles[r]; lead = r; } var pc = players[r] ? roles[r] / players[r] : 0; if (pc > hardV) { hardV = pc; hard = r; } }
+    if (st === 'ready') $('gS').textContent = 'Check in on your phone — a big RENDER button comes up there. The whole hall renders this picture together.';
+    else if (st === 'run') $('gS').textContent = fmtN(shown) + ' of ' + fmtN(target) + ' samples · ' + np + (np === 1 ? ' person' : ' people') + ' rendering';
+    else {
+      var nm = function (k) { for (var i = 0; i < C.roles.length; i++) if (C.roles[i][0] === k) return C.roles[i][1]; return k; };
+      $('gS').textContent = (gS && gS.ms ? 'Rendered in ' + mmss(gS.ms) + ' by ' : 'Rendered by ') + np + (np === 1 ? ' person' : ' people')
+        + (lead ? ' · most samples: ' + nm(lead) + ' (' + Math.round(best / all * 100) + '%)' : '')
+        + (hard && hard !== lead ? ' · hardest workers: ' + nm(hard) + ', ' + Math.round(hardV) + ' each' : '');
+    }
+    C.roles.forEach(function (rr) {
+      var d = gRow[rr[0]], v = roles[rr[0]] || 0;
+      d.querySelectorAll('span')[1].textContent = pct(v, all);
+      d.querySelector('b').style.width = (best ? v / best * 100 : 0) + '%';
+      d.classList.toggle('lead', !!lead && rr[0] === lead && all > 0);
+    });
+    $('gRoles').hidden = st === 'ready';
+  }
+  function burst() {                                   // confetti of reactions over the clean picture
+    var ks = C.reactions.map(function (r) { return r[0]; });
+    for (var i = 0; i < 4; i++) setTimeout(function () { for (var j = 0; j < 5; j++) queue.push(ks[Math.floor(Math.random() * ks.length)]); }, i * 400);
+  }
+
   // the host panel's copy: the current slide is the preview the speakers' remotes get
   function previewSlide(on) {
     var box = $('slides');
