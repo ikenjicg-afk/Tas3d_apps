@@ -322,7 +322,7 @@
     add(deck, 'p', 'dk-fh', '', 'Files in this folder');
     add(deck, 'ol', 'dk-files', 'files');
 
-    function decks() { return S.list ? S.list.decks : []; }
+    function decks() { return S.list ? S.list.decks.filter(function (d) { return !d.sp; }) : []; }   // not the pause folder "Screen": that is the host's Screen tab
     function find(id) { var d = decks(); for (var i = 0; i < d.length; i++) if (d[i].id === id) return d[i]; return null; }
     function onScreen(id) { return S.cfg.scene === 'slides' && S.cfg.deck === id; }
     function choose(id) {

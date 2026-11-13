@@ -181,7 +181,7 @@
         }
       }
     }
-    var SCENES = { blank: 1, logo: 1, qr: 1, checkin: 1, poll: 1, slides: 1, game: 1 };
+    var SCENES = { blank: 1, logo: 1, qr: 1, checkin: 1, poll: 1, polls: 1, slides: 1, game: 1 };   // polls: every poll of the day at once
     // the same reaction can come through both servers (they pass messages to each other): count it once
     var seenRx = {}, seenRxList = [];
     function firstTime(id) {
@@ -208,15 +208,32 @@
         deck: idOk(d.deck) ? d.deck : '', live: idOk(d.live) ? d.live : '', at: at, w: w };
       changed();
     }
+    // one guest: at most C.rx.max reactions in C.rx.per seconds. The phone stops there by itself;
+    // this is for a page that does not (an old copy, somebody's script): the rest is not shown.
+    var RXMAX = (C.rx && C.rx.max) || 3, RXWIN = ((C.rx && C.rx.per) || 10) * 1000, rxBy = {}, rxByN = 0;
+    function rxAllow(dev, want) {
+      var now = Date.now(), w = rxBy[dev];
+      if (!w || now - w.t >= RXWIN - 1500) {            // a new window (1.5 s of slack: the phone's clock starts at the tap, ours when it arrives)
+        if (!w && ++rxByN > 3000) { rxBy = {}; rxByN = 1; }
+        w = rxBy[dev] = { t: now, n: 0 };
+      }
+      var ok = Math.max(0, Math.min(want, RXMAX - w.n));
+      w.n += ok;
+      return ok;
+    }
     function onReact(x) {
       if (!S.cfg.rx) return;                           // reactions are switched off by the host
-      var m0 = /^#([a-z0-9]{6,60})(,|$)/.exec(x);       // "#<id>,fire:2,clap:1"
-      if (!firstTime(m0 && m0[1])) return;
+      var m0 = /^#([a-z0-9]{6,60})(,|$)/.exec(x);       // "#<id>r<n>,fire:2,clap:1"
+      if (!m0 || !firstTime(m0[1])) return;
+      var dev = m0[1].replace(/r\d+$/, ''), out = [];
       String(x).split(',').forEach(function (p) {
         var m = /^([a-z][a-z0-9]*):(\d+)$/.exec(p.trim());
-        if (m && S.rx.hasOwnProperty(m[1])) S.rx[m[1]] += Math.min(+m[2], 5);
+        if (!m || !S.rx.hasOwnProperty(m[1])) return;
+        var n = rxAllow(dev, Math.min(+m[2], RXMAX));
+        if (n) { S.rx[m[1]] += n; out.push(m[1] + ':' + n); }
       });
-      if (opt.onReact) opt.onReact(x);
+      if (!out.length) return;
+      if (opt.onReact) opt.onReact('#' + m0[1] + ',' + out.join(','));
       changed();
     }
     function onAnswer(id, x) {
@@ -447,6 +464,9 @@
         changed();
       },
       // the polls of this round except the current one, newest first
+      allPolls: function () {
+        return Object.keys(S.ph).map(function (k) { return S.ph[k]; }).filter(function (p) { return p.total > 0; }).sort(function (a, b) { return a.at - b.at; });
+      },
       pastPolls: function () {
         var cur = S.now && S.now.k === 'poll' ? S.now.id : '';
         return Object.keys(S.ph).filter(function (k) { return k !== cur; }).map(function (k) { return S.ph[k]; }).sort(function (a, b) { return b.at - a.at; });

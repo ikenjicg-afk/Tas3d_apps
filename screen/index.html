@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '3db325398e';</script>
+<script>window.TAS3D_BUILD = '36f908343c';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -75,6 +75,26 @@ html.noqr .total{font-size:23rem;padding-bottom:.08em}
 html.noqr .rows{grid-column:6/13;margin-top:0}
 html.noqr .row{height:6.4rem;grid-template-columns:17.5rem minmax(0,1fr) 6rem 4.4rem}
 html.noqr .row .nm{font-size:2.4rem}
+
+/* every poll of the day at once (host: Poll → Show all results) */
+html.sc-polls .qr{display:none}
+.main.pollsv,html.noqr .main.pollsv{grid-column:1/-1;display:flex;flex-direction:column;align-self:stretch;align-items:stretch;min-height:0;padding-top:1.4rem;text-align:left}
+.pgrid{flex:1;min-height:0;margin-top:1rem;display:grid;grid-template-columns:repeat(var(--pc,3),minmax(0,1fr));grid-auto-rows:auto;align-content:space-evenly;gap:1.2rem 2.4rem}
+.pgrid.t1{--pc:2;--pq:3rem;--pf:2rem;--ph:3.6rem}
+.pgrid.t1.one{--pc:1;width:min(100%,62rem);margin-left:auto;margin-right:auto}
+.pgrid.t2{--pc:2;--pq:2.2rem;--pf:1.6rem;--ph:2.6rem}
+.pgrid.t3{--pc:3;--pq:1.8rem;--pf:1.3rem;--ph:2.4rem}
+.pgrid.t4{--pc:3;--pq:1.4rem;--pf:1.12rem;--ph:1.6rem}
+.pcard{min-width:0;border-top:2px solid var(--fg);padding-top:.6rem}
+.pcard .ph{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
+.pcard h3{margin:0;padding-bottom:.08em;font-weight:400;font-size:var(--pq);line-height:1.12;letter-spacing:var(--tr-l);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pcard .tot{flex:none;padding-top:.25em;font-size:max(.95rem,calc(var(--pf)*.7));color:var(--mute);white-space:nowrap}
+.pcard .rows{margin-top:.5rem;border-bottom:0}
+.pcard .row,html.noqr .pcard .row{grid-template-columns:minmax(0,46%) minmax(0,1fr) calc(var(--pf)*2.2) calc(var(--pf)*2.3);column-gap:.8rem;height:auto;min-height:var(--ph);padding:0}
+.pcard .row .nm,html.noqr .pcard .row .nm{font-size:var(--pf);white-space:nowrap}
+.pcard .row .n{font-size:var(--pf)}
+.pcard .row .pc{font-size:calc(var(--pf)*.75)}
+.pcard .row .bar{height:calc(var(--pf)*.45)}
 
 /* Controls: appear when the mouse moves */
 .ctl{position:fixed;left:50%;top:2.25rem;transform:translateX(-50%);z-index:6;display:flex;gap:.3rem;transition:opacity .4s}
@@ -252,6 +272,12 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     <div class="rows" id="rows"></div>
   </section>
 
+  <section class="main pollsv" id="vPolls" hidden>
+    <p class="lbl pk">Poll results</p>
+    <p class="pn" id="pEmpty" hidden>No polls yet.</p>
+    <div class="pgrid" id="pGrid"></div>
+  </section>
+
   <section class="main pollv" id="vPoll" aria-live="polite" hidden>
     <p class="lbl pk" id="pK">Poll · voting open</p>
     <h2 class="pq" id="pQ"></h2>
@@ -299,29 +325,24 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     <p class="bad" id="keyErr" role="alert"></p>
   </div>
   <div id="dirBox" hidden>
-    <h3>Presentations folder</h3>
+    <h3>Folder</h3>
     <p id="fSt"></p>
+    <p class="tip" id="fIn"></p>
     <button type="button" class="sbtn o" id="fAllow" hidden>Allow access</button>
-    <div class="drop" id="drop"><b>Drag the folder here</b><span>TAS3D 2026 Presentations — one folder per speaker inside</span><br><button type="button" class="sbtn" id="fPick">Choose the folder…</button></div>
+    <div class="drop" id="drop"><b>Drag the folder here</b><span>TAS3D 2026 Presentations</span><br><button type="button" class="sbtn" id="fPick">Choose the folder…</button></div>
     <p class="tip" id="fTip"></p>
   </div>
-  <div id="sndBox" hidden>
-    <h3>Sound folder</h3>
-    <p id="sSt"></p>
-    <button type="button" class="sbtn o" id="sAllow" hidden>Allow access</button>
-    <div class="drop"><b>Drag the folder “Sound” here</b><span>or put it inside “TAS3D 2026 Presentations” — then it comes with it. Its first 6 tracks are the host's buttons (fanfare, transitions); a folder “Music” inside is the music the host chooses</span><br><button type="button" class="sbtn" id="sPick">Choose the folder…</button></div>
-  </div>
-  <h3>Video sound</h3>
+  <h3>Sound</h3>
   <p id="sndSt"></p>
   <h3>Connection</h3>
   <p id="netSt"></p>
 </div>
-<div class="dropall" id="dropall" hidden>Drop the folder: “TAS3D 2026 Presentations” or “Sound”</div>
-<script src="../assets/config.js?v=85f9c0fc"></script>
+<div class="dropall" id="dropall" hidden>Drop the folder “TAS3D 2026 Presentations”</div>
+<script src="../assets/config.js?v=e18e723a"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
-<script src="../assets/hub.js?v=e2fb6cf0"></script>
-<script src="../assets/deck.js?v=c0e5924a"></script>
-<script src="../assets/slides.js?v=c725de58"></script>
+<script src="../assets/hub.js?v=4175a7e2"></script>
+<script src="../assets/deck.js?v=90eb23c5"></script>
+<script src="../assets/slides.js?v=e4190168"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -365,6 +386,37 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
       o.pc.textContent = (total ? Math.round(v / total * 100) : 0) + '%';
       o.bar.style.width = (max ? v / max * 100 : 0) + '%';
       o.el.classList.toggle('lead', max > 0 && v === max);
+    });
+  }
+
+  // ---- every poll of this round at once: up to 9 cards (the last 9), oldest first; the numbers stay live
+  var pgSig = '', pgCards = [];
+  function pollsView(S) {
+    var all = Object.keys(S.ph || {}).map(function (k) { return S.ph[k]; }).filter(function (p) { return p.total > 0; })
+      .sort(function (a, b) { return a.at - b.at; }).slice(-9);
+    var sig = JSON.stringify(all.map(function (p) { return [p.id, p.q, p.o]; })), g = $('pGrid');
+    if (sig !== pgSig) {
+      pgSig = sig; pgCards = []; g.innerHTML = '';
+      g.className = 'pgrid t' + (all.length <= 2 ? 1 : all.length <= 4 ? 2 : all.length <= 6 ? 3 : 4) + (all.length === 1 ? ' one' : '');
+      all.forEach(function (p) {
+        var c = document.createElement('div'); c.className = 'pcard';
+        c.innerHTML = '<div class="ph"><h3></h3><span class="tot"></span></div><div class="rows"></div>';
+        c.querySelector('h3').textContent = p.q;
+        var rs = [];
+        p.o.forEach(function (o) {
+          var d = document.createElement('div'); d.className = 'row';
+          d.innerHTML = '<span class="nm"></span><span class="bar"><i></i></span><span class="n">0</span><span class="pc">0%</span>';
+          d.querySelector('.nm').textContent = o;
+          c.querySelector('.rows').appendChild(d);
+          rs.push({ el: d, bar: d.querySelector('.bar i'), n: d.querySelector('.n'), pc: d.querySelector('.pc'), v: 1e9 });   // 1e9: no "bump" when the card is drawn
+        });
+        g.appendChild(c); pgCards.push({ tot: c.querySelector('.tot'), rows: rs });
+      });
+    }
+    $('pEmpty').hidden = all.length > 0;
+    all.forEach(function (p, i) {
+      bars(pgCards[i].rows, p.n, p.total);
+      pgCards[i].tot.textContent = p.total + (p.total === 1 ? ' vote' : ' votes');
     });
   }
 
@@ -455,7 +507,9 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     document.documentElement.classList.toggle('noqr', !cfg.qr);
     $('stage').hidden = scene === 'blank' || scene === 'logo' || scene === 'qr' || scene === 'slides' || scene === 'game';
     $('bigqr').hidden = scene !== 'qr';
-    $('vCheck').hidden = scene !== 'checkin'; $('vPoll').hidden = scene !== 'poll';
+    $('vCheck').hidden = scene !== 'checkin'; $('vPoll').hidden = scene !== 'poll'; $('vPolls').hidden = scene !== 'polls';
+    document.documentElement.classList.toggle('sc-polls', scene === 'polls');
+    if (scene === 'polls') pollsView(S);
     rxOn = cfg.rx !== false;
     if (!rxOn) { queue = []; document.querySelectorAll('.rx').forEach(function (e) { e.remove(); }); alive = 0; }
     $('qrH').textContent = p && p.open ? 'Vote' : 'Check in';
@@ -709,7 +763,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     var sig = JSON.stringify([key, s, up, $('setp').hidden]);
     if (sig === setSig) return;
     setSig = sig;
-    var attention = !key || !s || !!s.need || !!s.err || !s.sound || s.snd.need === 'reconnect';
+    var attention = !key || !s || !!s.need || !!s.err || !s.sound;
     $('setDot').hidden = !attention;
     $('keyBox').hidden = key; $('dirBox').hidden = !key;
     if (s) {
@@ -718,25 +772,16 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
       st.textContent = s.scanning ? 'Reading the folder…'
         : s.need === 'reconnect' ? '“' + s.folder + '” was connected before. After each start the browser asks once:'
         : s.need ? 'Not connected yet.'
-        : 'Connected: ' + s.folder + ' · ' + s.n + (s.n === 1 ? ' folder' : ' folders') + (s.kind === 'files' ? ' · this browser does not see new files: drag the folder here again after changes.' : ' · new files appear by themselves.');
+        : 'Connected: ' + s.folder + (s.kind === 'files' ? ' · after changes drag it here again (this browser does not see new files).' : ' · new files appear by themselves.');
       if (s.err && !s.scanning) st.textContent += ' ' + s.err;
       $('fAllow').hidden = s.need !== 'reconnect';
       $('fAllow').textContent = 'Allow access to “' + s.folder + '”';
       $('drop').querySelector('b').textContent = s.need ? 'Drag the folder here' : 'Drag another folder here to replace it';
-      var sd = s.snd;
-      $('sndBox').hidden = false;
-      $('sSt').className = sd.need || sd.err ? 'bad' : 'ok';
-      $('sSt').textContent = sd.scanning ? 'Reading the folder…'
-        : sd.need === 'reconnect' ? '“' + sd.folder + '” was connected before. After each start the browser asks once:'
-        : sd.need ? 'Not connected yet.'
-        : 'Connected: ' + sd.folder + ' · ' + sd.slots + ' of 6 tracks' + (sd.bg ? ' · music: ' + sd.bg + (sd.bg === 1 ? ' track' : ' tracks') : ' · no folder “Music” inside (no music)') + '.';
-      if (sd.err && !sd.scanning) $('sSt').textContent += ' ' + sd.err;
-      $('sAllow').hidden = sd.need !== 'reconnect';
-      $('sAllow').textContent = 'Allow access to “' + sd.folder + '”';
-      $('fTip').textContent = (IS_MAC ? 'Mac: drag it from Finder' : IS_WIN ? 'Windows: drag it from File Explorer' : 'Drag it from your files')
-        + ' — the folder “TAS3D 2026 Presentations” itself (not Desktop or Documents). '
-        + (KEEPS ? 'The browser asks to let the site view the files: press “View files”. Then it remembers the folder.'
-                 : 'This browser cannot remember the folder: drag it again after each start. Chrome or Edge remember it.');
+      // what was found inside: speakers, Sound (tracks), Music, Screen (pause pictures)
+      var sd = s.snd, sp = s.sp || 0;
+      $('fIn').hidden = !!s.need || s.scanning;
+      $('fIn').textContent = 'Inside: ' + (s.n - (sp ? 1 : 0)) + ' speakers · Sound: ' + (sd.slots ? sd.slots + ' of 6 tracks' : 'no') + ' · Music: ' + (sd.bg || 'no') + ' · Screen: ' + (sp ? sp + (sp === 1 ? ' file' : ' files') : 'no');
+      $('fTip').textContent = KEEPS ? 'The browser asks once to let the site view the files: press “View files”.' : 'This browser forgets the folder after a restart: drag it again. Chrome and Edge remember it.';
     }
     var snd = !s || s.sound;
     $('sndSt').innerHTML = '';
@@ -751,8 +796,6 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   }
   $('fAllow').addEventListener('click', function () { if (slides) slides.connect(); });
   $('fPick').addEventListener('click', function () { if (slides) slides.choose(); });
-  $('sAllow').addEventListener('click', function () { if (slides) slides.soundConnect(); });
-  $('sPick').addEventListener('click', function () { if (slides) slides.soundChoose(); });
   // the folder dragged anywhere onto the screen
   var dragN = 0;
   function isFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0; }

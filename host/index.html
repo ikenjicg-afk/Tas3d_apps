@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '3db325398e';</script>
+<script>window.TAS3D_BUILD = '36f908343c';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -88,7 +88,7 @@ button,input,textarea{font:inherit;color:inherit}
 .glen{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .glen button{min-height:46px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .glen button[aria-pressed="true"]{background:var(--fg);color:#0e0e0e;border-color:var(--fg)}
-@media (max-width:480px){.tabs button{font-size:13px;letter-spacing:.02em}.tabs em{margin-left:4px;padding:1px 5px}}
+@media (max-width:480px){.tabs button{font-size:13px;letter-spacing:.02em;padding-left:5px;padding-right:5px}.tabs em{margin-left:4px;padding:1px 5px}}
 /* sound */
 .slots{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .slot{position:relative;min-height:84px;padding:12px 12px 14px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;text-align:left;cursor:pointer;overflow:hidden;touch-action:manipulation}
@@ -99,7 +99,7 @@ button,input,textarea{font:inherit;color:inherit}
 .slot.on{background:var(--orange);border-color:var(--orange)}
 .slot.on .k,.slot.on .d{color:#fff}
 .slot[disabled]{opacity:.35;cursor:default}
-.vol{margin-top:10px;display:grid;grid-template-columns:minmax(0,1fr) 3.4em;gap:12px;align-items:center}
+.vol{margin-top:14px;display:grid;grid-template-columns:auto minmax(0,1fr) 3.4em;gap:12px;align-items:center}
 .vol input{width:100%;accent-color:var(--orange);height:32px}
 .vol b{font-weight:400;font-variant-numeric:tabular-nums;text-align:right}
 .bgnow{margin-top:10px;font-size:16px}
@@ -112,6 +112,11 @@ button,input,textarea{font:inherit;color:inherit}
 .mlist li.cur button{box-shadow:inset 3px 0 0 var(--orange);padding-left:10px}
 .mlist li.cur .n,.mlist li.cur .s{color:var(--orange)}
 .hint.bad{color:var(--orange)}
+h2.sec.first{margin-top:6px}
+.vol span{font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mute)}
+.allres{margin-top:18px;padding:14px;border:1px solid #2c2c2b;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.allres .btn[aria-pressed="true"]{background:var(--fg);color:#0e0e0e}
+.slot.wait{border-color:var(--orange)}
 .spkqr{margin-top:12px;display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center}
 .spkqr .qrb{background:#fff;padding:6px;line-height:0;cursor:zoom-in}
 .spkqr .qrb svg{width:100%;height:auto}
@@ -119,7 +124,7 @@ button,input,textarea{font:inherit;color:inherit}
 .bigqr .qrb{width:min(86vw,72vh);background:#fff;padding:10px;line-height:0}
 .bigqr .qrb svg{width:100%;height:auto}
 .bigqr p{font-size:18px;text-align:center}
-.tabs{margin-top:20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--rule)}
+.tabs{margin-top:20px;display:grid;grid-template-columns:repeat(4,auto);border-bottom:1px solid var(--rule)}
 .tabs button{min-width:0}
 .tabs button{min-height:52px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mute);cursor:pointer}
 .tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--orange)}
@@ -221,10 +226,11 @@ h2.sec{margin-top:30px;font-size:22px}
   <div class="tabs" role="tablist">
     <button type="button" role="tab" data-tab="checkin" aria-selected="true">Check-in<em id="tN">0</em></button>
     <button type="button" role="tab" data-tab="poll" aria-selected="false">Poll<em id="tP" hidden></em></button>
-    <button type="button" role="tab" data-tab="qs" aria-selected="false">Questions<em id="tQ">0</em></button>
+    <button type="button" role="tab" data-tab="qs" aria-selected="false">Q&amp;A<em id="tQ">0</em></button>
     <button type="button" role="tab" data-tab="slides" aria-selected="false">Slides</button>
     <button type="button" role="tab" data-tab="game" aria-selected="false">Game<em id="tG" hidden></em></button>
     <button type="button" role="tab" data-tab="snd" aria-selected="false">Sound<em id="tS" hidden></em></button>
+    <button type="button" role="tab" data-tab="scr" aria-selected="false">Screen<em id="tX" hidden></em></button>
   </div>
 
   <section class="pane" id="p-checkin">
@@ -233,10 +239,8 @@ h2.sec{margin-top:30px;font-size:22px}
     <div class="rows" id="roles"></div>
     <div class="box">
       <p><b>Reset</b> — start from zero.</p>
-      <p class="hint">Check-ins, questions, the poll and the question on the screen are cleared; guests' phones go back to check-in. Use it after a rehearsal.</p>
       <div class="b"><button type="button" class="btn" id="reset">Reset</button></div>
     </div>
-    <p class="foot">Guests scan the QR code on the screen or open ikenjicg-afk.github.io/Tas3d_apps/hi</p>
   </section>
 
   <section class="pane" id="p-poll" hidden>
@@ -250,8 +254,11 @@ h2.sec{margin-top:30px;font-size:22px}
         <button type="button" class="btn" id="aEnd">End poll</button>
       </div>
     </div>
+    <div class="allres" id="allRes" hidden>
+      <p><b id="allN"></b></p>
+      <button type="button" class="btn o" id="allShow" aria-pressed="false">All results on the screen</button>
+    </div>
     <h2 class="sec">Ready-made polls</h2>
-    <p class="hint" style="margin-top:6px">Start — it pops up on every guest's phone at once. The poll before it keeps its results (Earlier polls, below) until Reset.</p>
     <div id="presets"></div>
     <h2 class="sec">New poll</h2>
     <div class="form">
@@ -262,7 +269,6 @@ h2.sec{margin-top:30px;font-size:22px}
     </div>
     <div id="past" hidden>
       <h2 class="sec">Earlier polls</h2>
-      <p class="hint" style="margin-top:6px">Kept until Reset. “Show results” puts them on the screen again (voting stays closed).</p>
       <div id="pastList"></div>
     </div>
   </section>
@@ -280,15 +286,10 @@ h2.sec{margin-top:30px;font-size:22px}
   <section class="pane" id="p-slides" hidden>
     <div class="spk">
       <p class="kick">Speakers</p>
-      <p class="hint" style="margin-top:8px"><b style="color:var(--fg)">Start</b> — the screen goes to the logo and this speaker gets it: they put their slides on it and change them from their phone or laptop; nobody else can.
-        <b style="color:var(--fg)">Stop</b> when the talk is over — the screen goes to the logo and is yours again. Before Start a speaker can only look through their own slides.</p>
       <div class="spkqr"><div class="qrb" id="spkQr" role="button" tabindex="0" aria-label="Show the speakers' QR code big"></div>
-        <p class="hint">A speaker scans this with the phone camera — their page opens, no password needed. Tap the code to make it big.
-          <br><br>Only for speakers: whoever scans it can control their own slides after your Start.</p></div>
+        <p class="hint">Speakers scan this — no password. Tap to make it big.</p></div>
     </div>
     <div id="deckui"></div>
-    <p class="foot">The files stay on the screen computer, in the folder TAS3D 2026 Presentations — one folder per speaker; new files appear by themselves.
-      PDF, pictures (JPG, PNG) and videos (MP4) are shown; save PowerPoint and Keynote as PDF.</p>
   </section>
 
   <section class="pane" id="p-game" hidden>
@@ -313,31 +314,32 @@ h2.sec{margin-top:30px;font-size:22px}
       <button type="button" data-k="long" aria-pressed="false">Long</button>
     </div>
     <p class="hint" id="gLenH" style="margin-top:8px"></p>
-    <h2 class="sec">How it goes</h2>
-    <p class="hint" style="margin-top:8px"><b style="color:var(--fg)">Show the game</b> — the screen shows the picture in heavy render noise; every checked-in phone gets a big RENDER button.
-      <b style="color:var(--fg)">Start rendering</b> — 3, 2, 1 on the screen and the phones, then everybody taps: every tap is a sample, the noise goes away.
-      It takes as long as the hall needs (fewer people tapping — longer); at 100% the clean picture appears — “TAS3D 2026 is open” — with the teams (Visualisers, Architects …) and who rendered most.
-      <b style="color:var(--fg)">Finish now</b> if the hall gets tired. <b style="color:var(--fg)">Close the game</b> puts the logo back.</p>
   </section>
 
   <section class="pane" id="p-snd" hidden>
-    <p class="hint" id="sndSt" style="margin-top:4px"></p>
-    <h2 class="sec">Tracks</h2>
-    <p class="hint" style="margin-top:6px">Tap to play on the screen computer (a speaker comes out, a break …); tap again to stop. The background music gets quieter while a track plays.</p>
-    <div class="slots" id="slots"></div>
-    <div class="b" style="margin-top:10px"><button type="button" class="btn" id="sStop">Stop the track</button></div>
-    <p class="kick" style="margin-top:18px">Tracks volume</p>
-    <div class="vol"><input type="range" id="vJ" min="0" max="100" step="1" value="100" aria-label="Tracks volume"><b id="vJv">100%</b></div>
-    <h2 class="sec">Music</h2>
-    <p class="hint" style="margin-top:6px">Coffee break, before the start …: tap a track — it plays, then the next one. Tap the playing one to pause.</p>
-    <p class="bgnow" id="bgNow">—</p>
-    <div class="b" style="margin-top:10px;display:flex;gap:8px"><button type="button" class="btn o" id="bgPlay">Play</button><button type="button" class="btn" id="bgNext">Next track</button></div>
-    <p class="kick" style="margin-top:18px">Music volume</p>
-    <div class="vol"><input type="range" id="vB" min="0" max="100" step="1" value="50" aria-label="Music volume"><b id="vBv">50%</b></div>
-    <ol class="mlist" id="mList"></ol>
-    <p class="foot">The folder “Sound” — inside “TAS3D 2026 Presentations” (picked up by itself), or dragged into Settings on the screen computer: its first 6 tracks by name are Track 1–6
-      (e.g. “1 Fanfare.mp3”, “2 Walk-on.mp3” …); the music goes into a folder “Music” inside it. MP3, M4A, WAV. New files appear by themselves.
-      The hall mixer stays the main volume; these sliders are for quick changes from here.</p>
+    <p class="hint bad" id="sndSt" hidden></p>
+    <div id="sndTracks" hidden>
+      <h2 class="sec first">Tracks</h2>
+      <div class="slots" id="slots"></div>
+      <div class="b" style="margin-top:10px"><button type="button" class="btn" id="sStop">Stop the track</button></div>
+      <div class="vol"><span>Volume</span><input type="range" id="vJ" min="0" max="100" step="1" value="100" aria-label="Tracks volume"><b id="vJv">100%</b></div>
+    </div>
+    <div id="sndMusic" hidden>
+      <h2 class="sec">Music</h2>
+      <p class="bgnow" id="bgNow">—</p>
+      <div class="b" style="margin-top:10px;display:flex;gap:8px"><button type="button" class="btn o" id="bgPlay">Play</button><button type="button" class="btn" id="bgNext">Next track</button></div>
+      <div class="vol"><span>Volume</span><input type="range" id="vB" min="0" max="100" step="1" value="50" aria-label="Music volume"><b id="vBv">50%</b></div>
+      <ol class="mlist" id="mList"></ol>
+    </div>
+  </section>
+
+  <section class="pane" id="p-scr" hidden>
+    <p class="hint bad" id="spSt" hidden></p>
+    <div id="spBox" hidden>
+      <h2 class="sec first">For a pause</h2>
+      <div class="slots" id="spList"></div>
+      <div class="b" style="margin-top:10px"><button type="button" class="btn" id="spOff">Take off the screen</button></div>
+    </div>
   </section>
 
   <div class="bigqr" id="bigQr" hidden role="dialog" aria-label="Speakers' QR code"><div class="qrb" id="bigQrQ"></div><p>Speakers: scan with the camera</p><button type="button" class="btn" id="bigQrX">Close</button></div>
@@ -351,14 +353,12 @@ h2.sec{margin-top:30px;font-size:22px}
     </div>
   </div>
 
-  <p class="foot">Host only — do not show this page on the projector: the computer at the projector opens the screen (TAS3D Screen.html or “Open the screen on this device”).
-    You stay logged in on this device for 90 days.</p>
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=85f9c0fc"></script>
+<script src="../assets/config.js?v=e18e723a"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
-<script src="../assets/hub.js?v=e2fb6cf0"></script>
-<script src="../assets/deck.js?v=c0e5924a"></script>
+<script src="../assets/hub.js?v=4175a7e2"></script>
+<script src="../assets/deck.js?v=90eb23c5"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
@@ -490,7 +490,7 @@ h2.sec{margin-top:30px;font-size:22px}
     $('spkQr').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bigQr(true); } });
     $('bigQrX').addEventListener('click', function () { bigQr(false); });
 
-    // ---- sound (the folder "Sound" on the screen computer): 6 tracks, background music, volumes
+    // ---- sound: the folders "Sound" (6 tracks) and "Music" inside the main folder on the screen computer; volumes
     var volT = {}, volDrag = 0;
     function sndCmd(extra) { if (dc) dc.cmd('snd', '', extra); }
     for (var si = 0; si < 6; si++) (function (i) {
@@ -516,17 +516,17 @@ h2.sec{margin-top:30px;font-size:22px}
       var au = dc && dc.state.au, scr = au && dc.state.screens[au.sn];
       var fresh = !!(au && ((scr && Date.now() - scr.at < 30000) || Date.now() - dc.state.auAt < 30000)), ok = !!(fresh && au.f);
       var on = dc && dc.screenOn();
-      $('sndSt').textContent = !dc ? 'Log in again to use the sound.' : !on ? 'The screen is off. Sound plays on the computer at the projector.'
-        : !au || !fresh ? 'Waiting for the screen… If this stays, refresh the screen on the computer at the projector (it may run an older version).'
-        : au.need === 'reconnect' ? 'On the screen computer: Settings (bottom right) → “Allow access” for the folder “' + au.folder + '”.'
-        : !au.f ? 'No sound folder yet. Put the folder “Sound” into “TAS3D 2026 Presentations” (it is picked up by itself), or drag it into Settings (bottom right) on the screen computer.'
-        : 'Sound folder: ' + au.folder + (au.blk ? ' · the browser there blocks sound until someone clicks once on the screen computer.' : '');
-      $('sndSt').classList.toggle('bad', !ok || !!(au && au.blk));
+      var msg = !dc ? 'Log in again to use the sound.' : !on ? 'The screen is off.'
+        : !au || !fresh ? 'Waiting for the screen…'
+        : !au.f ? 'No folders “Sound” or “Music” in the main folder.'
+        : au.blk ? 'Click once on the screen computer: the browser there holds the sound until then.' : '';
+      $('sndSt').textContent = msg; $('sndSt').hidden = !msg;
       var slots = ok ? au.slots : [];
+      $('sndTracks').hidden = !slots.length;
       $('slots').querySelectorAll('.slot').forEach(function (b, i) {
         var x = slots[i], playing = ok && au.pl === i;
-        b.disabled = !x;
-        b.querySelector('.t').textContent = x ? x.n.replace(/\.[a-z0-9]+$/i, '') : 'empty';
+        b.hidden = !x; b.disabled = !x;
+        b.querySelector('.t').textContent = x ? x.n.replace(/\.[a-z0-9]+$/i, '') : '';
         b.querySelector('.d').textContent = !x ? '' : playing ? 'playing · tap to stop' : x.d ? mmss(x.d) : '';
         b.classList.toggle('on', playing);
         var bar = b.querySelector('.bar');
@@ -534,7 +534,8 @@ h2.sec{margin-top:30px;font-size:22px}
       });
       $('sStop').disabled = !ok || au.pl < 0;
       var bgn = ok && au.bg ? au.bg.n : 0;
-      $('bgNow').textContent = !ok ? '—' : !bgn ? 'No folder “Music” inside “Sound”.' : (au.bg.on ? 'Playing: ' : 'Paused: ') + (au.bg.cur || '').replace(/\.[a-z0-9]+$/i, '');
+      $('sndMusic').hidden = !bgn;
+      $('bgNow').textContent = !bgn ? '—' : (au.bg.on ? 'Playing: ' : 'Paused: ') + (au.bg.cur || '').replace(/\.[a-z0-9]+$/i, '');
       // the music list: tap a track to play it
       var ml = ok && au.bg && au.bg.list ? au.bg.list : [], msig = JSON.stringify([ml, au && au.bg && au.bg.i, au && au.bg && au.bg.on]);
       if ($('mList').getAttribute('data-s') !== msig) {
@@ -561,6 +562,55 @@ h2.sec{margin-top:30px;font-size:22px}
     }
     setInterval(function () { if (tab === 'snd') renderSound(); }, 500);
 
+    // ---- Screen tab: pictures / videos for a pause — the folder "Screen" inside the main folder on the screen computer
+    var spPend = null;
+    function spDeck() { var L = dc && dc.state.list; if (!L) return null; for (var i = 0; i < L.decks.length; i++) if (L.decks[i].sp) return L.decks[i]; return null; }
+    function spOn() { var d = spDeck(); return !!(d && S.cfg.scene === 'slides' && S.cfg.deck === d.id); }
+    function spCur() { var d = spDeck(), p = d && dc.state.pv[d.id]; return spOn() && p && p.it ? p.it.f : -1; }
+    function spShow(i) {
+      var d = spDeck(); if (!d) return;
+      guard('Show on the screen', function () {
+        var n = dc.cmd('show', d.id, { f: i });
+        spPend = { i: i, at: Date.now() };
+        [1500, 3500, 6000].forEach(function (ms) { setTimeout(function () { if (spPend && spPend.i === i && spCur() !== i) dc.resend(n); }, ms); });   // the screen does a command once
+        renderScr();
+      });
+    }
+    $('spOff').addEventListener('click', function () { spPend = null; if (spOn()) hub.setCfg({ scene: 'logo' }); });
+    function renderScr() {
+      var d = spDeck(), on = dc && dc.screenOn(), files = d ? d.files.map(function (f, i) { return { f: f, i: i }; }).filter(function (x) { return x.f.c; }) : [];
+      var msg = !dc ? 'Log in again.' : !on ? 'The screen is off.' : !dc.state.list ? 'Waiting for the screen…' : !files.length ? 'No folder “Screen” in the main folder.' : '';
+      $('spSt').textContent = msg; $('spSt').hidden = !msg;
+      $('spBox').hidden = !files.length || !on;
+      var cur = spCur();
+      if (spPend && (spPend.i === cur || Date.now() - spPend.at > 8000)) spPend = null;
+      var sig = JSON.stringify(files.map(function (x) { return [x.i, x.f.n, x.f.k, x.f.c]; }));
+      if ($('spList').getAttribute('data-s') !== sig) {
+        $('spList').setAttribute('data-s', sig); $('spList').innerHTML = '';
+        files.forEach(function (x) {
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'slot'; b.setAttribute('data-i', x.i);
+          b.innerHTML = '<span class="k"></span><span class="t"></span><span class="d"></span>';
+          b.querySelector('.k').textContent = x.f.k === 'vid' ? 'Video' + (x.f.dur ? ' · ' + mmss(x.f.dur) : '') : x.f.k === 'pdf' ? 'PDF' + (x.f.c > 1 ? ' · ' + x.f.c + ' pages' : '') : 'Picture';
+          b.querySelector('.t').textContent = x.f.n.replace(/\.[a-z0-9]+$/i, '').replace(/^\d+[\s._\-–—]*/, '') || x.f.n;
+          b.addEventListener('click', function () { if (spCur() === x.i) { spPend = null; hub.setCfg({ scene: 'logo' }); } else spShow(x.i); });
+          $('spList').appendChild(b);
+        });
+      }
+      $('spList').querySelectorAll('.slot').forEach(function (b) {
+        var i = +b.getAttribute('data-i');
+        b.classList.toggle('on', i === cur); b.classList.toggle('wait', !!spPend && spPend.i === i && i !== cur);
+        b.querySelector('.d').textContent = i === cur ? 'on the screen · tap to take off' : spPend && spPend.i === i ? 'sending…' : '';
+      });
+      $('spOff').disabled = !spOn();
+      $('tX').hidden = !spOn(); $('tX').textContent = 'On'; $('tX').classList.toggle('hot', spOn());
+    }
+
+    // ---- every poll at once on the screen
+    $('allShow').addEventListener('click', function () {
+      if (S.cfg.scene === 'polls') hub.setCfg({ scene: 'logo' });
+      else guard('All results on the screen', function () { hub.setCfg({ scene: 'polls' }); });
+    });
+
     // ---- questions
     $('hide').addEventListener('click', function () { hub.showQuestion(''); });
 
@@ -581,7 +631,7 @@ h2.sec{margin-top:30px;font-size:22px}
       $('live').classList.toggle('off', !n);
       $('liveT').textContent = n ? 'Live' : 'No connection';
       document.querySelectorAll('.tabs button').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
-      $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs'; $('p-slides').hidden = tab !== 'slides'; $('p-game').hidden = tab !== 'game'; $('p-snd').hidden = tab !== 'snd';
+      $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs'; $('p-slides').hidden = tab !== 'slides'; $('p-game').hidden = tab !== 'game'; $('p-snd').hidden = tab !== 'snd'; $('p-scr').hidden = tab !== 'scr';
       if (tab === 'slides') slidesUI();
       var hasPoll = !!(S.now && S.now.k === 'poll');
       // is the screen page running somewhere? (it says so every 8 s)
@@ -634,7 +684,7 @@ h2.sec{margin-top:30px;font-size:22px}
           d.querySelector('b').style.width = (pm ? v / pm * 100 : 0) + '%';
           d.classList.toggle('lead', pm > 0 && v === pm);
         });
-        $('aN').textContent = S.pollTotal + (S.pollTotal === 1 ? ' vote' : ' votes') + (S.cfg.scene === 'poll' ? ' · the results are on the screen' : ' · choose Poll above to show the results on the screen');
+        $('aN').textContent = S.pollTotal + (S.pollTotal === 1 ? ' vote' : ' votes') + (S.cfg.scene === 'poll' ? ' · the results are on the screen' : '');
         $('aClose').textContent = p.open ? 'Close voting' : 'Reopen voting';
       }
 
@@ -644,9 +694,9 @@ h2.sec{margin-top:30px;font-size:22px}
       $('gH').textContent = !gon ? 'Not started' : g.st === 'ready' ? 'On the screen · waiting for Start' : g.st === 'run' ? 'Rendering · ' + Math.floor(gp * 100) + '%' : 'Rendered · TAS3D 2026 is open';
       $('gB').style.width = (gp * 100) + '%';
       var screenOk = S.screenSeen && Date.now() - S.screenSeen < 20000;
-      $('gN').textContent = !gon ? (S.total ? S.total + ' checked in → about ' + Math.max(C.game.min, Math.round(S.total * C.game.per[gLen])) + ' samples to render' : 'Guests check in first: the game needs the screen and checked-in phones.')
-        : (screenOk ? '' : 'The screen is off — the game is counted and shown by the screen. ')
-          + (g.st === 'ready' ? 'Phones show RENDER (disabled until Start). Target is set at Start: ' + S.total + ' checked in.' : (gs ? gs.total + ' of ' + gt + ' samples · ' + gs.np + (gs.np === 1 ? ' person' : ' people') + (gs.ms ? ' · ' + Math.round(gs.ms / 1000) + ' s' : '') : 'Waiting for the screen…'));
+      $('gN').textContent = !gon ? (S.total ? S.total + ' checked in → about ' + Math.max(C.game.min, Math.round(S.total * C.game.per[gLen])) + ' samples to render' : 'Guests check in first.')
+        : (screenOk ? '' : 'The screen is off. ')
+          + (g.st === 'ready' ? 'Waiting for Start · ' + S.total + ' checked in' : (gs ? gs.total + ' of ' + gt + ' samples · ' + gs.np + (gs.np === 1 ? ' person' : ' people') + (gs.ms ? ' · ' + Math.round(gs.ms / 1000) + ' s' : '') : 'Waiting for the screen…'));
       var groles = $('gRoles'), rs = gs && gs.roles || {}, rall = 0, rmax = 0;
       for (var rk in rs) { rall += rs[rk]; rmax = Math.max(rmax, rs[rk]); }
       if (!groles.childNodes.length) C.roles.forEach(function (r) { var d = document.createElement('div'); d.setAttribute('data-r', r[0]); d.innerHTML = '<span></span><span></span><i><b></b></i>'; d.querySelector('span').textContent = r[1]; groles.appendChild(d); });
@@ -662,9 +712,17 @@ h2.sec{margin-top:30px;font-size:22px}
       $('gBack').hidden = !gon || S.cfg.scene === 'game';
       $('tG').hidden = !gon; $('tG').textContent = g.st === 'run' ? Math.floor(gp * 100) + '%' : g.st === 'done' ? '✓' : 'On'; $('tG').classList.toggle('hot', g.st === 'run');
       $('gLen').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-k') === gLen ? 'true' : 'false'); });
-      $('gLenH').textContent = C.game.per[gLen] + ' taps per checked-in guest (at least ' + C.game.min + ' in all). ' + (gLen === 'short' ? 'About 40–60 seconds for 400 people.' : gLen === 'normal' ? 'About 1–1.5 minutes for 400 people.' : 'About 2 minutes for 400 people.');
+      $('gLenH').textContent = C.game.per[gLen] + ' taps per guest';
 
       renderSound();
+      renderScr();
+
+      // all polls of this round on the screen at once
+      var alln = hub.allPolls().length;
+      $('allRes').hidden = !alln;
+      $('allN').textContent = alln + (alln === 1 ? ' poll with votes' : ' polls with votes');
+      $('allShow').setAttribute('aria-pressed', S.cfg.scene === 'polls' ? 'true' : 'false');
+      $('allShow').textContent = S.cfg.scene === 'polls' ? 'On the screen · take off' : 'All results on the screen';
 
       // earlier polls of this round
       var past = hub.pastPolls(), psig = JSON.stringify(past.map(function (x) { return [x.id, x.n, x.total]; }));

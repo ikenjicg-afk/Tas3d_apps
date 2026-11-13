@@ -51,10 +51,12 @@ window.TAS3D_CHECKIN = {
   polls: [
     ['How many years have you been in 3D?', ['Less than 1', '1–3', '3–5', '5–10', '10+']],
     ['Which renderer do you use most?', ['Corona', 'V-Ray', 'D5 Render', 'Unreal Engine', 'Twinmotion', 'Other']],
-    ['Where are you from?', ['Tashkent', 'Another city in Uzbekistan', 'Another country']],
+    ['Where are you from?', ['Uzbekistan', 'Russia', 'Kazakhstan', 'Other country']],
     ['Is this your first TAS3D?', ['Yes, first time', 'No, I was here in 2025']],
     ['How was this talk?', ['Loved it', 'It was good', 'So-so']]
   ],
+  // how many reactions one guest may send: max in every `per` seconds (the phone stops there, the screen ignores the rest)
+  rx: { max: 3, per: 10 },
   // reactions on the guests' remote: [key, emoji, label]. 'tas3d' is the logo.
   reactions: [
     ['tas3d', '', 'TAS3D'],                       // the TAS3D logo instead of an emoji
