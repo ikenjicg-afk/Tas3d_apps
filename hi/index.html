@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '36f908343c';</script>
+<script>window.TAS3D_BUILD = 'faa3656597';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAS3D 2026</title>
 <meta name="robots" content="noindex">
@@ -127,6 +127,15 @@ h1{margin-top:10px;font-size:clamp(56px,17vw,112px);line-height:.9;letter-spacin
 .hostlink a+a{margin-left:22px}
 body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px))}
 
+/* ---------- the random choice: the host picked this guest ---------- */
+.chosen{position:fixed;inset:0;z-index:20;background:#0b0b0b;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;animation:sheetin .35s cubic-bezier(.2,.8,.2,1)}
+.chosen .kick{color:var(--orange)}
+.chc{margin-top:28px;width:min(78vw,340px);aspect-ratio:1;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;animation:chpulse 1.6s ease-out infinite}
+.chc span{max-width:78%;font-size:clamp(32px,10.5vw,48px);font-weight:700;line-height:1.02;letter-spacing:.02em;text-transform:uppercase}
+@keyframes chpulse{0%{box-shadow:0 0 0 0 rgba(240,85,42,.6)}100%{box-shadow:0 0 0 36px rgba(240,85,42,0)}}
+@media (prefers-reduced-motion:reduce){.chc{animation:none}}
+.chosen .cx{margin-top:44px;background:none;border:0;padding:10px 0;color:var(--mute);font:inherit;font-size:15px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+
 /* ---------- the opening game: everyone taps RENDER, the picture on the screen gets rid of its noise ---------- */
 .gsheet{z-index:11}
 .gsheet .sheet-in{display:flex;flex-direction:column;min-height:100%;min-height:100dvh}
@@ -218,6 +227,11 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     <p class="gteam" id="gTeam"></p>
     <button type="button" class="close" id="gClose">Back to the remote</button>
   </div>
+</div>
+<div class="chosen" id="chosen" role="alertdialog" aria-modal="true" aria-labelledby="chT" hidden>
+  <p class="kick">TAS3D 2026</p>
+  <div class="chc"><span id="chT">You are chosen!</span></div>
+  <button type="button" class="cx" id="chX">Close</button>
 </div>
 <nav class="tabs" id="tabs" role="tablist" hidden>
   <button type="button" role="tab" id="tab-react" aria-controls="pane-react" aria-selected="true">Reactions</button>
@@ -348,7 +362,32 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     else if (t === C.base + '/now') onNow(text);
     else if (t === C.base + '/pr') onPR(text);
     else if (t === C.base + '/cfg') onCfg(text);
+    else if (t === C.base + '/pick') onPick(text);
   }
+
+  // ---- the random choice: the host picks some of the checked-in guests (Random in the panel); a chosen phone shows the orange
+  // circle until the host clears it or the guest closes it, and tells the host once that it is showing it
+  var pk = { id: '', at: 0, w: [], g: '' }, pkTold = '';
+  function onPick(text) {
+    var d = null; try { d = JSON.parse(text); } catch (e) {}
+    if (!d || !(+d.at > pk.at)) return;
+    pk = { id: String(d.id || ''), at: +d.at, w: Array.isArray(d.w) ? d.w : [], g: d.g != null ? String(d.g) : '' };
+    pickUi();
+  }
+  function isChosen() {
+    return !!(pk.id && st.role && st.sent && pk.w.indexOf(st.id) >= 0 && st.pkx !== pk.id &&
+      (!pk.g || !st.round || pk.g === st.round) && Date.now() - pk.at < 3 * 3600000);   // not a choice left from hours ago
+  }
+  function pickUi() {
+    var on = isChosen();
+    if (on && $('chosen').hidden) { try { if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([200, 100, 200]); } catch (e) {} }
+    $('chosen').hidden = !on;
+    if (on && pkTold !== pk.id && live && live.ok && !document.hidden) {
+      var id = pk.id; pkTold = id;
+      live.publish(C.base + '/pk/' + id + '/' + st.id, '1', { qos: 1 }).catch(function () { if (pkTold === id) pkTold = ''; });
+    }
+  }
+  $('chX').addEventListener('click', function () { st.pkx = pk.id; save(); pickUi(); });
 
   // ---- kept messages (check-in, questions) go to every broker at once; done when one of them confirms
   function sendKept(topic, build) {
@@ -430,7 +469,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     clearTimeout(liveT);
     var url = C.brokers[liveIdx % C.brokers.length], c, was = false;
     c = live = new TasMQ(url, {
-      onConnect: function () { was = true; liveWait = 1500; c.subscribe(C.base + '/r'); c.subscribe(C.base + '/s'); c.subscribe(C.base + '/now', 1); c.subscribe(C.base + '/pr'); c.subscribe(C.base + '/cfg', 1); c.subscribe(C.base + '/game', 1); c.subscribe(C.base + '/gs'); conn(); gameFlush(true); },
+      onConnect: function () { was = true; liveWait = 1500; c.subscribe(C.base + '/r'); c.subscribe(C.base + '/s'); c.subscribe(C.base + '/now', 1); c.subscribe(C.base + '/pr'); c.subscribe(C.base + '/cfg', 1); c.subscribe(C.base + '/game', 1); c.subscribe(C.base + '/gs'); c.subscribe(C.base + '/pick', 1); conn(); gameFlush(true); pickUi(); },
       onMessage: onMsg,
       onClose: function () {
         if (live !== c) return;

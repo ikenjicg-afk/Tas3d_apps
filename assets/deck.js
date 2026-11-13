@@ -296,7 +296,7 @@
     var wrap = add(root, 'div', 'dk');
     add(wrap, 'p', 'dk-st', 'st');
     var list = add(wrap, 'div', '', 'list');
-    add(list, 'p', 'dk-h', 'lh', host ? 'Speakers’ folders · Start / Stop' : 'Choose your folder');
+    add(list, 'p', 'dk-h', 'lh', host ? 'Folders' : 'Choose your folder');
     add(list, 'div', 'dk-items', 'items');
     add(list, 'p', 'dk-empty', 'empty');
     var deck = add(wrap, 'div', '', 'deck');
@@ -322,7 +322,13 @@
     add(deck, 'p', 'dk-fh', '', 'Files in this folder');
     add(deck, 'ol', 'dk-files', 'files');
 
-    function decks() { return S.list ? S.list.decks.filter(function (d) { return !d.sp; }) : []; }   // not the pause folder "Screen": that is the host's Screen tab
+    // not the pause folder "Screen" (that is the host's Screen tab); the folder "Host" is the host's own slides:
+    // first in the host's list, not in the speakers' list at all
+    function decks() {
+      if (!S.list) return [];
+      var d = S.list.decks.filter(function (x) { return !x.sp && (host || !x.ho); });
+      return d.filter(function (x) { return x.ho; }).concat(d.filter(function (x) { return !x.ho; }));
+    }
     function find(id) { var d = decks(); for (var i = 0; i < d.length; i++) if (d[i].id === id) return d[i]; return null; }
     function onScreen(id) { return S.cfg.scene === 'slides' && S.cfg.deck === id; }
     function choose(id) {
@@ -388,7 +394,7 @@
     }
     function renderList(lv) {
       var ds = decks(), box = R.items;
-      var sig = JSON.stringify([ds.map(function (d) { return [d.id, d.name, d.total, d.files.length]; }), S.cfg.scene === 'slides' ? S.cfg.deck : '', S.cfg.live]);
+      var sig = JSON.stringify([ds.map(function (d) { return [d.id, d.name, d.total, d.files.length, d.ho]; }), S.cfg.scene === 'slides' ? S.cfg.deck : '', S.cfg.live]);
       R.empty.textContent = !S.list ? 'Waiting for the list of folders from the screen…' : ds.length ? '' : 'The folder on the screen computer has no speakers’ folders yet.';
       if (box.getAttribute('data-s') !== sig) {
         box.setAttribute('data-s', sig); box.innerHTML = '';
@@ -399,12 +405,13 @@
           var tx = el('span'); tx.appendChild(el('span', 'nm', d.name));
           var bad = d.files.filter(function (f) { return f.k === 'bad'; }).length, ok = d.files.length - bad;
           tx.appendChild(el('span', 'sb', !d.files.length ? 'No files yet' : ok + (ok === 1 ? ' file' : ' files') + ' · ' + d.total + (d.total === 1 ? ' slide' : ' slides') + (bad ? ' · ' + bad + ' cannot be shown' : '')));
+          if (d.ho) tx.appendChild(el('span', 'dk-tg', 'Only you'));
           if (S.cfg.live === d.id) tx.appendChild(el('span', 'dk-tg o', host ? 'Presenting' : 'Your talk is on'));
           if (onScreen(d.id)) tx.appendChild(el('span', 'dk-tg', 'On the screen'));
           b.appendChild(tx);
           b.addEventListener('click', function () { choose(d.id); });
           row.appendChild(b);
-          if (host) {
+          if (host && !d.ho) {
             var isLive = S.cfg.live === d.id, sb = el('button', 'dk-b sm' + (isLive ? '' : ' o'), isLive ? 'Stop' : 'Start'); sb.type = 'button';
             sb.addEventListener('click', function () { setLive(isLive ? '' : d.id); });
             row.appendChild(sb);
@@ -425,7 +432,7 @@
       var onB, onT;
       if (host) {
         onB = isLive ? 'Presenting · the speaker controls the screen' : isOn ? 'On the screen now' : 'Not on the screen';
-        onT = isLive ? 'Press Stop when the talk is over: the screen goes to the logo and is yours again.' : 'Start: the screen goes to the logo, and this speaker can show the slides and change them from their phone.';
+        onT = '';
       } else if (isLive) {
         onB = isOn ? 'Your slides are on the screen' : 'Your talk is on · you have the screen';
         onT = isOn ? 'Change the slides with ← →. When you finish: “Take off the screen” (the screen goes to the logo).' : 'Press “Show on the screen” when you are ready.';
@@ -436,6 +443,7 @@
       R.onB.textContent = onB; R.onT.textContent = onT;
       R.on.classList.toggle('hot', isLive || (host && isOn));
       // ---- host: Start / Stop
+      live.hidden = !host || !!(d && d.ho);            // the host's own folder: no Start / Stop, just show it
       if (host) {
         var other = S.cfg.live && S.cfg.live !== open ? find(S.cfg.live) : null;
         live.textContent = isLive ? 'Stop · the screen goes to the logo' : other ? 'Start · instead of ' + other.name : 'Start · give this speaker the screen';

@@ -82,6 +82,13 @@
     try { var kq = JSON.parse(localStorage.getItem(KEY + '-qs') || 'null'); if (kq && kq.g === S.db.round && kq.qs) S.qs = kq.qs; } catch (e) {}
     try { var kp = JSON.parse(localStorage.getItem(KEY + '-ph') || 'null'); if (kp && kp.g === S.db.round && kp.ph) S.ph = kp.ph; } catch (e) {}
 
+    // the random choice (host: Random tab): {id, at, w: [phone ids], g: round}; pickSeen: whose phone has shown it;
+    // picked: everybody chosen in this round so far, so nobody is chosen twice
+    S.pick = { id: '', at: 0, w: [], g: '' }; S.pickSeen = {};
+    var PKK = KEY + '-pick', picked = {};
+    try { var kk = JSON.parse(localStorage.getItem(PKK) || 'null'); if (kk && kk.g === S.db.round) { picked = kk.ids || {}; if (kk.pick && kk.pick.at) S.pick = kk.pick; S.pickSeen = kk.seen || {}; } } catch (e) {}
+    function savePick() { try { localStorage.setItem(PKK, JSON.stringify({ g: S.db.round, ids: picked, pick: S.pick, seen: S.pickSeen })); } catch (e) {} }
+
     var changeT = null;
     function changed() { if (!changeT) changeT = setTimeout(function () { changeT = null; onChange(S); }, 30); }
     var storeT = null;
@@ -102,6 +109,7 @@
       c.subscribe(B + '/r', 1); c.subscribe(B + '/c/+', 1); c.subscribe(B + '/q/+', 1);
       c.subscribe(B + '/show', 1); c.subscribe(B + '/now', 1); c.subscribe(B + '/cfg', 1); c.subscribe(B + '/x'); c.subscribe(B + '/scr'); c.subscribe(B + '/ph', 1);
       c.subscribe(B + '/game', 1); c.subscribe(B + '/gs', 1);
+      c.subscribe(B + '/pick', 1); if (!opt.screen) c.subscribe(B + '/pk/+/+', 1);
       if (opt.screen && S.game.id && S.game.st !== 'off') c.subscribe(B + '/gt/' + S.game.id + '/+');
       if (S.now && S.now.k === 'poll') c.subscribe(B + '/v/' + S.now.id + '/+', 1);
     }
@@ -131,7 +139,7 @@
       if (!L.c || !L.c.ok) return;
       L.got = {};
       L.c.subscribe(B + '/c/+', 1); L.c.subscribe(B + '/q/+', 1);       // subscribing again: the server sends everything it keeps
-      ['/cfg', '/now', '/show', '/game', '/ph'].forEach(function (k) { L.c.subscribe(B + k, 1); });
+      ['/cfg', '/now', '/show', '/game', '/ph', '/pick'].forEach(function (k) { L.c.subscribe(B + k, 1); });
       if (S.now && S.now.k === 'poll') L.c.subscribe(B + '/v/' + S.now.id + '/+', 1);
       setTimeout(function () { heal(L); }, 6000);
     }
@@ -149,11 +157,43 @@
       if (S.game.at) put(B + '/game', S.game);
       if (Object.keys(S.ph).length && !got[B + '/ph']) { n++; L.c.publish(B + '/ph', phText(), { qos: 1, retain: true }).catch(function () {}); }
       if (S.show && !got[B + '/show']) { n++; L.c.publish(B + '/show', S.show, { qos: 1, retain: true }).catch(function () {}); }
+      if (S.pick.at && !opt.screen) put(B + '/pick', S.pick);
       S.healed = (S.healed || 0) + n;
     }
     setInterval(function () { links.forEach(function (L, i) { setTimeout(function () { audit(L); }, i * 20000); }); }, 300000 + Math.random() * 30000);
     function pub(topic, text, o) { links.forEach(function (L) { if (L.c && L.c.ok) L.c.publish(topic, text, o || {}).catch(function () {}); }); }
     function pushRound(L) { L.c.publish(B + '/r', JSON.stringify({ id: S.db.round, at: S.db.at }), { qos: 1, retain: true }).catch(function () {}); L.r = Math.max(L.r, S.db.at); }
+
+    // ---- the random choice
+    function onPick(x) {
+      var d = json(x);
+      if (!d || !(+d.at > S.pick.at)) return;           // the newest wins (two host devices)
+      if (String(d.id || '') !== S.pick.id) S.pickSeen = {};
+      S.pick = { id: String(d.id || ''), at: +d.at, g: String(d.g || ''),
+        w: Array.isArray(d.w) ? d.w.filter(function (v) { return typeof v === 'string' && v.length < 61; }).slice(0, 100) : [] };
+      S.pick.w.forEach(function (id) { picked[id] = 1; });
+      savePick(); changed();
+    }
+    function onPickSeen(pid, dev) {
+      if (!pid || pid !== S.pick.id || S.pick.w.indexOf(dev) < 0 || S.pickSeen[dev]) return;
+      S.pickSeen[dev] = 1; savePick(); changed();
+    }
+    function setPick(id, w) {
+      S.pick = { id: id, at: Math.max(Date.now(), S.pick.at + 1), w: w, g: S.db.round };
+      pub(B + '/pick', JSON.stringify(S.pick), { qos: 1, retain: true });
+      savePick(); changed();
+    }
+    function rnd(n) {                                   // 0 … n-1, every value equally likely
+      var a = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n;
+      do { crypto.getRandomValues(a); } while (a[0] >= lim);
+      return a[0] % n;
+    }
+    function draw(pool, n) {
+      pool = pool.slice(); var out = [];
+      n = Math.max(0, Math.min(n | 0, pool.length));
+      for (var i = 0; i < n; i++) { var j = i + rnd(pool.length - i), t = pool[i]; pool[i] = pool[j]; pool[j] = t; out.push(pool[i]); }
+      return out;
+    }
 
     // ---- incoming
     function json(x) { try { return JSON.parse(x); } catch (e) { return null; } }
@@ -161,6 +201,8 @@
       if (t === B + '/x') return onReact(x);
       if (L.got && x) L.got[t] = 1;                     // what this server keeps (see heal)
       if (t === B + '/ph') return onPH(x);
+      if (t === B + '/pick') return onPick(x);
+      if (t.indexOf(B + '/pk/') === 0) { var kq2 = t.slice(B.length + 4).split('/'); return onPickSeen(kq2[0], kq2[1]); }
       if (t === B + '/game') return onGame(x);
       if (t === B + '/gs') { if (!opt.screen) { var gd = json(x); if (gd && gd.id === S.game.id) { S.gs = gd; changed(); } } return; }
       if (t.indexOf(B + '/gt/') === 0) { var gp = t.slice(B.length + 4).split('/'); return onTap(gp[0], gp[1], x); }
@@ -415,6 +457,7 @@
         setNow({ k: 'none' });
         if (S.cfg.scene === 'poll' || S.cfg.scene === 'game') api.setCfg({ scene: 'checkin' });
         if (S.game.st !== 'off') api.setGame({ st: 'off' });
+        picked = {}; S.pickSeen = {}; if (S.pick.id) setPick('', []); else savePick();
         clearTimeout(statT); statT = null;
         recount(); pushStats(); storeNow();
       },
@@ -464,6 +507,34 @@
         changed();
       },
       // the polls of this round except the current one, newest first
+      // Random: n of the checked-in guests who have not been chosen in this round yet
+      pick: function (n) {
+        var all = Object.keys(S.db.seen), w = draw(all.filter(function (id) { return !picked[id]; }), n);
+        if (w.length < Math.min(n | 0, all.length)) {    // everybody has had a turn: the rest comes from all the others, and it starts over
+          picked = {};
+          w = w.concat(draw(all.filter(function (id) { return w.indexOf(id) < 0; }), n - w.length));
+        }
+        w.forEach(function (id) { picked[id] = 1; });
+        S.pickSeen = {};
+        setPick(w.length ? 'k' + rid() : '', w);
+        return w.length;
+      },
+      // those whose phones have not shown it (left, phone asleep) are replaced by others; the rest stay chosen
+      repick: function () {
+        if (!S.pick.id) return 0;
+        var keep = S.pick.w.filter(function (id) { return S.pickSeen[id]; });
+        var need = S.pick.w.length - keep.length, all = Object.keys(S.db.seen), pool = all.filter(function (id) { return !picked[id]; });
+        if (pool.length < need) pool = all.filter(function (id) { return S.pick.w.indexOf(id) < 0; });   // few are left: anybody but the current ones
+        var add = draw(pool, need);
+        add.forEach(function (id) { picked[id] = 1; });
+        setPick(S.pick.id, keep.concat(add));
+        return add.length;
+      },
+      clearPick: function () { S.pickSeen = {}; if (S.pick.id) setPick('', []); },
+      pickInfo: function () {
+        var all = Object.keys(S.db.seen), seen = S.pick.w.filter(function (id) { return S.pickSeen[id]; }).length;
+        return { on: !!S.pick.id, n: S.pick.w.length, seen: seen, all: all.length, left: all.filter(function (id) { return !picked[id]; }).length };
+      },
       allPolls: function () {
         return Object.keys(S.ph).map(function (k) { return S.ph[k]; }).filter(function (p) { return p.total > 0; }).sort(function (a, b) { return a.at - b.at; });
       },

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '36f908343c';</script>
+<script>window.TAS3D_BUILD = 'faa3656597';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -88,7 +88,7 @@ button,input,textarea{font:inherit;color:inherit}
 .glen{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .glen button{min-height:46px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .glen button[aria-pressed="true"]{background:var(--fg);color:#0e0e0e;border-color:var(--fg)}
-@media (max-width:480px){.tabs button{font-size:13px;letter-spacing:.02em;padding-left:5px;padding-right:5px}.tabs em{margin-left:4px;padding:1px 5px}}
+@media (max-width:480px){.tabs button{font-size:12px;letter-spacing:.01em;padding-left:2px;padding-right:2px}.tabs em{margin-left:3px;padding:1px 4px;font-size:10px;letter-spacing:0}}
 /* sound */
 .slots{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .slot{position:relative;min-height:84px;padding:12px 12px 14px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;text-align:left;cursor:pointer;overflow:hidden;touch-action:manipulation}
@@ -117,6 +117,10 @@ h2.sec.first{margin-top:6px}
 .allres{margin-top:18px;padding:14px;border:1px solid #2c2c2b;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .allres .btn[aria-pressed="true"]{background:var(--fg);color:#0e0e0e}
 .slot.wait{border-color:var(--orange)}
+.rnd{margin-top:12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.rnd input{min-height:58px;padding:0 16px;background:var(--card);border:1px solid #2c2c2b;border-radius:0;color:var(--fg);font:inherit;font-size:28px;font-variant-numeric:tabular-nums}
+.rnd input:focus{outline:none;border-color:var(--orange)}
+.rnd .btn{min-width:8.5em}
 .spkqr{margin-top:12px;display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center}
 .spkqr .qrb{background:#fff;padding:6px;line-height:0;cursor:zoom-in}
 .spkqr .qrb svg{width:100%;height:auto}
@@ -124,8 +128,9 @@ h2.sec.first{margin-top:6px}
 .bigqr .qrb{width:min(86vw,72vh);background:#fff;padding:10px;line-height:0}
 .bigqr .qrb svg{width:100%;height:auto}
 .bigqr p{font-size:18px;text-align:center}
-.tabs{margin-top:20px;display:grid;grid-template-columns:repeat(4,auto);border-bottom:1px solid var(--rule)}
-.tabs button{min-width:0}
+.tabs{margin-top:20px;border-bottom:1px solid var(--rule)}
+.trow{display:flex}
+.trow button{flex:1 1 auto;min-width:0}
 .tabs button{min-height:52px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mute);cursor:pointer}
 .tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--orange)}
 .tabs em{font-style:normal;margin-left:6px;padding:1px 6px;background:#2a2a29;color:var(--fg);font-size:11px;border-radius:9px}
@@ -224,13 +229,18 @@ h2.sec{margin-top:30px;font-size:22px}
     <p class="qon" id="qon" hidden><span id="qonT"></span><button type="button" class="btn" id="qonHide">Hide</button></p>
   </div>
   <div class="tabs" role="tablist">
+    <div class="trow">
     <button type="button" role="tab" data-tab="checkin" aria-selected="true">Check-in<em id="tN">0</em></button>
     <button type="button" role="tab" data-tab="poll" aria-selected="false">Poll<em id="tP" hidden></em></button>
     <button type="button" role="tab" data-tab="qs" aria-selected="false">Q&amp;A<em id="tQ">0</em></button>
     <button type="button" role="tab" data-tab="slides" aria-selected="false">Slides</button>
+    </div>
+    <div class="trow">
     <button type="button" role="tab" data-tab="game" aria-selected="false">Game<em id="tG" hidden></em></button>
     <button type="button" role="tab" data-tab="snd" aria-selected="false">Sound<em id="tS" hidden></em></button>
     <button type="button" role="tab" data-tab="scr" aria-selected="false">Screen<em id="tX" hidden></em></button>
+    <button type="button" role="tab" data-tab="rnd" aria-selected="false">Random<em id="tR" hidden></em></button>
+    </div>
   </div>
 
   <section class="pane" id="p-checkin">
@@ -342,6 +352,16 @@ h2.sec{margin-top:30px;font-size:22px}
     </div>
   </section>
 
+  <section class="pane" id="p-rnd" hidden>
+    <h2 class="sec first">Random guests</h2>
+    <form class="rnd" id="rndF" autocomplete="off">
+      <input type="number" id="rndN" min="1" max="50" value="1" inputmode="numeric" aria-label="How many guests to pick">
+      <button type="submit" class="btn o" id="rndGo">Pick</button>
+    </form>
+    <p class="hint" id="rndSt"></p>
+    <div class="b" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="rndRe" hidden></button><button type="button" class="btn" id="rndOff" hidden>Clear</button></div>
+  </section>
+
   <div class="bigqr" id="bigQr" hidden role="dialog" aria-label="Speakers' QR code"><div class="qrb" id="bigQrQ"></div><p>Speakers: scan with the camera</p><button type="button" class="btn" id="bigQrX">Close</button></div>
 
   <div class="gwarn" id="warn" role="alertdialog" aria-modal="true" aria-labelledby="warnH" hidden>
@@ -357,8 +377,8 @@ h2.sec{margin-top:30px;font-size:22px}
 </main>
 <script src="../assets/config.js?v=e18e723a"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
-<script src="../assets/hub.js?v=4175a7e2"></script>
-<script src="../assets/deck.js?v=90eb23c5"></script>
+<script src="../assets/hub.js?v=0c7e9761"></script>
+<script src="../assets/deck.js?v=7853d7ed"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
@@ -605,6 +625,16 @@ h2.sec{margin-top:30px;font-size:22px}
       $('tX').hidden = !spOn(); $('tX').textContent = 'On'; $('tX').classList.toggle('hot', spOn());
     }
 
+    // ---- Random tab: some of the checked-in guests; their phones show the orange circle "You are chosen!"
+    $('rndF').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var n = Math.max(1, Math.min(50, parseInt($('rndN').value, 10) || 1));
+      $('rndN').value = n; $('rndN').blur();
+      hub.pick(n); render();
+    });
+    $('rndRe').addEventListener('click', function () { hub.repick(); render(); });
+    $('rndOff').addEventListener('click', function () { hub.clearPick(); render(); });
+
     // ---- every poll at once on the screen
     $('allShow').addEventListener('click', function () {
       if (S.cfg.scene === 'polls') hub.setCfg({ scene: 'logo' });
@@ -631,7 +661,7 @@ h2.sec{margin-top:30px;font-size:22px}
       $('live').classList.toggle('off', !n);
       $('liveT').textContent = n ? 'Live' : 'No connection';
       document.querySelectorAll('.tabs button').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
-      $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs'; $('p-slides').hidden = tab !== 'slides'; $('p-game').hidden = tab !== 'game'; $('p-snd').hidden = tab !== 'snd'; $('p-scr').hidden = tab !== 'scr';
+      $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs'; $('p-slides').hidden = tab !== 'slides'; $('p-game').hidden = tab !== 'game'; $('p-snd').hidden = tab !== 'snd'; $('p-scr').hidden = tab !== 'scr'; $('p-rnd').hidden = tab !== 'rnd';
       if (tab === 'slides') slidesUI();
       var hasPoll = !!(S.now && S.now.k === 'poll');
       // is the screen page running somewhere? (it says so every 8 s)
@@ -716,6 +746,14 @@ h2.sec{margin-top:30px;font-size:22px}
 
       renderSound();
       renderScr();
+
+      // random guests
+      var pi = hub.pickInfo();
+      $('rndGo').disabled = !pi.all; $('rndGo').textContent = pi.on ? 'Pick again' : 'Pick';
+      $('rndSt').textContent = !pi.all ? 'No checked-in guests yet.' : pi.on ? pi.n + ' chosen · ' + pi.seen + ' on their phones' : pi.all + (pi.all === 1 ? ' guest' : ' guests');
+      $('rndRe').hidden = !(pi.on && pi.seen < pi.n); $('rndRe').textContent = 'Replace the silent (' + (pi.n - pi.seen) + ')';
+      $('rndOff').hidden = !pi.on;
+      $('tR').hidden = !pi.on; $('tR').textContent = pi.n;
 
       // all polls of this round on the screen at once
       var alln = hub.allPolls().length;

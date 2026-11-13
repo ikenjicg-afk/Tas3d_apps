@@ -68,7 +68,7 @@
     let helloAt = 0;
     function pubDk() {
       pub(B + '/dk', { sn, seq: ++seq, t: Date.now(), folder: rootName, decks: decks.map((d) => ({
-        id: d.id, name: d.name, total: d.total, sp: d.sp ? 1 : undefined,
+        id: d.id, name: d.name, total: d.total, sp: d.sp ? 1 : undefined, ho: d.ho ? 1 : undefined,
         files: d.files.map((f) => ({ n: f.name, k: f.k, c: f.c, from: f.from, dur: f.dur ? Math.round(f.dur) : undefined, w: f.w || undefined }))
       })) }, true);
     }
@@ -88,7 +88,7 @@
       }
       if (!(Array.isArray(d.sn) ? d.sn.indexOf(sn) >= 0 : d.sn === sn)) return;   // for this screen (and this session) only
       const dk = byId[d.d]; if (!dk) return;
-      if (dk.sp && d.from !== 'host') return;             // the pause pictures: the host only
+      if ((dk.sp || dk.ho) && d.from !== 'host') return;   // the pause pictures and the host's own folder: the host only
       const i = pos[dk.id] || 0, on = isOn(dk);
       // the host controls everything; a speaker controls the screen only after the host's Start (cfg.live),
       // and before that may only look through their own slides while they are not on the screen
@@ -280,7 +280,7 @@
     }
     // the inner folders by name (a number in front is fine: "00 Screen"); Cyrillic names too
     const bare = (n) => String(n || '').normalize('NFC').replace(/^\d+[\s._\-–—]*/, '');
-    const SNDNAME = /^(sounds?|audio|звуки?)(?![a-zа-яё0-9])/i, MUSNAME = /^(music|музыка)(?![a-zа-яё0-9])/i, SCRNAME = /^(screens?|splash|заставк[аи]|скрин)(?![a-zа-яё0-9])/i;
+    const SNDNAME = /^(sounds?|audio|звуки?)(?![a-zа-яё0-9])/i, MUSNAME = /^(music|музыка)(?![a-zа-яё0-9])/i, SCRNAME = /^(screens?|splash|заставк[аи]|скрин)(?![a-zа-яё0-9])/i, HOSTNAME = /^(host|хост|ведущий)(?![a-zа-яё0-9])/i;
     async function scan() {
       if (!root || scanning) return;
       scanning = true; changed(); pubSa();
@@ -302,7 +302,12 @@
         const sig = JSON.stringify([top.name, top.dirs.map((x) => [x.name, x.files.map((f) => f.sig)]), top.files.map((f) => f.sig)]);
         if (sig !== sigAll) {
           const list = [];
-          for (const x of top.dirs) { const d = await buildDeck(x.name, x.files); if (SCRNAME.test(bare(x.name))) d.sp = 1; list.push(d); }
+          for (const x of top.dirs) {
+            const d = await buildDeck(x.name, x.files);
+            if (SCRNAME.test(bare(x.name))) d.sp = 1;             // pictures for a pause: the host's Screen tab
+            else if (HOSTNAME.test(bare(x.name))) d.ho = 1;       // the host's own slides: only the host sees and shows them
+            list.push(d);
+          }
           if (top.files.some((f) => !SKIP.test(f.path))) list.push(await buildDeck('', top.files));   // files right in the chosen folder
           const old = byId;
           decks = list; byId = {}; list.forEach((d) => { byId[d.id] = d; });
@@ -661,6 +666,7 @@
       step(n) { const d = byId[cfg.deck]; if (cfg.scene !== 'slides' || !d) return false; setPos(d, (pos[d.id] || 0) + n); pubPv(d); return true; },
       status: () => ({ need, folder: rootName, n: decks.length, scanning, err, sound: !soundBlocked, kind: root ? root.kind : '',
         sp: (decks.find((d) => d.sp) || { files: [] }).files.filter((f) => f.c).length,   // files for a pause (folder "Screen")
+        ho: decks.some((d) => d.ho) ? (decks.find((d) => d.ho).files.filter((f) => f.c).length) : -1,   // the host's own folder "Host": files in it, -1 = no folder
         snd: { on: !!sroot, folder: sname, slots: slots.length, bg: bgList.length, err: serr,
           playing: cur ? cur.i : -1, bgOn, bgCur: bgList[bgIdx] ? bgList[bgIdx].name : '', vj, vb, bgVol: bgEl ? bgEl.volume : 0 } }),
       _decks: () => decks
