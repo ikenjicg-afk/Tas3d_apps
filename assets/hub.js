@@ -68,7 +68,7 @@
       votes: {},                             // phone id -> {o, t} for the current poll (= ph[current].votes)
       ph: {},                                // every poll of this round: id -> {id, q, o, votes, n, total, at}; kept until Reset
       rx: {},                                // reactions since this page was opened
-      cfg: { scene: 'checkin', qr: true, rx: true, deck: '', live: '', at: 0, w: '' },   // what the screen shows, set by the host
+      cfg: { scene: 'checkin', qr: true, rx: true, deck: '', live: '', cmp: '', at: 0, w: '' },   // what the screen shows, set by the host
       total: 0, counts: {}, pollCounts: [], pollTotal: 0,
       game: { id: '', st: 'off', target: 0, per: 0, at: 0, w: '' },   // the opening game (host)
       gs: null,                              // its score: {id, total, target, roles, players, np, ms} (from the screen)
@@ -88,6 +88,28 @@
     var PKK = KEY + '-pick', picked = {};
     try { var kk = JSON.parse(localStorage.getItem(PKK) || 'null'); if (kk && kk.g === S.db.round) { picked = kk.ids || {}; if (kk.pick && kk.pick.at) S.pick = kk.pick; S.pickSeen = kk.seen || {}; } } catch (e) {}
     function savePick() { try { localStorage.setItem(PKK, JSON.stringify({ g: S.db.round, ids: picked, pick: S.pick, seen: S.pickSeen })); } catch (e) {} }
+
+    // who a question can be addressed to (the host's list: speakers, the panel) — {at, n: [names]}
+    S.who = { at: 0, n: [] };
+    var WHK = KEY + '-who';
+    try { var kw = JSON.parse(localStorage.getItem(WHK) || 'null'); if (kw && kw.at && Array.isArray(kw.n)) S.who = kw; } catch (e) {}
+    function cleanWho(a) {
+      var seen = {}, out = [];
+      (Array.isArray(a) ? a : []).forEach(function (v) {
+        v = String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, 40);
+        if (v && !seen[v.toLowerCase()] && out.length < 24) { seen[v.toLowerCase()] = 1; out.push(v); }
+      });
+      return out;
+    }
+    function onWho(x) {
+      var d = json(x);
+      if (!d || !(+d.at > S.who.at)) return;
+      S.who = { at: +d.at, n: cleanWho(d.n) };
+      try { localStorage.setItem(WHK, JSON.stringify(S.who)); } catch (e) {}
+      changed();
+    }
+    // the question on the screen travels as text; one addressed to somebody as "@Name\nquestion"
+    function shown(x) { var m = /^@([^\n]{1,40})\n([\s\S]+)$/.exec(x || ''); return m ? { to: m[1], q: m[2] } : { to: '', q: x || '' }; }
 
     var changeT = null;
     function changed() { if (!changeT) changeT = setTimeout(function () { changeT = null; onChange(S); }, 30); }
@@ -110,6 +132,9 @@
       c.subscribe(B + '/show', 1); c.subscribe(B + '/now', 1); c.subscribe(B + '/cfg', 1); c.subscribe(B + '/x'); c.subscribe(B + '/scr'); c.subscribe(B + '/ph', 1);
       c.subscribe(B + '/game', 1); c.subscribe(B + '/gs', 1);
       c.subscribe(B + '/pick', 1); if (!opt.screen) c.subscribe(B + '/pk/+/+', 1);
+      c.subscribe(B + '/who', 1);
+      c.subscribe(B + '/quiz', 1); c.subscribe(B + '/qw', 1); if (!opt.screen) c.subscribe(B + '/qs', 1);
+      if (opt.screen && S.quiz.id && S.quiz.st !== 'off') c.subscribe(B + '/qa/' + S.quiz.id + '/+/+', 1);
       if (opt.screen && S.game.id && S.game.st !== 'off') c.subscribe(B + '/gt/' + S.game.id + '/+');
       if (S.now && S.now.k === 'poll') c.subscribe(B + '/v/' + S.now.id + '/+', 1);
     }
@@ -139,7 +164,7 @@
       if (!L.c || !L.c.ok) return;
       L.got = {};
       L.c.subscribe(B + '/c/+', 1); L.c.subscribe(B + '/q/+', 1);       // subscribing again: the server sends everything it keeps
-      ['/cfg', '/now', '/show', '/game', '/ph', '/pick'].forEach(function (k) { L.c.subscribe(B + k, 1); });
+      ['/cfg', '/now', '/show', '/game', '/ph', '/pick', '/who', '/quiz'].forEach(function (k) { L.c.subscribe(B + k, 1); });
       if (S.now && S.now.k === 'poll') L.c.subscribe(B + '/v/' + S.now.id + '/+', 1);
       setTimeout(function () { heal(L); }, 6000);
     }
@@ -149,15 +174,17 @@
       var g = S.db.round, n = 0;
       function put(t, o) { if (got[t]) return; n++; L.c.publish(t, JSON.stringify(o), { qos: 1, retain: true }).catch(function () {}); }
       for (var id in S.db.seen) put(B + '/c/' + id, { r: S.db.seen[id].r, t: S.db.seen[id].t, g: g });
-      for (var q in S.qs) if (!S.done[q] && S.qs[q].g === g) put(B + '/q/' + q, { q: S.qs[q].q, t: S.qs[q].t, g: g });
+      for (var q in S.qs) if (!S.done[q] && S.qs[q].g === g) put(B + '/q/' + q, { q: S.qs[q].q, t: S.qs[q].t, g: g, to: S.qs[q].to || undefined });
       if (S.now && S.now.k === 'poll') for (var dv in S.votes) put(B + '/v/' + S.now.id + '/' + dv, { o: S.votes[dv].o, t: S.votes[dv].t, g: g });
       // and what the screen shows, the poll, the game, the earlier polls
       if (S.cfg.at) put(B + '/cfg', cfgOut());
       if (S.now && S.now.at) put(B + '/now', S.now.k === 'poll' ? { k: 'poll', id: S.now.id, q: S.now.q, o: S.now.o, open: S.now.open, at: S.now.at } : { k: 'none', at: S.now.at });
       if (S.game.at) put(B + '/game', S.game);
+      if (S.quiz.at) put(B + '/quiz', S.quiz);
       if (Object.keys(S.ph).length && !got[B + '/ph']) { n++; L.c.publish(B + '/ph', phText(), { qos: 1, retain: true }).catch(function () {}); }
       if (S.show && !got[B + '/show']) { n++; L.c.publish(B + '/show', S.show, { qos: 1, retain: true }).catch(function () {}); }
       if (S.pick.at && !opt.screen) put(B + '/pick', S.pick);
+      if (S.who.at && !opt.screen) put(B + '/who', S.who);
       S.healed = (S.healed || 0) + n;
     }
     setInterval(function () { links.forEach(function (L, i) { setTimeout(function () { audit(L); }, i * 20000); }); }, 300000 + Math.random() * 30000);
@@ -202,10 +229,15 @@
       if (L.got && x) L.got[t] = 1;                     // what this server keeps (see heal)
       if (t === B + '/ph') return onPH(x);
       if (t === B + '/pick') return onPick(x);
+      if (t === B + '/who') return onWho(x);
       if (t.indexOf(B + '/pk/') === 0) { var kq2 = t.slice(B.length + 4).split('/'); return onPickSeen(kq2[0], kq2[1]); }
       if (t === B + '/game') return onGame(x);
       if (t === B + '/gs') { if (!opt.screen) { var gd = json(x); if (gd && gd.id === S.game.id) { S.gs = gd; changed(); } } return; }
       if (t.indexOf(B + '/gt/') === 0) { var gp = t.slice(B.length + 4).split('/'); return onTap(gp[0], gp[1], x); }
+      if (t === B + '/quiz') return onQuiz(x);
+      if (t.indexOf(B + '/qa/') === 0) { var zp = t.slice(B.length + 4).split('/'); return onQuizAns(zp[0], zp[1], zp[2], x); }
+      if (t === B + '/qs') { if (!opt.screen) { var zd = json(x); if (zd && zd.id === S.quiz.id) { S.qz = zd; changed(); } } return; }
+      if (t === B + '/qw') { if (!opt.screen) { var zw = json(x); if (zw && zw.id === S.quiz.id) { S.qw = zw; changed(); } } return; }
       if (t.indexOf(B + '/c/') === 0) return onAnswer(t.slice(B.length + 3), x);
       if (t.indexOf(B + '/q/') === 0) return onQuestion(t.slice(B.length + 3), x);
       if (t.indexOf(B + '/v/') === 0) { var p = t.slice(B.length + 3).split('/'); return onVote(p[0], p[1], x); }
@@ -223,7 +255,7 @@
         }
       }
     }
-    var SCENES = { blank: 1, logo: 1, qr: 1, checkin: 1, poll: 1, polls: 1, slides: 1, game: 1 };   // polls: every poll of the day at once
+    var SCENES = { blank: 1, logo: 1, qr: 1, checkin: 1, poll: 1, polls: 1, shift: 1, slides: 1, game: 1, quiz: 1 };   // polls: every poll of the day at once
     // the same reaction can come through both servers (they pass messages to each other): count it once
     var seenRx = {}, seenRxList = [];
     function firstTime(id) {
@@ -236,7 +268,7 @@
     function idOk(x) { return typeof x === 'string' && /^[a-z0-9]{1,40}$/.test(x); }
     // who wrote a setting: when two changes have the same time, the same one wins on every device
     var WID = Math.random().toString(36).slice(2, 10), fixT = 0;
-    function cfgOut() { return { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx, deck: S.cfg.deck, live: S.cfg.live, at: S.cfg.at, w: S.cfg.w }; }
+    function cfgOut() { return { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx, deck: S.cfg.deck, live: S.cfg.live, cmp: S.cfg.cmp, at: S.cfg.at, w: S.cfg.w }; }
     function onCfg(x) {
       var d = json(x); if (!d) return;
       var at = +d.at || 0, w = String(d.w || '');
@@ -247,7 +279,7 @@
         return;
       }
       S.cfg = { scene: SCENES[d.scene] ? d.scene : 'checkin', qr: d.qr !== false, rx: d.rx !== false,
-        deck: idOk(d.deck) ? d.deck : '', live: idOk(d.live) ? d.live : '', at: at, w: w };
+        deck: idOk(d.deck) ? d.deck : '', live: idOk(d.live) ? d.live : '', cmp: idOk(d.cmp) ? d.cmp : '', at: at, w: w };   // cmp: the poll whose "before and after" is shown (scene shift)
       changed();
     }
     // one guest: at most C.rx.max reactions in C.rx.per seconds. The phone stops there by itself;
@@ -293,7 +325,7 @@
       if (!x) { delete S.qs[id]; store(); return changed(); }
       var d = json(x);
       if (!d || typeof d.q !== 'string' || !d.q.trim()) return;
-      S.qs[id] = { q: d.q.slice(0, 280), t: +d.t || Date.now(), g: d.g == null ? '0' : String(d.g) };
+      S.qs[id] = { q: d.q.slice(0, 280), t: +d.t || Date.now(), g: d.g == null ? '0' : String(d.g), to: typeof d.to === 'string' ? d.to.replace(/\s+/g, ' ').trim().slice(0, 40) : '' };
       store(); changed();
     }
     function onNow(x) {
@@ -302,13 +334,14 @@
       if (S.now && at < S.now.at) return;              // an older state from a broker that missed a change
       if (d.k === 'poll' && d.id && Array.isArray(d.o)) {
         var pid = String(d.id), q = String(d.q || ''), o = d.o.map(String).slice(0, 6);
-        if (!S.ph[pid]) S.ph[pid] = { id: pid, q: q, o: o, votes: {}, n: o.map(function () { return 0; }), total: 0, at: at };
+        var re = idOk(d.re) && d.re !== pid ? d.re : '';   // asked again: the id of the first vote ("before and after")
+        if (!S.ph[pid]) S.ph[pid] = { id: pid, q: q, o: o, votes: {}, n: o.map(function () { return 0; }), total: 0, at: at, re: re };
         if (!S.ph[pid].votes) S.ph[pid].votes = {};
         if (!S.now || S.now.id !== pid) {
           links.forEach(function (L) { if (L.c && L.c.ok) L.c.subscribe(B + '/v/' + pid + '/+', 1); });
         }
         S.votes = S.ph[pid].votes;                     // the votes of earlier polls stay in S.ph
-        S.now = { k: 'poll', id: pid, q: q, o: o, open: !!d.open, at: at };
+        S.now = { k: 'poll', id: pid, q: q, o: o, open: !!d.open, at: at, re: S.ph[pid].re || '' };
       } else { S.now = { k: 'none', at: at }; S.votes = {}; }
       recountPoll();
     }
@@ -369,6 +402,80 @@
     }
     if (opt.screen) setInterval(function () { if (G.id && S.game.st === 'run' && Date.now() - gsAt > 2500) { gsLast = ''; pushGS(); } }, 3000);
 
+    // ---- the quiz "Render or photo?" (host: Game tab). The pictures are in the folder "Quiz" on the screen computer and are shown
+    // only on the big screen; each phone sends one answer per picture; the screen counts the points (and the time of the right
+    // answers, for ties) and at the end names the top three.
+    //   /quiz  {id, st: off|ready|ask|show|end, r: round (0…), n: rounds, i: file, sec, ans: 'r'|'p' (only in show), at, w}
+    //   /qa/<id>/<round>/<phone>  "<role>:<r|p>"   one answer, the first counts
+    //   /qs    {id, r, n: answers, c: [render, photo]}            from the screen, for the host panel
+    //   /qw    {id, top: [{d, p, ms, r}], n: players, of: rounds}  from the screen at the end → the winners' phones
+    S.quiz = { id: '', st: 'off', r: 0, n: 0, i: 0, sec: 15, ans: '', at: 0, w: '' }; S.qz = null; S.qw = null;
+    var QZ = { id: '', a: {}, key: {}, t0: {}, sh: 0 }, QZK = KEY + '-quiz', qzfixT = 0, qsT = null, qsAt = 0, qsLast = '';
+    if (opt.screen) { try { var kz = JSON.parse(localStorage.getItem(QZK) || 'null'); if (kz && kz.id && kz.a) QZ = kz; } catch (e) {} }
+    function onQuiz(x) {
+      var d = json(x); if (!d) return;
+      var at = +d.at || 0, w = String(d.w || '');
+      if (at < S.quiz.at || (at === S.quiz.at && w < S.quiz.w)) {
+        if (S.quiz.at > 0) { clearTimeout(qzfixT); qzfixT = setTimeout(function () { pub(B + '/quiz', JSON.stringify(S.quiz), { qos: 1, retain: true }); }, 600 + Math.random() * 600); }
+        return;
+      }
+      var was = S.quiz;
+      S.quiz = { id: idOk(d.id) ? d.id : '', st: /^(off|ready|ask|show|end)$/.test(d.st) ? d.st : 'off', r: Math.max(0, d.r | 0), n: Math.max(0, d.n | 0), i: Math.max(0, d.i | 0),
+        sec: Math.max(5, Math.min(60, +d.sec || 15)), ans: d.ans === 'r' || d.ans === 'p' ? d.ans : '', at: at, w: w };
+      if (S.quiz.id !== was.id) { S.qz = null; S.qw = null; }
+      if (opt.screen) quizScreen(was);
+      changed();
+    }
+    // the screen: listens to the answers of this quiz and keeps them (also over a reload)
+    function quizScreen(was) {
+      var q = S.quiz;
+      if (q.id !== QZ.id) QZ = { id: q.id, a: {}, key: {}, t0: {}, sh: 0 };
+      if (q.id && q.st !== 'off' && (q.id !== was.id || was.st === 'off')) links.forEach(function (L) { if (L.c && L.c.ok) L.c.subscribe(B + '/qa/' + q.id + '/+/+', 1); });
+      if (q.st === 'ask' && !QZ.t0[q.r]) QZ.t0[q.r] = Date.now();
+      if (q.st === 'show' && q.ans) { QZ.key[q.r] = q.ans; if (was.st !== 'show' || was.r !== q.r) QZ.sh = Date.now(); }
+      quizScore();
+      if (q.st !== was.st || q.r !== was.r || q.id !== was.id) { qsLast = ''; pushQS(); }
+      if (q.st === 'end') pushQW();
+      try { localStorage.setItem(QZK, JSON.stringify(QZ)); } catch (e) {}
+    }
+    function onQuizAns(qid, r, dev, x) {
+      if (!opt.screen || !qid || qid !== QZ.id || !/^[a-z0-9]{12,40}$/.test(dev || '') || !/^\d{1,3}$/.test(r || '')) return;
+      r = +r;
+      var q = S.quiz, m = /^([a-z]+):([rp])$/.exec(String(x || '')); if (!m || !ROLE[m[1]] || r !== q.r) return;
+      if (q.st !== 'ask' && !(q.st === 'show' && Date.now() - QZ.sh < 1500)) return;   // in time (or sent in the last moment and arrived just after)
+      var A = QZ.a[r] || (QZ.a[r] = {});
+      if (A[dev]) return;                               // the first answer counts
+      A[dev] = { a: m[2], ms: Math.max(0, Date.now() - (QZ.t0[r] || Date.now())), r: m[1] };
+      quizScore();
+    }
+    function quizRank() {                               // everybody who answered: more right answers first, then the faster
+      var P = {};
+      for (var r in QZ.a) {
+        var key = QZ.key[r]; if (!key) continue;
+        for (var d in QZ.a[r]) { var x = QZ.a[r][d], p = P[d] || (P[d] = { d: d, p: 0, ms: 0, r: x.r }); if (x.a === key) { p.p++; p.ms += x.ms; } }
+      }
+      return Object.keys(P).map(function (d) { return P[d]; }).sort(function (a, b) { return b.p - a.p || a.ms - b.ms || (a.d < b.d ? -1 : 1); });
+    }
+    function quizScore() {
+      var q = S.quiz, A = QZ.a[q.r] || {}, c = [0, 0], n = 0;
+      for (var d in A) { n++; c[A[d].a === 'r' ? 0 : 1]++; }
+      S.qz = { id: QZ.id, r: q.r, n: n, c: c };
+      schedQS(); changed();
+    }
+    function schedQS() { if (!qsT) qsT = setTimeout(pushQS, Math.max(250, qsAt + 2000 - Date.now())); }
+    function pushQS() {
+      clearTimeout(qsT); qsT = null; qsAt = Date.now();
+      if (!opt.screen || !QZ.id || !S.qz) return;
+      try { localStorage.setItem(QZK, JSON.stringify(QZ)); } catch (e) {}
+      var txt = JSON.stringify(S.qz); if (txt === qsLast) return; qsLast = txt;
+      pub(B + '/qs', txt, { retain: true });
+    }
+    function pushQW() {
+      var rank = quizRank();
+      S.qw = { id: QZ.id, top: rank.slice(0, 3).filter(function (p) { return p.p > 0; }), n: rank.length, of: Object.keys(QZ.key).length };
+      pub(B + '/qw', JSON.stringify(S.qw), { qos: 1, retain: true });
+    }
+
     // the polls of this round with their results (kept on the servers too, so a new device sees them)
     function onPH(x) {
       var d = json(x); if (!d || String(d.g) !== S.db.round || !Array.isArray(d.polls)) return;
@@ -376,7 +483,7 @@
       d.polls.forEach(function (p) {
         if (!p || typeof p.id !== 'string' || !Array.isArray(p.o) || !Array.isArray(p.n)) return;
         var mine = S.ph[p.id];
-        if (!mine) { S.ph[p.id] = { id: p.id, q: String(p.q || ''), o: p.o.map(String).slice(0, 6), votes: {}, n: p.n.map(Number), total: +p.total || 0, at: +p.at || 0 }; ch = true; }
+        if (!mine) { S.ph[p.id] = { id: p.id, q: String(p.q || ''), o: p.o.map(String).slice(0, 6), votes: {}, n: p.n.map(Number), total: +p.total || 0, at: +p.at || 0, re: idOk(p.re) ? p.re : '' }; ch = true; }
         else if (!Object.keys(mine.votes || {}).length && (+p.total || 0) > mine.total) { mine.n = p.n.map(Number); mine.total = +p.total || 0; ch = true; }
       });
       if (ch) { store(); changed(); }
@@ -419,7 +526,7 @@
     // the screen while it is on (its heartbeat is fresh), otherwise the host panel.
     function otherSends() { return !opt.screen && S.screenSeen && Date.now() - S.screenSeen < 20000; }
     function pushStats() { statT = null; if (otherSends()) return; pub(B + '/s', JSON.stringify({ n: S.total, g: S.db.round, t: Date.now() }), { retain: true }); }
-    function phText() { return JSON.stringify({ g: S.db.round, polls: Object.keys(S.ph).map(function (k) { var p = S.ph[k]; return { id: p.id, q: p.q, o: p.o, n: p.n, total: p.total, at: p.at }; }) }); }
+    function phText() { return JSON.stringify({ g: S.db.round, polls: Object.keys(S.ph).map(function (k) { var p = S.ph[k]; return { id: p.id, q: p.q, o: p.o, n: p.n, total: p.total, at: p.at, re: p.re || undefined }; }) }); }
     function pushPH() { phT = null; if (Object.keys(S.ph).length) pub(B + '/ph', phText(), { qos: 1, retain: true }); }
     function pushPR() {
       prT = null;
@@ -431,6 +538,12 @@
 
     // ---- actions (host panel)
     function rid() { return Math.random().toString(36).slice(2, 10); }
+    function shiftOf(root) {
+      var a = S.ph[root], b = null;
+      if (!a) return null;
+      for (var k in S.ph) { var p = S.ph[k]; if (p.re === root && (!b || p.at > b.at)) b = p; }
+      return { a: a, b: b };
+    }
     function setNow(n) {
       n.at = Math.max(Date.now(), (S.now ? S.now.at : 0) + 1);
       pub(B + '/now', JSON.stringify(n), { qos: 1, retain: true });
@@ -457,6 +570,7 @@
         setNow({ k: 'none' });
         if (S.cfg.scene === 'poll' || S.cfg.scene === 'game') api.setCfg({ scene: 'checkin' });
         if (S.game.st !== 'off') api.setGame({ st: 'off' });
+        if (S.quiz.st !== 'off') api.setQuiz({ st: 'off' });
         picked = {}; S.pickSeen = {}; if (S.pick.id) setPick('', []); else savePick();
         clearTimeout(statT); statT = null;
         recount(); pushStats(); storeNow();
@@ -480,29 +594,57 @@
         if (S.cfg.scene !== 'game') api.setCfg({ scene: 'game' });
       },
       finishGame: function () { api.setGame({ st: 'done' }); },
+      // ---- the quiz (host): Show the quiz → Start (picture 1) → Reveal (or the screen does when the time is up) → Next … → Winners → Close
+      setQuiz: function (p) {
+        var n = { id: S.quiz.id, st: S.quiz.st, r: S.quiz.r, n: S.quiz.n, i: S.quiz.i, sec: S.quiz.sec, ans: '' };
+        for (var k in p) n[k] = p[k];
+        n.at = Math.max(Date.now(), S.quiz.at + 1); n.w = WID;
+        pub(B + '/quiz', JSON.stringify(n), { qos: 1, retain: true });
+        onQuiz(JSON.stringify(n));
+      },
+      newQuiz: function (rounds) { api.setQuiz({ id: 'z' + rid(), st: 'ready', r: 0, n: rounds, i: 0, sec: (C.quiz && C.quiz.sec) || 15 }); api.setCfg({ scene: 'quiz' }); },
+      quizAsk: function (r, i) { api.setQuiz({ st: 'ask', r: r, i: i }); if (S.cfg.scene !== 'quiz') api.setCfg({ scene: 'quiz' }); },
+      quizShow: function (ans) { if (S.quiz.st === 'ask' && (ans === 'r' || ans === 'p')) api.setQuiz({ st: 'show', ans: ans }); },
+      quizEnd: function () { api.setQuiz({ st: 'end' }); },
+      closeQuiz: function () { api.setQuiz({ st: 'off' }); if (S.cfg.scene === 'quiz') api.setCfg({ scene: 'logo' }); },
       closeGame: function () { api.setGame({ st: 'off' }); api.setCfg({ scene: 'logo' }); },
       // an earlier poll of this round back on the screen, voting closed
       showPoll: function (pid) {
         var x = S.ph[pid]; if (!x) return;
-        setNow({ k: 'poll', id: x.id, q: x.q, o: x.o, open: false });
+        setNow({ k: 'poll', id: x.id, q: x.q, o: x.o, open: false, re: x.re || undefined });
         api.setCfg({ scene: 'poll' });
       },
-      closePoll: function () { if (S.now && S.now.k === 'poll') setNow({ k: 'poll', id: S.now.id, q: S.now.q, o: S.now.o, open: false }); },
-      reopenPoll: function () { if (S.now && S.now.k === 'poll') setNow({ k: 'poll', id: S.now.id, q: S.now.q, o: S.now.o, open: true }); },
+      // "before and after": the same question once more (a new vote); the screen can then show how the hall moved
+      askAgain: function (pid) {
+        var x = S.ph[pid]; if (!x) return;
+        setNow({ k: 'poll', id: 'p' + rid(), q: x.q, o: x.o, open: true, re: x.re || x.id });
+        api.setCfg({ scene: 'poll' });
+      },
+      // the first vote and the latest one after it, for the poll `root` → {a, b} (b: null while nobody has asked again)
+      shift: function (root) { return shiftOf(root); },
+      showShift: function (root) { api.setCfg({ scene: 'shift', cmp: root }); },
+      closePoll: function () { if (S.now && S.now.k === 'poll') setNow({ k: 'poll', id: S.now.id, q: S.now.q, o: S.now.o, open: false, re: S.now.re || undefined }); },
+      reopenPoll: function () { if (S.now && S.now.k === 'poll') setNow({ k: 'poll', id: S.now.id, q: S.now.q, o: S.now.o, open: true, re: S.now.re || undefined }); },
       endPoll: function () { setNow({ k: 'none' }); if (S.cfg.scene === 'poll') api.setCfg({ scene: 'checkin' }); },
       // what the screen shows: {scene}, {qr}, {rx}, {deck} (slides of which folder), {live} (the speaker who has the screen: Start / Stop)
       setCfg: function (p) {
-        var n = { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx, deck: S.cfg.deck, live: S.cfg.live };
+        var n = { scene: S.cfg.scene, qr: S.cfg.qr, rx: S.cfg.rx, deck: S.cfg.deck, live: S.cfg.live, cmp: S.cfg.cmp };
         for (var k in p) n[k] = p[k];
         n.at = Math.max(Date.now(), S.cfg.at + 1); n.w = WID;
         pub(B + '/cfg', JSON.stringify(n), { qos: 1, retain: true });
         onCfg(JSON.stringify(n));
       },
-      showQuestion: function (text) { S.show = text; pub(B + '/show', text, { qos: 1, retain: true }); changed(); },
+      showQuestion: function (text, to) { S.show = text ? (to ? '@' + to + '\n' : '') + text : ''; pub(B + '/show', S.show, { qos: 1, retain: true }); changed(); },
+      shown: function () { return shown(S.show); },
+      setWho: function (names) {
+        S.who = { at: Math.max(Date.now(), S.who.at + 1), n: cleanWho(names) };
+        try { localStorage.setItem(WHK, JSON.stringify(S.who)); } catch (e) {}
+        pub(B + '/who', JSON.stringify(S.who), { qos: 1, retain: true }); changed();
+      },
       doneQuestion: function (id) {
         var q = S.qs[id];
         S.done[id] = 1; store();
-        if (q && S.show === q.q) api.showQuestion('');
+        if (q && shown(S.show).q === q.q) api.showQuestion('');
         pub(B + '/q/' + id, '', { qos: 1, retain: true });
         changed();
       },
@@ -536,7 +678,7 @@
         return { on: !!S.pick.id, n: S.pick.w.length, seen: seen, all: all.length, left: all.filter(function (id) { return !picked[id]; }).length };
       },
       allPolls: function () {
-        return Object.keys(S.ph).map(function (k) { return S.ph[k]; }).filter(function (p) { return p.total > 0; }).sort(function (a, b) { return a.at - b.at; });
+        return Object.keys(S.ph).map(function (k) { return S.ph[k]; }).sort(function (a, b) { return a.at - b.at; });
       },
       pastPolls: function () {
         var cur = S.now && S.now.k === 'poll' ? S.now.id : '';
@@ -544,7 +686,7 @@
       },
       questions: function () {                         // current round, newest first
         return Object.keys(S.qs).filter(function (id) { return !S.done[id] && S.qs[id].g === S.db.round; })
-          .sort(function (a, b) { return S.qs[b].t - S.qs[a].t; }).map(function (id) { return { id: id, q: S.qs[id].q, t: S.qs[id].t }; });
+          .sort(function (a, b) { return S.qs[b].t - S.qs[a].t; }).map(function (id) { return { id: id, q: S.qs[id].q, t: S.qs[id].t, to: S.qs[id].to || '' }; });
       }
     };
     setInterval(changed, 2000);                         // status and "2 min ago" stay right

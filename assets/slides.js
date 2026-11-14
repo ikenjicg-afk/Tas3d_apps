@@ -67,7 +67,7 @@
     window.addEventListener('pagehide', () => { if (byeText) try { links.pub(B + '/sa', byeText, {}).catch(() => {}); } catch (e) {} });
     let helloAt = 0;
     function pubDk() {
-      pub(B + '/dk', { sn, seq: ++seq, t: Date.now(), folder: rootName, decks: decks.map((d) => ({
+      pub(B + '/dk', { sn, seq: ++seq, t: Date.now(), folder: rootName, quiz: quiz.length ? quiz.map((q) => ({ n: q.n, a: q.a })) : undefined, decks: decks.map((d) => ({
         id: d.id, name: d.name, total: d.total, sp: d.sp ? 1 : undefined, ho: d.ho ? 1 : undefined,
         files: d.files.map((f) => ({ n: f.name, k: f.k, c: f.c, from: f.from, dur: f.dur ? Math.round(f.dur) : undefined, w: f.w || undefined }))
       })) }, true);
@@ -280,7 +280,14 @@
     }
     // the inner folders by name (a number in front is fine: "00 Screen"); Cyrillic names too
     const bare = (n) => String(n || '').normalize('NFC').replace(/^\d+[\s._\-–—]*/, '');
-    const SNDNAME = /^(sounds?|audio|звуки?)(?![a-zа-яё0-9])/i, MUSNAME = /^(music|музыка)(?![a-zа-яё0-9])/i, SCRNAME = /^(screens?|splash|заставк[аи]|скрин)(?![a-zа-яё0-9])/i, HOSTNAME = /^(host|хост|ведущий)(?![a-zа-яё0-9])/i;
+    const SNDNAME = /^(sounds?|audio|звуки?)(?![a-zа-яё0-9])/i, MUSNAME = /^(music|музыка)(?![a-zа-яё0-9])/i, SCRNAME = /^(screens?|splash|заставк[аи]|скрин)(?![a-zа-яё0-9])/i, HOSTNAME = /^(host|хост|ведущий)(?![a-zа-яё0-9])/i, QUIZNAME = /^(quiz|квиз|викторина)(?![a-zа-яё0-9])/i;
+    // the quiz "Render or photo?": the pictures of the folder "Quiz" in name order; the answer is in the file name
+    let quiz = [], quizSig = '';
+    const quizUrls = new Map();
+    function quizAnswer(name) {
+      const n = name.replace(/\.[a-z0-9]+$/i, '').toLowerCase(), r = /render|рендер|(^|[^a-z])cg/.test(n), p = /photo|foto|фото|real/.test(n);
+      return r && !p ? 'r' : p && !r ? 'p' : '';
+    }
     async function scan() {
       if (!root || scanning) return;
       scanning = true; changed(); pubSa();
@@ -290,7 +297,19 @@
         // inside the one folder: "Sound" = the 6 tracks (speakers coming out, transitions), "Music" = background music,
         // "Screen" = the pictures / videos for a pause. None of them is a speaker.
         const sdir = top.dirs.find((x) => SNDNAME.test(bare(x.name))), mdir = top.dirs.find((x) => MUSNAME.test(bare(x.name)));
-        top.dirs = top.dirs.filter((x) => x !== sdir && x !== mdir);
+        let qchg = false;
+        const qdir = top.dirs.find((x) => QUIZNAME.test(bare(x.name)));
+        top.dirs = top.dirs.filter((x) => x !== sdir && x !== mdir && x !== qdir);
+        {                                               // "Quiz": pictures for "Render or photo?" — not a speaker either
+          const qf = qdir ? qdir.files.filter((f) => f.path.indexOf('/') < 0 && IMG.test(f.path) && !SKIP.test(f.path)).sort((a, b) => nat(a.path, b.path)) : [];
+          const qs = JSON.stringify(qf.map((f) => f.sig));
+          if (qs !== quizSig) {
+            quizSig = qs;
+            quizUrls.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) {} }); quizUrls.clear();
+            quiz = qf.map((f) => ({ n: f.path, a: quizAnswer(f.path), sig: f.sig, get: f.get }));
+            qchg = true;                                 // the list for the host panel goes out again
+          }
+        }
         if (sdir || mdir) {
           const files = [];
           if (sdir) sdir.files.forEach((f) => files.push({ path: f.path, sig: f.sig, get: f.get }));
@@ -320,7 +339,7 @@
           }
           savePos();
           if (cfg.scene === 'slides') paint();
-        }
+        } else if (qchg) pubDk();
         // somebody chose one of the inner folders instead of the main one
         err = SNDNAME.test(bare(top.name)) || MUSNAME.test(bare(top.name)) || SCRNAME.test(bare(top.name))
           ? 'This is the folder “' + top.name + '” itself. Choose the main folder (TAS3D 2026 Presentations): Sound, Music and Screen go inside it.' : '';
@@ -666,9 +685,17 @@
       step(n) { const d = byId[cfg.deck]; if (cfg.scene !== 'slides' || !d) return false; setPos(d, (pos[d.id] || 0) + n); pubPv(d); return true; },
       status: () => ({ need, folder: rootName, n: decks.length, scanning, err, sound: !soundBlocked, kind: root ? root.kind : '',
         sp: (decks.find((d) => d.sp) || { files: [] }).files.filter((f) => f.c).length,   // files for a pause (folder "Screen")
+        qz: quiz.filter((q) => q.a).length,          // pictures of the quiz (folder "Quiz") with an answer in the name
         ho: decks.some((d) => d.ho) ? (decks.find((d) => d.ho).files.filter((f) => f.c).length) : -1,   // the host's own folder "Host": files in it, -1 = no folder
         snd: { on: !!sroot, folder: sname, slots: slots.length, bg: bgList.length, err: serr,
           playing: cur ? cur.i : -1, bgOn, bgCur: bgList[bgIdx] ? bgList[bgIdx].name : '', vj, vb, bgVol: bgEl ? bgEl.volume : 0 } }),
+      // the quiz picture i as a URL the page can show (made once per file); its answer: 'r' render, 'p' photo
+      quizUrl: async (i) => {
+        const q = quiz[i]; if (!q) return '';
+        if (!quizUrls.has(q.sig)) quizUrls.set(q.sig, URL.createObjectURL(await q.get()));
+        return quizUrls.get(q.sig);
+      },
+      quizAns: (i) => (quiz[i] ? quiz[i].a : ''),
       _decks: () => decks
     };
   };

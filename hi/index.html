@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'faa3656597';</script>
+<script>window.TAS3D_BUILD = '26642ab7a4';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAS3D 2026</title>
 <meta name="robots" content="noindex">
@@ -81,6 +81,10 @@ h1{margin-top:10px;font-size:clamp(56px,17vw,112px);line-height:.9;letter-spacin
 @keyframes flyup{to{transform:translateY(-160px) scale(1.3);opacity:0}}
 .conn{margin-top:12px;font-size:13px;color:var(--mute);min-height:18px}
 
+.who{margin-top:18px}
+.chips{margin-top:8px;display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:40px;padding:0 14px;background:none;border:1px solid #3a3a38;border-radius:20px;color:var(--fg);font:inherit;font-size:15px;cursor:pointer}
+.chip[aria-checked="true"]{background:var(--orange);border-color:var(--orange);color:#fff}
 .qbox{margin-top:18px;display:block;width:100%;min-height:132px;padding:14px;background:var(--card);border:1px solid #2c2c2b;border-radius:0;color:var(--fg);font:inherit;font-size:18px;line-height:1.35;resize:vertical}
 .qbox:focus{outline:none;border-color:var(--orange)}
 .qmeta{margin-top:8px;display:flex;justify-content:space-between;font-size:13px;color:var(--mute)}
@@ -126,6 +130,21 @@ h1{margin-top:10px;font-size:clamp(56px,17vw,112px);line-height:.9;letter-spacin
 .hostlink a{color:#5d5d5a;letter-spacing:.03em;text-transform:uppercase;font-weight:700}
 .hostlink a+a{margin-left:22px}
 body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px))}
+
+/* ---------- the quiz "Render or photo?": the picture is on the big screen, the answer is given here ---------- */
+.qztime{margin-top:18px;height:6px;background:#242423}
+.qztime b{display:block;height:100%;width:100%;background:var(--orange);transform-origin:left;transition:transform .12s linear}
+.qzbtns{margin-top:16px;display:grid;gap:12px;flex:1;min-height:0}
+.qzb{min-height:clamp(96px,22vh,190px);background:none;border:2px solid var(--fg);border-radius:0;color:var(--fg);font:inherit;font-size:clamp(30px,9.5vw,44px);font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.qzb:active:not([disabled]){background:#1f1f1e}
+.qzb[disabled]{border-color:#3a3a38;color:#6a6a66;cursor:default}
+.qzb.sel,.qzb.sel[disabled]{background:var(--orange);border-color:var(--orange);color:#fff}
+.qzres{margin-top:26px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.qzres b{font-size:clamp(64px,24vw,110px);line-height:1;font-weight:700}
+.qzres b.ok{color:var(--orange)}
+.qzres span{font-size:22px}
+.qzplace{margin:56px auto 30px}
+.chc span{text-align:center}
 
 /* ---------- the random choice: the host picked this guest ---------- */
 .chosen{position:fixed;inset:0;z-index:20;background:#0b0b0b;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;animation:sheetin .35s cubic-bezier(.2,.8,.2,1)}
@@ -180,6 +199,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
   <section id="remote" hidden>
     <p class="thanks" id="thanks" tabindex="-1">Thank you!</p>
     <p class="me"><span>Checked in · <b id="myrole"></b></span><span id="count"></span></p>
+    <button type="button" class="pollbar gamebar" id="quizbar" hidden><span><b>Quiz</b><span id="quizbarT">Render or photo?</span></span><span>→</span></button>
     <button type="button" class="pollbar gamebar" id="gamebar" hidden><span><b>The opening game</b><span id="gamebarT">Render TAS3D with the whole hall</span></span><span>→</span></button>
     <button type="button" class="pollbar" id="pollbar" hidden><span><b id="pollbarK">Poll · vote now</b><span id="pollbarQ"></span></span><span>→</span></button>
 
@@ -195,6 +215,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
       <p class="kick">Anonymous</p>
       <h2>Ask a question</h2>
       <p class="hint">Nobody sees who asked. The host reads the questions and may show one on the big screen.</p>
+      <div class="who" id="who" hidden><p class="kick">To</p><div class="chips" id="whoList" role="radiogroup" aria-label="Who is the question for"></div></div>
       <textarea class="qbox" id="qtext" maxlength="280" placeholder="Your question…" aria-label="Your question"></textarea>
       <p class="qmeta"><span id="qnote"></span><span id="qlen">0 / 280</span></p>
       <button type="button" class="big qsend" id="qsend" disabled><span id="qsendT">Send question</span><span aria-hidden="true">→</span></button>
@@ -228,6 +249,22 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     <button type="button" class="close" id="gClose">Back to the remote</button>
   </div>
 </div>
+<div class="sheet gsheet" id="qsheet" role="dialog" aria-modal="true" aria-labelledby="qzH" hidden>
+  <div class="sheet-in">
+    <p class="kick" id="qzK">Quiz</p>
+    <h2 id="qzH" tabindex="-1">Render or photo?</h2>
+    <p class="note" id="qzSub"></p>
+    <div class="qztime" id="qzTime"><b id="qzBar"></b></div>
+    <div class="qzbtns" id="qzBtns">
+      <button type="button" class="qzb" data-a="r">Render</button>
+      <button type="button" class="qzb" data-a="p">Photo</button>
+    </div>
+    <div class="qzres" id="qzRes" hidden><b id="qzMark"></b><span id="qzWord"></span></div>
+    <div class="chc qzplace" id="qzPlace" hidden><span id="qzPlaceT"></span></div>
+    <p class="gteam" id="qzScore"></p>
+    <button type="button" class="close" id="qzClose">Back to the remote</button>
+  </div>
+</div>
 <div class="chosen" id="chosen" role="alertdialog" aria-modal="true" aria-labelledby="chT" hidden>
   <p class="kick">TAS3D 2026</p>
   <div class="chc"><span id="chT">You are chosen!</span></div>
@@ -237,7 +274,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
   <button type="button" role="tab" id="tab-react" aria-controls="pane-react" aria-selected="true">Reactions</button>
   <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false">Questions<em id="qbadge" hidden></em></button>
 </nav>
-<script src="../assets/config.js?v=e18e723a"></script>
+<script src="../assets/config.js?v=1f1140d2"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
 <script>
 (function () {
@@ -314,6 +351,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     renderQs();
     renderPoll();
     renderGame();
+    renderQuiz();
   }
   function show(v) {
     view = v;
@@ -363,7 +401,94 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     else if (t === C.base + '/pr') onPR(text);
     else if (t === C.base + '/cfg') onCfg(text);
     else if (t === C.base + '/pick') onPick(text);
+    else if (t === C.base + '/who') onWho(text);
+    else if (t === C.base + '/quiz') onQuiz(text, kept);
+    else if (t === C.base + '/qw') onQW(text);
   }
+
+  // ================= the quiz "Render or photo?" =================
+  // The picture is on the big screen. For each one the guest taps Render or Photo once (the first tap counts); the answer goes to
+  // the screen, which counts the points. When the answer is revealed the phone shows ✓ or ✗; at the end the top three see their place.
+  var quiz = { id: '', st: 'off', r: 0, n: 0, sec: 15, ans: '', at: -1, w: '' }, quizOpen = false, quizSeen = '', qzT0 = 0, qzTickT = null, qzSent = {}, qw = null;
+  function qzMine() { if (!st.qz || st.qz.id !== quiz.id) st.qz = { id: quiz.id, a: {}, ok: {}, of: 0 }; return st.qz; }
+  function onQuiz(text, kept) {
+    var d = json(text); if (!d) return;
+    var at = +d.at || 0, w = String(d.w || '');
+    if (at < quiz.at || (at === quiz.at && w < quiz.w)) return;
+    var was = quiz;
+    quiz = { id: String(d.id || ''), st: /^(off|ready|ask|show|end)$/.test(d.st) ? d.st : 'off', r: Math.max(0, d.r | 0), n: Math.max(0, d.n | 0),
+      sec: Math.max(5, Math.min(60, +d.sec || 15)), ans: d.ans === 'r' || d.ans === 'p' ? d.ans : '', at: at, w: w };
+    if (quiz.id !== was.id) { qw = null; qzSent = {}; }
+    var m = qzMine();
+    if (quiz.st === 'ask' && (was.st !== 'ask' || was.r !== quiz.r || was.id !== quiz.id)) {
+      // the time bar: from now, or — when the phone opens in the middle of a picture — from about when it started
+      qzT0 = Date.now() - (kept ? Math.max(0, Math.min(quiz.sec * 1000, Date.now() - at)) : 0);
+      clearInterval(qzTickT); qzTickT = setInterval(quizTick, 100);
+    }
+    if (quiz.st === 'show' && quiz.ans) {               // the answer is out: right or wrong, and the score so far
+      if (m.a[quiz.r]) m.ok[quiz.r] = m.a[quiz.r] === quiz.ans ? 1 : 0;
+      m.of = Math.max(m.of, quiz.r + 1); save();
+    }
+    // the sheet comes up by itself when the quiz is shown and at each new picture (a guest can close it)
+    var mark = quiz.id + quiz.st + quiz.r;
+    if (quiz.st !== 'off' && quiz.id && st.sent && quizSeen !== mark) { if (quiz.st === 'ready' || quiz.st === 'ask') { quizOpen = true; if (!kept) vibe(); } quizSeen = mark; }
+    if (quiz.st === 'off') quizOpen = false;
+    render();
+  }
+  function onQW(text) { var d = json(text); if (d && d.id && Array.isArray(d.top)) { qw = d; renderQuiz(); } }
+  function quizTick() {
+    if (quiz.st !== 'ask') { clearInterval(qzTickT); qzTickT = null; return; }
+    $('qzBar').style.transform = 'scaleX(' + Math.max(0, 1 - (Date.now() - qzT0) / (quiz.sec * 1000)) + ')';
+  }
+  function quizSend() {                                 // the answer of the current picture, until the screen's servers have it
+    if (!quiz || quiz.st !== 'ask' || !st.sent || !st.role) return;
+    var r = quiz.r, a = qzMine().a[r], k = quiz.id + '|' + r;
+    if (!a || qzSent[k] || !live || !live.ok) return;
+    qzSent[k] = 1;
+    live.publish(C.base + '/qa/' + quiz.id + '/' + r + '/' + st.id, st.role + ':' + a, { qos: 1 }).catch(function () { qzSent[k] = 0; });
+  }
+  function quizScoreN() { var m = qzMine(), n = 0; for (var k in m.ok) n += m.ok[k] ? 1 : 0; return n; }
+  function renderQuiz() {
+    if (!quiz) return;
+    var on = quiz.st !== 'off' && !!quiz.id && view === 'remote';
+    $('qsheet').hidden = !(on && quizOpen);
+    $('quizbar').hidden = !(on && !quizOpen);
+    $('quizbarT').textContent = quiz.st === 'ask' ? 'Picture ' + (quiz.r + 1) + ' — answer now' : quiz.st === 'end' ? 'See your score' : 'Render or photo?';
+    if (!on) return;
+    var m = qzMine(), mine = m.a[quiz.r] || '', s = quiz.st, pic = s === 'ask' || s === 'show', score = quizScoreN();
+    $('qzK').textContent = pic ? 'Quiz · picture ' + (quiz.r + 1) + ' of ' + quiz.n : 'Quiz';
+    $('qzH').textContent = s === 'end' ? 'Your score: ' + score + ' of ' + (m.of || quiz.n) : 'Render or photo?';
+    $('qzSub').textContent = s === 'ready' ? 'Look at the big screen. ' + quiz.n + ' pictures: is it a render or a photo? Be right — and fast.'
+      : s === 'ask' ? (mine ? 'Answer sent. Wait for the result.' : 'Look at the big screen and choose.')
+      : s === 'show' ? (mine ? '' : 'No answer this time.') : '';
+    $('qzSub').hidden = !$('qzSub').textContent;
+    $('qzTime').hidden = s !== 'ask';
+    $('qzBtns').hidden = s !== 'ready' && s !== 'ask';
+    $('qzBtns').querySelectorAll('.qzb').forEach(function (b) {
+      var a = b.getAttribute('data-a');
+      b.disabled = s !== 'ask' || !!mine;
+      b.classList.toggle('sel', s === 'ask' && mine === a);
+    });
+    $('qzRes').hidden = s !== 'show';
+    if (s === 'show') {
+      var ok = mine && mine === quiz.ans;
+      $('qzMark').textContent = !mine ? '—' : ok ? '\u2713' : '\u2717'; $('qzMark').classList.toggle('ok', !!ok);
+      $('qzWord').textContent = 'It is a ' + (quiz.ans === 'r' ? 'render' : 'photo') + (mine ? ok ? ' — right!' : ' — wrong' : '');
+    }
+    var place = -1;
+    if (s === 'end' && qw && qw.id === quiz.id) qw.top.forEach(function (p, i) { if (p.d === st.id) place = i; });
+    $('qzPlace').hidden = place < 0; $('qzPlaceT').textContent = place < 0 ? '' : 'You are #' + (place + 1) + '!';
+    $('qzScore').textContent = s === 'show' ? 'Your score: ' + score + ' of ' + m.of : s === 'end' ? (place >= 0 ? 'Show this screen to the host.' : 'Thanks for playing!') : '';
+  }
+  $('qzBtns').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.qzb') : null;
+    if (!b || quiz.st !== 'ask' || !st.sent) return;
+    var m = qzMine(); if (m.a[quiz.r]) return;          // the first tap counts
+    m.a[quiz.r] = b.getAttribute('data-a'); save();
+    vibe(); quizSend(); renderQuiz();
+  });
+  $('qzClose').addEventListener('click', function () { quizOpen = false; renderQuiz(); });
+  $('quizbar').addEventListener('click', function () { quizOpen = true; renderQuiz(); });
 
   // ---- the random choice: the host picks some of the checked-in guests (Random in the panel); a chosen phone shows the orange
   // circle until the host clears it or the guest closes it, and tells the host once that it is showing it
@@ -469,7 +594,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     clearTimeout(liveT);
     var url = C.brokers[liveIdx % C.brokers.length], c, was = false;
     c = live = new TasMQ(url, {
-      onConnect: function () { was = true; liveWait = 1500; c.subscribe(C.base + '/r'); c.subscribe(C.base + '/s'); c.subscribe(C.base + '/now', 1); c.subscribe(C.base + '/pr'); c.subscribe(C.base + '/cfg', 1); c.subscribe(C.base + '/game', 1); c.subscribe(C.base + '/gs'); c.subscribe(C.base + '/pick', 1); conn(); gameFlush(true); pickUi(); },
+      onConnect: function () { was = true; liveWait = 1500; c.subscribe(C.base + '/r'); c.subscribe(C.base + '/s'); c.subscribe(C.base + '/now', 1); c.subscribe(C.base + '/pr'); c.subscribe(C.base + '/cfg', 1); c.subscribe(C.base + '/game', 1); c.subscribe(C.base + '/gs'); c.subscribe(C.base + '/pick', 1); c.subscribe(C.base + '/who', 1); c.subscribe(C.base + '/quiz', 1); c.subscribe(C.base + '/qw', 1); conn(); quizSend(); gameFlush(true); pickUi(); },
       onMessage: onMsg,
       onClose: function () {
         if (live !== c) return;
@@ -558,13 +683,37 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     $('qsendT').textContent = wait > 0 ? 'Wait ' + wait + ' s' : 'Send question';
     if (wait > 0) setTimeout(qInput, 1000);
   }
+  // who the question is for: the host's list of speakers (retained on the broker); "Everyone" by default
+  var who = { at: 0, n: [] }, qTo = '';
+  function onWho(text) {
+    var d = null; try { d = JSON.parse(text); } catch (e) {}
+    if (!d || !(+d.at > who.at) || !Array.isArray(d.n)) return;
+    who = { at: +d.at, n: d.n.filter(function (v) { return typeof v === 'string' && v; }).slice(0, 24) };
+    if (who.n.indexOf(qTo) < 0) qTo = '';
+    whoUi();
+  }
+  function whoUi() {
+    var box = $('whoList'), sig = JSON.stringify(who.n);
+    $('who').hidden = !who.n.length;
+    if (box.getAttribute('data-s') !== sig) {
+      box.setAttribute('data-s', sig); box.innerHTML = '';
+      [''].concat(who.n).forEach(function (n) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.setAttribute('role', 'radio');
+        b.setAttribute('data-n', n); b.textContent = n || 'Everyone';
+        b.addEventListener('click', function () { qTo = n; whoUi(); });
+        box.appendChild(b);
+      });
+    }
+    box.querySelectorAll('.chip').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-n') === qTo ? 'true' : 'false'); });
+  }
   $('qtext').addEventListener('input', qInput);
   $('qsend').addEventListener('click', function () {
     var text = $('qtext').value.replace(/\s+/g, ' ').trim().slice(0, 280);
     if (!text || Date.now() - lastQ < 20000) return;
     lastQ = Date.now();
     st.qn = (st.qn || 0) + 1;
-    st.qs.unshift({ id: st.id + 'q' + st.qn, text: text, t: Date.now(), sent: false });
+    st.qs.unshift({ id: st.id + 'q' + st.qn, text: text, t: Date.now(), sent: false, to: who.n.indexOf(qTo) >= 0 ? qTo : '' });
+    qTo = ''; whoUi();
     st.qs = st.qs.slice(0, 20); save();
     $('qtext').value = ''; qInput();
     $('qnote').textContent = 'Sending…';
@@ -578,7 +727,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     if (!q) { $('qnote').textContent = st.qs.length ? 'Sent ✓' : ''; return; }
     qbusy = true;
     var mine = st;
-    sendKept(C.base + '/q/' + q.id, function (g) { return JSON.stringify({ q: q.text, t: q.t, g: g }); }).then(function () {
+    sendKept(C.base + '/q/' + q.id, function (g) { return JSON.stringify({ q: q.text, t: q.t, g: g, to: q.to || undefined }); }).then(function () {
       qbusy = false;
       if (st !== mine) return;
       q.sent = true; save(); render(); qgo();
@@ -594,7 +743,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     list.innerHTML = '';
     (st.qs || []).forEach(function (q) {
       var li = document.createElement('li'), s = document.createElement('small');
-      li.textContent = q.text;
+      li.textContent = (q.to ? '→ ' + q.to + ': ' : '') + q.text;
       s.textContent = q.sent ? 'Sent' : 'Sending…'; if (q.sent) s.className = 'ok'; else unsent++;
       li.appendChild(s); list.appendChild(li);
     });
@@ -610,7 +759,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     if (poll && at < poll.at) return;                  // an older state from a broker that missed a change
     if (d.k === 'poll' && d.id && Array.isArray(d.o)) {
       var fresh2 = !poll || poll.k !== 'poll' || poll.id !== String(d.id);
-      poll = { k: 'poll', id: String(d.id), q: String(d.q || ''), o: d.o.map(String).slice(0, 6), open: !!d.open, at: at };
+      poll = { k: 'poll', id: String(d.id), q: String(d.q || ''), o: d.o.map(String).slice(0, 6), open: !!d.open, at: at, re: !!d.re };   // re: the same question asked again
       if (fresh2) { vpick = -1; if (pr && pr.id !== poll.id) pr = null; }
     } else { poll = { k: 'none', at: at }; sheetOpen = false; }
     maybePop();
@@ -638,7 +787,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     $('sheet').hidden = !(view === 'remote' && has && sheetOpen);
     document.body.style.overflow = $('sheet').hidden ? '' : 'hidden';
     if (!has) return;
-    $('pollK').textContent = poll.open ? 'Poll · voting open' : 'Poll · voting closed';
+    $('pollK').textContent = (poll.re ? 'Once more · ' : 'Poll · ') + (poll.open ? 'voting open' : 'voting closed');
     $('pollQ').textContent = poll.q;
     var canVote = poll.open && !v;
     // options

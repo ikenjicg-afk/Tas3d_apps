@@ -55,6 +55,8 @@ window.TAS3D_CHECKIN = {
     ['Is this your first TAS3D?', ['Yes, first time', 'No, I was here in 2025']],
     ['How was this talk?', ['Loved it', 'It was good', 'So-so']]
   ],
+  // the quiz "Render or photo?": seconds for one picture
+  quiz: { sec: 15 },
   // how many reactions one guest may send: max in every `per` seconds (the phone stops there, the screen ignores the rest)
   rx: { max: 3, per: 10 },
   // reactions on the guests' remote: [key, emoji, label]. 'tas3d' is the logo.

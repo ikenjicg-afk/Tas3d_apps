@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'faa3656597';</script>
+<script>window.TAS3D_BUILD = '26642ab7a4';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -75,6 +75,54 @@ html.noqr .total{font-size:23rem;padding-bottom:.08em}
 html.noqr .rows{grid-column:6/13;margin-top:0}
 html.noqr .row{height:6.4rem;grid-template-columns:17.5rem minmax(0,1fr) 6rem 4.4rem}
 html.noqr .row .nm{font-size:2.4rem}
+
+/* the quiz "Render or photo?": the picture fills the screen, the answers come from the phones */
+html.sc-quiz .cols,html.sc-quiz .stage{display:none}
+.quiz{position:fixed;inset:0;z-index:1;background:#000;overflow:hidden}
+.quiz #qzImg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.quiz .gk{font-size:1.5rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--orange)}
+.qzph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3rem;color:var(--mute)}
+.qzin,.qzend{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:0 6rem}
+.qzin h2,.qzend h2{margin-top:1rem;font-size:8.4rem;line-height:.98;font-weight:400;letter-spacing:-.02em}
+.qzend h2{font-size:5.2rem}
+.qzin p:last-child{margin-top:2.2rem;font-size:2.2rem;color:var(--mute)}
+.qztop{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;padding:2.2rem 3.6rem 5rem;background:linear-gradient(#000c,#0000)}
+.qzr{font-size:2rem;font-variant-numeric:tabular-nums}
+.qzbot{position:absolute;left:0;right:0;bottom:0;padding:9rem 3.6rem 0;background:linear-gradient(#0000,#000d 55%)}
+.qzn{font-size:1.6rem;color:#cfcfca;font-variant-numeric:tabular-nums}
+.qzbot .qzn{margin-bottom:1.6rem}
+.qzbar{height:.9rem;margin:0 -3.6rem;background:#ffffff1f}
+.qzbar i{display:block;height:100%;width:100%;background:var(--orange);transform-origin:left;transition:transform .12s linear}
+.qzans{margin-bottom:1.2rem}
+.qzans b{display:block;font-size:11rem;line-height:.9;font-weight:700;letter-spacing:-.02em;text-transform:uppercase;color:var(--orange);animation:qzpop .5s cubic-bezier(.2,1.4,.3,1) both}
+.qzans p{margin-top:1.4rem;font-size:2.2rem}
+@keyframes qzpop{0%{transform:translateY(2rem) scale(.9);opacity:0}100%{transform:none;opacity:1}}
+.qzlist{margin-top:3rem;display:flex;flex-direction:column}
+.qzrow{display:grid;grid-template-columns:7rem minmax(0,1fr) 16rem 12rem;align-items:baseline;padding:1.3rem 0;border-top:1px solid #2c2c2b;font-size:3.4rem;letter-spacing:-.01em}
+.qzrow:first-child .pl{color:var(--orange)}
+.qzrow .pl{font-variant-numeric:tabular-nums}
+.qzrow .sc,.qzrow .tm{text-align:right;font-variant-numeric:tabular-nums}
+.qzrow .tm{font-size:2.2rem;color:var(--mute)}
+.qzend .qzn{margin-top:2rem}
+@media (prefers-reduced-motion:reduce){.qzans b{animation:none}}
+
+/* before and after: the same question asked twice, how the hall moved (host: Earlier polls → Ask again → Show the change) */
+html.sc-shift .qr{display:none}
+.main.shiftv,html.noqr .main.shiftv{grid-column:1/-1;display:flex;flex-direction:column;align-self:stretch;align-items:stretch;justify-content:center;min-height:0;text-align:left}
+.shiftv .pq,html.noqr .main.shiftv .pq{margin-top:1.2rem;font-size:4.4rem;line-height:1.02;max-width:none}
+.shrows{margin-top:2.4rem;display:flex;flex-direction:column;gap:var(--sg,1.7rem)}
+.shrows.many{--sg:1rem;--sf:2rem;--sd:2.8rem}
+.shrow{display:grid;grid-template-columns:minmax(0,24rem) minmax(0,1fr) 9rem;column-gap:2.4rem;align-items:center}
+.shrow .nm{font-size:var(--sf,2.6rem);line-height:1.25;letter-spacing:var(--tr-l);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shrow .two{display:grid;grid-template-columns:5.4rem minmax(0,1fr) 5.4rem;gap:.45rem 1rem;align-items:center}
+.shrow .two .k{font-size:1.05rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}
+.shrow .two .bar{height:1.1rem;background:#1e1e1d}
+.shrow .two .bar i{display:block;height:100%;width:0;background:#77776f;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.shrow .two .bar.b i{background:var(--orange)}
+.shrow .two .pc{font-size:1.7rem;font-variant-numeric:tabular-nums;text-align:right}
+.shrow .d{font-size:var(--sd,3.6rem);line-height:1;font-variant-numeric:tabular-nums;text-align:right;letter-spacing:var(--tr-l);color:var(--mute)}
+.shrow .d.up{color:var(--orange)}
+.shiftv .pn{margin-top:2rem;font-size:1.5rem}
 
 /* every poll of the day at once (host: Poll → Show all results) */
 html.sc-polls .qr{display:none}
@@ -272,6 +320,13 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     <div class="rows" id="rows"></div>
   </section>
 
+  <section class="main shiftv" id="vShift" hidden>
+    <p class="lbl pk">Before and after</p>
+    <h2 class="pq" id="shQ"></h2>
+    <div class="shrows" id="shRows"></div>
+    <p class="pn" id="shN"></p>
+  </section>
+
   <section class="main pollsv" id="vPolls" hidden>
     <p class="lbl pk">Poll results</p>
     <p class="pn" id="pEmpty" hidden>No polls yet.</p>
@@ -301,13 +356,36 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   <div class="meter"><span class="l">NOISE</span><span class="v" id="gV">100%</span><i><b id="gM"></b></i><span class="sp" id="gSp"></span></div>
   <div class="cd" id="gCd" hidden></div>
 </section>
+<section class="quiz" id="vQuiz" hidden aria-label="Quiz: render or photo">
+  <img id="qzImg" alt="" decoding="async" hidden>
+  <p class="qzph" id="qzPh" hidden></p>
+  <div class="qzin" id="qzIn">
+    <p class="gk">Quiz</p>
+    <h2>Render or photo?</h2>
+    <p id="qzInT"></p>
+  </div>
+  <div class="qzhud" id="qzHud" hidden>
+    <div class="qztop"><span class="gk">Render or photo?</span><span class="qzr" id="qzR"></span></div>
+    <div class="qzbot">
+      <div class="qzans" id="qzAns" hidden><b id="qzW"></b><p id="qzP"></p></div>
+      <p class="qzn" id="qzN"></p>
+      <div class="qzbar"><i id="qzT"></i></div>
+    </div>
+  </div>
+  <div class="qzend" id="qzEnd" hidden>
+    <p class="gk">Render or photo?</p>
+    <h2 id="qzEH">The top three — check your phones</h2>
+    <div class="qzlist" id="qzTop"></div>
+    <p class="qzn" id="qzPl"></p>
+  </div>
+</section>
 <section class="biglogo" id="biglogo" hidden><i role="img" aria-label="TAS3D"></i></section>
 <section class="bigqr" id="bigqr" hidden>
   <img src="../assets/qr.svg?v=e3099c7f" alt="QR code for the guests' page" width="33" height="33">
   <h2>Scan to join</h2>
   <p>TAS3D 2026 · point your phone camera at the QR code</p>
 </section>
-<div class="card" id="card" aria-live="polite"><p class="k">Question from the audience</p><p class="t" id="cardT"></p></div>
+<div class="card" id="card" aria-live="polite"><p class="k" id="cardK">Question from the audience</p><p class="t" id="cardT"></p></div>
 <div class="ctl" role="group" aria-label="Screen controls" id="ctl" hidden>
   <button type="button" id="bFs">Full screen (F)</button>
 </div>
@@ -338,11 +416,11 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   <p id="netSt"></p>
 </div>
 <div class="dropall" id="dropall" hidden>Drop the folder “TAS3D 2026 Presentations”</div>
-<script src="../assets/config.js?v=e18e723a"></script>
+<script src="../assets/config.js?v=1f1140d2"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
-<script src="../assets/hub.js?v=0c7e9761"></script>
+<script src="../assets/hub.js?v=0779ac73"></script>
 <script src="../assets/deck.js?v=7853d7ed"></script>
-<script src="../assets/slides.js?v=5970eeb3"></script>
+<script src="../assets/slides.js?v=feb54836"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -389,12 +467,107 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     });
   }
 
-  // ---- every poll of this round at once: up to 9 cards (the last 9), oldest first; the numbers stay live
+  // ---- the quiz "Render or photo?": the host starts each picture; the phones answer; when the time is up this screen reveals the
+  // answer by itself (it knows it from the file name), counts the points and at the end shows the top three
+  var qzKey = '', qzPic = '', qzT0 = 0, qzTick = null, qzAuto = '', qzS = null, ROLEN = {};
+  C.roles.forEach(function (r) { ROLEN[r[0]] = r[1]; });
+  function quizView(S, on) {
+    var box = $('vQuiz'); box.hidden = !on; qzS = on ? S : null;
+    if (!on) { clearInterval(qzTick); qzTick = null; return; }
+    var q = S.quiz || { st: 'off' }, z = S.qz && S.qz.id === q.id ? S.qz : null, st = q.st, pic = st === 'ask' || st === 'show';
+    $('qzIn').hidden = st === 'ask' || st === 'show' || st === 'end';
+    $('qzHud').hidden = !pic; $('qzEnd').hidden = st !== 'end';
+    $('qzImg').hidden = !(pic && qzPic === q.id + '|' + q.r);      // the picture only while its round is on
+    $('qzPh').hidden = !(pic && PREVIEW);
+    $('qzInT').textContent = q.n ? q.n + (q.n === 1 ? ' picture' : ' pictures') + ' · ' + q.sec + ' seconds each · answer on your phone' : '';
+    if (pic) {
+      var key = q.id + '|' + q.r;
+      if (key !== qzKey) {
+        qzKey = key; qzT0 = st === 'ask' ? Date.now() : 0; qzPic = '';
+        $('qzPh').textContent = PREVIEW ? 'Picture ' + (q.r + 1) : '';
+        if (slides && slides.quizUrl) slides.quizUrl(q.i).then(function (u) { if (qzKey === key && u) { $('qzImg').src = u; qzPic = key; if (qzS) quizView(qzS, true); } }, function () {});
+      }
+      $('qzR').textContent = (q.r + 1) + ' / ' + q.n;
+      var n = z && z.r === q.r ? z.n : 0;
+      $('qzN').textContent = n + (n === 1 ? ' answer' : ' answers');
+      $('qzAns').hidden = st !== 'show';
+      if (st === 'show') {
+        var c = z && z.r === q.r && z.c ? z.c : [0, 0], tot = c[0] + c[1], right = q.ans === 'r' ? c[0] : c[1];
+        $('qzW').textContent = q.ans === 'r' ? 'Render' : 'Photo';
+        $('qzP').textContent = tot ? Math.round(right / tot * 100) + '% of the hall got it right' : '';
+        $('qzT').style.transform = 'scaleX(0)';
+      }
+      if (st === 'ask' && !qzTick) qzTick = setInterval(quizTick, 100);
+      quizTick();
+    }
+    if (st === 'end') {
+      var w = S.qw && S.qw.id === q.id ? S.qw : null, top = w ? w.top : [], sig = JSON.stringify(top);
+      if ($('qzTop').getAttribute('data-s') !== sig) {
+        $('qzTop').setAttribute('data-s', sig); $('qzTop').innerHTML = '';
+        top.forEach(function (p, i) {
+          var d = document.createElement('div'); d.className = 'qzrow';
+          d.innerHTML = '<span class="pl"></span><span class="rl"></span><span class="sc"></span><span class="tm"></span>';
+          d.querySelector('.pl').textContent = i + 1;
+          d.querySelector('.rl').textContent = ROLEN[p.r] || 'Guest';
+          d.querySelector('.sc').textContent = p.p + ' of ' + w.of;
+          d.querySelector('.tm').textContent = (p.ms / 1000).toFixed(1) + ' s';
+          $('qzTop').appendChild(d);
+        });
+      }
+      $('qzEH').textContent = !w ? 'Counting…' : top.length ? 'The top ' + (top.length === 3 ? 'three' : top.length === 2 ? 'two' : 'one') + ' — check your phones' : 'Nobody got one right';
+      $('qzPl').textContent = w ? w.n + (w.n === 1 ? ' player' : ' players') : '';
+    }
+  }
+  function quizTick() {
+    var S = qzS, q = S && S.quiz;
+    if (!q || q.st !== 'ask') { clearInterval(qzTick); qzTick = null; return; }
+    var left = Math.max(0, 1 - (Date.now() - qzT0) / (q.sec * 1000));
+    $('qzT').style.transform = 'scaleX(' + left + ')';
+    // time is up: the answer goes on the screen (once per picture; the host can also reveal earlier)
+    if (left <= 0 && !PREVIEW && hub && slides && qzAuto !== qzKey) {
+      var a = slides.quizAns ? slides.quizAns(q.i) : '';
+      if (a) { qzAuto = qzKey; hub.quizShow(a); }
+    }
+  }
+
+  // ---- before and after: the poll S.cfg.cmp and the latest time it was asked again; grey = before, orange = after,
+  // on the right the change in percentage points
+  var shSig = null, shR = [];
+  function shiftView(S) {
+    var a = S.ph && S.ph[S.cfg.cmp], b = null, k;
+    if (a) for (k in S.ph) if (S.ph[k].re === a.id && (!b || S.ph[k].at > b.at)) b = S.ph[k];
+    var sig = a ? JSON.stringify([a.id, a.o]) : '';
+    if (sig !== shSig) {
+      shSig = sig; shR = []; $('shRows').innerHTML = '';
+      $('shRows').classList.toggle('many', !!a && a.o.length > 4);
+      (a ? a.o : []).forEach(function (o) {
+        var d = document.createElement('div'); d.className = 'shrow';
+        d.innerHTML = '<span class="nm"></span><div class="two"><span class="k">Before</span><span class="bar a"><i></i></span><span class="pc pa">0%</span>' +
+          '<span class="k">After</span><span class="bar b"><i></i></span><span class="pc pb"></span></div><span class="d"></span>';
+        d.querySelector('.nm').textContent = o;
+        $('shRows').appendChild(d);
+        shR.push({ a: d.querySelector('.bar.a i'), b: d.querySelector('.bar.b i'), pa: d.querySelector('.pa'), pb: d.querySelector('.pb'), d: d.querySelector('.d') });
+      });
+    }
+    $('shQ').textContent = a ? a.q : '';
+    if (!a) { $('shN').textContent = ''; return; }
+    var hasB = !!(b && b.total);
+    shR.forEach(function (r, i) {
+      var pa = a.total ? Math.round((a.n[i] || 0) / a.total * 100) : 0, pb = hasB ? Math.round((b.n[i] || 0) / b.total * 100) : 0, df = pb - pa;
+      r.a.style.width = pa + '%'; r.pa.textContent = pa + '%';
+      r.b.style.width = (hasB ? pb : 0) + '%'; r.pb.textContent = hasB ? pb + '%' : '—';
+      r.d.textContent = !hasB ? '' : df > 0 ? '+' + df : df < 0 ? '\u2212' + (-df) : '0';
+      r.d.classList.toggle('up', hasB && df > 0);
+    });
+    function v(n) { return n + (n === 1 ? ' vote' : ' votes'); }
+    $('shN').textContent = 'Before: ' + v(a.total) + ' · After: ' + (b ? v(b.total) : 'not asked yet');
+  }
+
+  // ---- every poll of this round at once (also one nobody has voted in yet): up to 9 cards (the last 9), oldest first; live numbers
   var pgSig = '', pgCards = [];
   function pollsView(S) {
-    var all = Object.keys(S.ph || {}).map(function (k) { return S.ph[k]; }).filter(function (p) { return p.total > 0; })
-      .sort(function (a, b) { return a.at - b.at; }).slice(-9);
-    var sig = JSON.stringify(all.map(function (p) { return [p.id, p.q, p.o]; })), g = $('pGrid');
+    var all = Object.keys(S.ph || {}).map(function (k) { return S.ph[k]; }).sort(function (a, b) { return a.at - b.at; }).slice(-9);
+    var sig = JSON.stringify(all.map(function (p) { return [p.id, p.q, p.o, p.re]; })), g = $('pGrid');
     if (sig !== pgSig) {
       pgSig = sig; pgCards = []; g.innerHTML = '';
       g.className = 'pgrid t' + (all.length <= 2 ? 1 : all.length <= 4 ? 2 : all.length <= 6 ? 3 : 4) + (all.length === 1 ? ' one' : '');
@@ -416,7 +589,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     $('pEmpty').hidden = all.length > 0;
     all.forEach(function (p, i) {
       bars(pgCards[i].rows, p.n, p.total);
-      pgCards[i].tot.textContent = p.total + (p.total === 1 ? ' vote' : ' votes');
+      pgCards[i].tot.textContent = (p.re ? 'After · ' : '') + p.total + (p.total === 1 ? ' vote' : ' votes');
     });
   }
 
@@ -478,9 +651,11 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     var card = $('card');
     document.body.classList.toggle('qon', !!text);
     function put() {
-      $('cardT').textContent = text;
-      card.classList.toggle('m', text.length > 80 && text.length <= 170);
-      card.classList.toggle('l', text.length > 170);
+      var m = /^@([^\n]{1,40})\n([\s\S]+)$/.exec(text), q = m ? m[2] : text;      // "@Name\nquestion": a question to somebody
+      $('cardK').textContent = m ? 'Question to ' + m[1] : 'Question from the audience';
+      $('cardT').textContent = q;
+      card.classList.toggle('m', q.length > 80 && q.length <= 170);
+      card.classList.toggle('l', q.length > 170);
       card.classList.add('on');
     }
     if (!text) return card.classList.remove('on');
@@ -503,13 +678,18 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     document.documentElement.classList.toggle('sc-slides', scene === 'slides');
     document.documentElement.classList.toggle('sc-game', scene === 'game');
     gameView(S, scene === 'game');
+    document.documentElement.classList.toggle('sc-quiz', scene === 'quiz');
+    quizView(S, scene === 'quiz');
     $('biglogo').hidden = scene !== 'logo' && !noSlides;
     document.documentElement.classList.toggle('noqr', !cfg.qr);
-    $('stage').hidden = scene === 'blank' || scene === 'logo' || scene === 'qr' || scene === 'slides' || scene === 'game';
+    $('stage').hidden = scene === 'blank' || scene === 'logo' || scene === 'qr' || scene === 'slides' || scene === 'game' || scene === 'quiz';
     $('bigqr').hidden = scene !== 'qr';
     $('vCheck').hidden = scene !== 'checkin'; $('vPoll').hidden = scene !== 'poll'; $('vPolls').hidden = scene !== 'polls';
     document.documentElement.classList.toggle('sc-polls', scene === 'polls');
     if (scene === 'polls') pollsView(S);
+    $('vShift').hidden = scene !== 'shift';
+    document.documentElement.classList.toggle('sc-shift', scene === 'shift');
+    if (scene === 'shift') shiftView(S);
     rxOn = cfg.rx !== false;
     if (!rxOn) { queue = []; document.querySelectorAll('.rx').forEach(function (e) { e.remove(); }); alive = 0; }
     $('qrH').textContent = p && p.open ? 'Vote' : 'Check in';
@@ -780,7 +960,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
       // what was found inside: speakers, Sound (tracks), Music, Screen (pause pictures)
       var sd = s.snd, sp = s.sp || 0;
       $('fIn').hidden = !!s.need || s.scanning;
-      $('fIn').textContent = 'Inside: ' + (s.n - (sp ? 1 : 0) - (s.ho >= 0 ? 1 : 0)) + ' speakers · Host: ' + (s.ho >= 0 ? s.ho + (s.ho === 1 ? ' file' : ' files') : 'no') + ' · Sound: ' + (sd.slots ? sd.slots + ' of 6 tracks' : 'no') + ' · Music: ' + (sd.bg || 'no') + ' · Screen: ' + (sp ? sp + (sp === 1 ? ' file' : ' files') : 'no');
+      $('fIn').textContent = 'Inside: ' + (s.n - (sp ? 1 : 0) - (s.ho >= 0 ? 1 : 0)) + ' speakers · Host: ' + (s.ho >= 0 ? s.ho + (s.ho === 1 ? ' file' : ' files') : 'no') + ' · Sound: ' + (sd.slots ? sd.slots + ' of 6 tracks' : 'no') + ' · Music: ' + (sd.bg || 'no') + ' · Screen: ' + (sp ? sp + (sp === 1 ? ' file' : ' files') : 'no') + ' · Quiz: ' + (s.qz ? s.qz + (s.qz === 1 ? ' picture' : ' pictures') : 'no');
       $('fTip').textContent = KEEPS ? 'The browser asks once to let the site view the files: press “View files”.' : 'This browser forgets the folder after a restart: drag it again. Chrome and Edge remember it.';
     }
     var snd = !s || s.sound;
@@ -822,7 +1002,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     if (slides || !hub || !window.TasSlidesScreen || !TasSlidesKey.get()) return;
     try {
       slides = TasSlidesScreen({ hub: hub, view: $('slides'), onChange: function () { render(hub.state, hub.up()); },
-        locked: function () { var g = hub.state.game; return (g.st === 'ready' || g.st === 'run') && hub.state.cfg.scene === 'game'; } });
+        locked: function () { var g = hub.state.game, z = hub.state.quiz; return ((g.st === 'ready' || g.st === 'run') && hub.state.cfg.scene === 'game') || (/^(ready|ask|show)$/.test(z.st) && hub.state.cfg.scene === 'quiz'); } });
     } catch (e) { slides = null; }
     window.TasScreenSlides = slides;                  // tests
   }
