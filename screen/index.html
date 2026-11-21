@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'f302e43375';</script>
+<script>window.TAS3D_BUILD = 'f6a5374aca';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -267,6 +267,9 @@ body.idle .setp,body.idle .setp *{cursor:auto}
 .setp .tip{color:var(--mute);font-size:13px}
 .sbtn{margin-top:10px;min-height:42px;padding:0 14px;border:0;background:#2a2a29;color:var(--fg);font:inherit;font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .sbtn.o{background:var(--orange);color:#fff}
+.loc{display:flex;flex-wrap:wrap;gap:6px}
+.loc .sbtn{margin-top:6px;text-transform:none;letter-spacing:0;font-size:14px;text-align:left}
+.loc .sbtn small{margin-left:6px;font-weight:400;opacity:.7}
 .drop{margin-top:10px;padding:18px 14px;border:1.5px dashed #4a4a48;text-align:center;color:var(--mute)}
 .drop b{display:block;color:var(--fg);font-size:16px;font-weight:700}
 .drop .sbtn{margin-top:12px}
@@ -402,6 +405,11 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     <form id="keyF" autocomplete="off"><input type="password" id="keyIn" placeholder="Password" aria-label="Password"><button type="submit" class="sbtn o">Unlock</button></form>
     <p class="bad" id="keyErr" role="alert"></p>
   </div>
+  <div id="locBox" hidden>
+    <h3>Show on this screen</h3>
+    <p class="tip">Works without the internet. Then the clicker (or ← →) changes the slides.</p>
+    <div class="loc" id="locList"></div>
+  </div>
   <div id="dirBox" hidden>
     <h3>Folder</h3>
     <p id="fSt"></p>
@@ -420,8 +428,8 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
 <script src="../assets/config.js?v=e0e64972"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=0779ac73"></script>
-<script src="../assets/deck.js?v=745ac21b"></script>
-<script src="../assets/slides.js?v=d453be2b"></script>
+<script src="../assets/deck.js?v=e96bfcc7"></script>
+<script src="../assets/slides.js?v=ce598943"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -916,21 +924,39 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   }
 
   // ---- controls
+  function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
   function fullscreen() {
     var d = document;
-    if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
-    else { var e = d.documentElement; (e.requestFullscreen || e.webkitRequestFullscreen).call(e); }
+    if (isFull()) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+    else { var e = d.documentElement; try { var r = (e.requestFullscreen || e.webkitRequestFullscreen).call(e); if (r && r.catch) r.catch(function () {}); } catch (x) {} }
   }
+  // in full screen a short press of Esc does not leave it (a clicker's "end the show" button is Esc): F leaves it, or Esc held down
+  document.addEventListener('fullscreenchange', function () {
+    try { if (navigator.keyboard && navigator.keyboard.lock) { if (isFull()) navigator.keyboard.lock(['Escape']).catch(function () {}); else navigator.keyboard.unlock(); } } catch (x) {}
+  });
   $('bFs').addEventListener('click', function () { fullscreen(); this.blur(); });   // no focus left on it: Space is "next slide"
   document.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey || PREVIEW) return;
     var a = document.activeElement; if (a && /INPUT|TEXTAREA/.test(a.tagName)) return;
     var k = (e.key || '').toLowerCase();
-    if (k === 'f' || k === 'а') fullscreen();
+    // A clicker is a keyboard: next / back are Page Down / Page Up or the arrows, and its other buttons are the keys of
+    // PowerPoint. "Start the show" is F5 (or Shift+F5): here it turns full screen on and never reloads the page —
+    // without the internet the page would not come back. (To reload on purpose: Ctrl+R, on a Mac ⌘R.)
+    if (k === 'f5') { e.preventDefault(); if (!e.repeat && !isFull()) fullscreen(); return; }
+    if ((k === 'f' || k === 'а') && !e.repeat) fullscreen();
     if (k === 'escape' && !$('setp').hidden) openSettings(false);
-    var step = { arrowright: 1, arrowdown: 1, pagedown: 1, ' ': 1, arrowleft: -1, arrowup: -1, pageup: -1, backspace: -1 }[k];
-    if (step && slides && slides.step(step)) e.preventDefault();
+    var step = { arrowright: 1, arrowdown: 1, pagedown: 1, ' ': 1, enter: 1, arrowleft: -1, arrowup: -1, pageup: -1, backspace: -1 }[k];
+    if (!step || !slides) return;
+    if (a && /BUTTON|A|SELECT/.test(a.tagName) && (k === 'enter' || k === ' ')) return;   // that key presses the button it is on
+    if (!slides.showing()) return;
+    e.preventDefault();
+    // a button held down, or a clicker that sends one press twice: one slide
+    var now = Date.now();
+    if (e.repeat || now - stepAt < 120) return;
+    stepAt = now;
+    slides.step(step);
   });
+  var stepAt = 0;
   var idleT;
   function wake() {
     document.body.classList.remove('idle'); clearTimeout(idleT);
@@ -950,9 +976,24 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   var setSig = '';
   function settings(up) {
     var key = !!TasSlidesKey.get(), s = slides ? slides.status() : null;
-    var sig = JSON.stringify([key, s, up, $('setp').hidden]);
+    var cf = hub ? hub.state.cfg : {}, dl = slides ? slides.list().filter(function (d) { return d.total; }) : [];
+    var sig = JSON.stringify([key, s, up, $('setp').hidden, cf.scene, cf.deck, dl]);
     if (sig === setSig) return;
     setSig = sig;
+    // what this screen shows, chosen right here: the same as the host panel does, but it needs no internet
+    $('locBox').hidden = !hub || !dl.length;
+    var box = $('locList'); box.innerHTML = '';
+    function locBtn(label, small, on, go) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'sbtn' + (on ? ' o' : ''); b.textContent = label;
+      if (small) { var sm = document.createElement('small'); sm.textContent = small; b.appendChild(sm); }
+      b.addEventListener('click', function () { this.blur(); go(); });
+      box.appendChild(b);
+    }
+    locBtn('Logo', '', cf.scene === 'logo', function () { hub.setCfg({ scene: 'logo' }); });
+    locBtn('Check-in', '', cf.scene === 'checkin', function () { hub.setCfg({ scene: 'checkin' }); });
+    dl.forEach(function (d) {
+      locBtn(d.sp ? 'Screen (pause)' : d.name, d.total + (d.total === 1 ? ' slide' : ' slides'), cf.scene === 'slides' && cf.deck === d.id, function () { hub.setCfg({ scene: 'slides', deck: d.id }); });
+    });
     var attention = !key || !s || !!s.need || !!s.err || !s.sound;
     $('setDot').hidden = !attention;
     $('keyBox').hidden = key; $('dirBox').hidden = !key;

@@ -76,9 +76,12 @@
       })(0);
     }
     function pubSa() {
-      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0 });
+      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), fc: document.hasFocus() ? 1 : 0, f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0 });
     }
     setInterval(pubSa, 8000); setTimeout(pubSa, 1500);
+    // the keys of a clicker go to the window that is active on this computer: the host panel is told when this one is not
+    let fcT = 0;
+    ['focus', 'blur'].forEach((ev) => window.addEventListener(ev, () => { clearTimeout(fcT); fcT = setTimeout(pubSa, 400); }));
     // closing or reloading this page: "bye" (sealed in advance, so it goes out at once) — the remotes forget this screen
     let byeText = '';
     box.seal(B + '/sa', { sn, bye: 1, t: Date.now() }).then((x) => { byeText = x; });
@@ -814,6 +817,7 @@
       has: (id) => !!(byId[id] && byId[id].total),
       // keys and the clicker on this computer
       step(n) { const d = byId[cfg.deck]; if (cfg.scene !== 'slides' || !d) return false; setPos(d, (pos[d.id] || 0) + n); pubPv(d); return true; },
+      showing: () => cfg.scene === 'slides' && !!byId[cfg.deck],   // slides are on this screen now: the keys change them
       status: () => ({ need, folder: rootName, n: decks.length, scanning, err, sound: !soundBlocked, kind: root ? root.kind : '',
         sp: (decks.find((d) => d.sp) || { files: [] }).files.filter((f) => f.c).length,   // files for a pause (folder "Screen")
         qz: quiz.filter((q) => q.a).length,          // pictures of the quiz (folder "Quiz") with an answer in the name
@@ -827,6 +831,8 @@
         return quizUrls.get(q.sig);
       },
       quizAns: (i) => (quiz[i] ? quiz[i].a : ''),
+      // the folders, for the list in this computer's Settings (showing one works without the internet)
+      list: () => decks.map((d) => ({ id: d.id, name: d.name, total: d.total, sp: !!d.sp, ho: !!d.ho })),
       _decks: () => decks
     };
   };

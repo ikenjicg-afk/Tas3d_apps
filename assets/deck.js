@@ -472,6 +472,7 @@
       else if (!sa.f) msg = host
         ? (sa.need === 'reconnect' ? 'On the screen computer: move the mouse, open Settings (bottom right) and press “Allow access”.' : 'On the screen computer: move the mouse, open Settings (bottom right) and connect the folder “TAS3D 2026 Presentations”.')
         : 'The presentations folder is not open on the screen computer yet. Tell the host.';
+      else if (host && sa.fc === 0) msg = 'Another window is in front on the screen computer. Click once on the screen there: until then the clicker and the keys do nothing.';
       else if (host && cl.screens() > 1) msg = cl.screens() + ' screen pages are open (two tabs, or a second computer). They follow each other, but close the ones you do not need.';
       else { warn = false; msg = host ? 'Folder on the screen computer: ' + (sa.folder || '') + ' · ' + decks().length + (decks().length === 1 ? ' folder' : ' folders') : ''; }
       R.st.textContent = msg; R.st.hidden = !msg; R.st.classList.toggle('warn', warn);
