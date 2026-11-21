@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '26642ab7a4';</script>
+<script>window.TAS3D_BUILD = '56ba8e98a3';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -419,8 +419,8 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
 <script src="../assets/config.js?v=1f1140d2"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
 <script src="../assets/hub.js?v=0779ac73"></script>
-<script src="../assets/deck.js?v=7853d7ed"></script>
-<script src="../assets/slides.js?v=feb54836"></script>
+<script src="../assets/deck.js?v=4d0024cd"></script>
+<script src="../assets/slides.js?v=f2d94741"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -901,7 +901,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     if (!img) { img = document.createElement('img'); img.className = 'sl on'; img.alt = ''; box.appendChild(img); var t = document.createElement('span'); t.className = 'vt'; box.appendChild(t); }
     if (img.getAttribute('src') !== pvSlide.cur) img.setAttribute('src', pvSlide.cur);
     var it = pvSlide.it, v = pvSlide.v, tag = box.querySelector('.vt');
-    tag.textContent = it && it.k === 'vid' ? 'Video' + (v ? (v.play ? ' · playing' : v.end ? ' · ended' : ' · paused') : '') : '';
+    tag.textContent = it && it.k === 'vid' ? 'Video' + (it.lp ? ' · loop' : '') + (v ? (v.play ? ' · playing' : v.end ? ' · ended' : ' · paused') : '') : '';
     tag.hidden = !tag.textContent;
   }
 

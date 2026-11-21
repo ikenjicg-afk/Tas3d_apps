@@ -273,7 +273,7 @@
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function mmss(s) { s = Math.round(+s || 0); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
-  function count(f) { return f.k === 'pdf' ? f.c + (f.c === 1 ? ' slide' : ' slides') : f.k === 'vid' ? 'video' + (f.dur ? ' ' + mmss(f.dur) : '') : f.k === 'img' ? 'picture' : ''; }
+  function count(f) { return f.k === 'pdf' ? f.c + (f.c === 1 ? ' slide' : ' slides') : f.k === 'vid' ? 'video' + (f.dur ? ' ' + mmss(f.dur) : '') + (f.lp ? ' · loop' : '') : f.k === 'img' ? 'picture' : ''; }
   function what(it) {                                   // "file.pdf · page 3 of 12"
     if (!it) return '';
     return it.n + (it.k === 'pdf' && it.c > 1 ? ' · page ' + (it.p + 1) + ' of ' + it.c : it.k === 'vid' ? ' · video' : '');
@@ -456,7 +456,7 @@
       if (src) { if (cur.getAttribute('src') !== src) cur.setAttribute('src', src); cur.hidden = false; } else cur.hidden = true;
       R.ph.textContent = src ? '' : !d ? '' : !total ? 'No slides in this folder yet.' : 'Preview is coming…';
       R.pv.classList.toggle('wait', !!pend);
-      R.tag.textContent = it && it.k === 'vid' ? 'Video' + (it.dur ? ' · ' + mmss(it.dur) : '') + (p && p.v && !pend ? (p.v.play ? ' · playing' : p.v.end ? ' · ended' : ' · paused') : '') : '';
+      R.tag.textContent = it && it.k === 'vid' ? 'Video' + (it.dur ? ' · ' + mmss(it.dur) : '') + (it.lp ? ' · loop' : '') + (p && p.v && !pend ? (p.v.play ? ' · playing' : p.v.end ? ' · ended' : ' · paused') : '') : '';
       R.posN.textContent = total ? (i + 1) + ' / ' + total : '';
       R.posW.textContent = what(it);
       var can = lv && !!d && total > 0, step = can && stepAllowed(open);

@@ -10,6 +10,9 @@
   const PDF = /\.pdf$/i, IMG = /\.(jpe?g|png|webp|gif|avif|bmp|svg)$/i, VID = /\.(mp4|m4v|webm|mov|ogv)$/i;
   // not listed at all: hidden and system files, notes, unfinished downloads
   const SKIP = /^\.|^~\$|^(desktop\.ini|thumbs\.db|icon\r?)$|\.(txt|md|rtf|url|webloc|lnk|ini|db|tmp|part|crdownload|download)$/i;
+  // a video with the word "loop" in its name ("1. loop 1 min.mp4") plays in a circle until the next slide
+  const LOOP = /(^|[^a-z0-9])loop([^a-z0-9]|$)/i;
+  const loops = (f) => f.k === 'vid' && LOOP.test(f.name.split('/').pop().replace(/\.[a-z0-9]+$/i, ''));
   const nat = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
   const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -69,7 +72,7 @@
     function pubDk() {
       pub(B + '/dk', { sn, seq: ++seq, t: Date.now(), folder: rootName, quiz: quiz.length ? quiz.map((q) => ({ n: q.n, a: q.a })) : undefined, decks: decks.map((d) => ({
         id: d.id, name: d.name, total: d.total, sp: d.sp ? 1 : undefined, ho: d.ho ? 1 : undefined,
-        files: d.files.map((f) => ({ n: f.name, k: f.k, c: f.c, from: f.from, dur: f.dur ? Math.round(f.dur) : undefined, w: f.w || undefined }))
+        files: d.files.map((f) => ({ n: f.name, k: f.k, c: f.c, from: f.from, dur: f.dur ? Math.round(f.dur) : undefined, lp: f.k === 'vid' && (d.sp || loops(f)) ? 1 : undefined, w: f.w || undefined }))
       })) }, true);
     }
     setInterval(() => { if (decks.length) pubDk(); }, 60000);
@@ -514,10 +517,14 @@
 
     // ---------- previews for the remotes (small JPEGs)
     const TW = 512, TH = 320, thumbs = new Map(), thumbP = new Map();   // the host panel shows the current one as the screen preview
+    // a video on the screen: one still taken from the playing video itself, once, shortly after it starts
+    // ("it started, this is what the hall sees"); the remotes get no more pictures while it plays
+    const snaps = new Map();
     let tq = Promise.resolve();
     function thumb(d, i) {
       if (!d || i < 0 || i >= d.total) return Promise.resolve('');
       const [fi, p] = d.items[i], f = d.files[fi], key = f.sig + '|' + p;
+      if (snaps.has(key)) return Promise.resolve(snaps.get(key));   // a video caught on the screen as it started
       if (thumbs.has(key)) return Promise.resolve(thumbs.get(key));
       if (thumbP.has(key)) return thumbP.get(key);
       const job = tq.then(() => makeThumb(f, p)).then((u) => { thumbs.set(key, u); trim(thumbs, 400); return u; }, () => '');
@@ -549,7 +556,7 @@
     function info(d, i) {
       if (!d || i < 0 || i >= d.total) return null;
       const [fi, p] = d.items[i], f = d.files[fi];
-      return { f: fi, n: f.name, k: f.k, p, c: f.c, dur: f.dur ? Math.round(f.dur) : undefined };
+      return { f: fi, n: f.name, k: f.k, p, c: f.c, dur: f.dur ? Math.round(f.dur) : undefined, lp: f.k === 'vid' && (d.sp || loops(f)) ? 1 : undefined };
     }
     const pvT = {};
     function pubPv(d0) {
@@ -576,7 +583,9 @@
     const layers = new Map();                          // ready slides: current, previous, next
     let shown = null, tok = 0;
     const errBox = document.createElement('div'); errBox.className = 'sl err'; view.appendChild(errBox);
-    function keyOf(d, i) { const [fi, p] = d.items[i]; return d.files[fi].sig + '|' + p + '|' + W + 'x' + H; }
+    // only a PDF page is drawn for the window size; a picture or a video just stretches with the window, so full screen (F)
+    // keeps the same video playing instead of loading it again from the start
+    function keyOf(d, i) { const [fi, p] = d.items[i], f = d.files[fi]; return f.sig + '|' + p + (f.k === 'pdf' ? '|' + W + 'x' + H : ''); }
     function prepare(d, i) {
       const key = keyOf(d, i);
       let L = layers.get(key); if (L) return L;
@@ -590,6 +599,11 @@
           const v = document.createElement('video'); v.src = L.url; v.preload = 'auto'; v.playsInline = true;
           await once(v, 'loadeddata', 10000);
           ['play', 'pause', 'ended', 'volumechange'].forEach((ev) => v.addEventListener(ev, () => { const dd = byId[cfg.deck]; if (dd && shown === L) pubPv(dd); }));
+          L.lp = loops(f);
+          v.addEventListener('playing', () => {
+            if (shown !== L || L.snapped || L.snapT) return;
+            L.snapT = setTimeout(() => { L.snapT = 0; snapV(L, f.sig + '|' + p); }, 400);
+          });
           L.el = v;
         }
         L.el.className = 'sl';
@@ -620,7 +634,7 @@
       const fresh = shown !== L;
       if (ok) {
         L.el.classList.add('on'); shown = L;
-        if (L.k === 'vid') { L.quiet = !!d.sp; L.el.loop = !!d.sp; }   // a pause video: in a loop and silent (the music is the host's Music)
+        if (L.k === 'vid') { L.quiet = !!d.sp; L.el.loop = !!d.sp || !!L.lp; }   // a pause video: in a loop and silent (the music is the host's Music); "loop" in the name: in a loop
         if (fresh && L.k === 'vid') { L.el.currentTime = 0; playV(L.el, L.quiet); }
       }
       else shown = null;
@@ -645,6 +659,19 @@
       if (bgOn && bgEl) playAudio(bgEl);               // the background music that was asked for before the click
       changed(); pubSa(); pubAu();
     });
+    // the still of a video that has just started on the screen (see snaps)
+    function snapV(L, tk) {
+      const v = L.el;
+      if (L.dead || shown !== L || !v || v.readyState < 2 || !v.videoWidth) return;
+      try {
+        const c = document.createElement('canvas');
+        [c.width, c.height] = fit(v.videoWidth, v.videoHeight, TW, TH);
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+        snaps.set(tk, c.toDataURL('image/jpeg', 0.62)); trim(snaps, 100);
+        L.snapped = true;
+        const d = byId[cfg.deck]; if (d) pubPv(d);
+      } catch (e) {}
+    }
     function video(op) {
       if (!shown || shown.k !== 'vid') return;
       const v = shown.el;
@@ -659,7 +686,8 @@
     let rsT = null;
     window.addEventListener('resize', () => {
       clearTimeout(rsT);
-      rsT = setTimeout(() => { if (measure()) { [...layers.values()].forEach((x) => { if (x !== shown) dropL(x); }); paint(); } }, 250);
+      // a new window size (full screen on / off): only PDF pages are drawn again; the video on the screen goes on playing
+      rsT = setTimeout(() => { if (measure()) { [...layers.values()].forEach((x) => { if (x !== shown && x.k === 'pdf') dropL(x); }); paint(); } }, 250);
     });
 
     return {
