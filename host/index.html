@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'b9fc61efdc';</script>
+<script>window.TAS3D_BUILD = 'f302e43375';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -52,7 +52,7 @@ button,input,textarea{font:inherit;color:inherit}
 @keyframes beat{50%{opacity:.3}}
 /* what the screen shows */
 .scr{margin-top:18px;padding:14px;background:var(--card);border:1px solid #262625}
-.seg{margin-top:10px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.seg{margin-top:10px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .seg button,.tog button{min-height:46px;padding:0 8px;border:1px solid #2f2f2e;background:#121211;color:var(--mute);font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--orange);border-color:var(--orange);color:#fff}
 .seg button[disabled]{opacity:.35;cursor:default}
@@ -72,7 +72,7 @@ button,input,textarea{font:inherit;color:inherit}
 .scrst #scrSt.off{color:var(--mute)}
 .qon{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--orange);background:#1a120f;font-size:15px}
 .qon span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media (max-width:620px){.seg{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:420px){.seg button{font-size:12px;letter-spacing:.01em;padding:0 4px}}
 .tabs button{white-space:nowrap;padding-left:10px;padding-right:10px}
 /* the opening game */
 .gcard .gbar{margin-top:14px;height:12px;background:#232322}
@@ -88,7 +88,7 @@ button,input,textarea{font:inherit;color:inherit}
 .glen{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .glen button{min-height:46px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .glen button[aria-pressed="true"]{background:var(--fg);color:#0e0e0e;border-color:var(--fg)}
-@media (max-width:480px){.tabs button{font-size:12px;letter-spacing:.01em;padding-left:2px;padding-right:2px}.tabs em{margin-left:3px;padding:1px 4px;font-size:10px;letter-spacing:0}}
+@media (max-width:480px){.tabs button{font-size:12px;letter-spacing:.01em;padding-left:2px;padding-right:2px}.tabs em{margin-left:3px;padding:1px 4px;font-size:10px;letter-spacing:0}.tabs em.dot{margin-left:4px;padding:0;font-size:0}.sub button{font-size:12px;letter-spacing:.01em}.sub em{margin-left:4px;padding:1px 5px;font-size:10px}}
 /* sound */
 .slots{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .slot{position:relative;min-height:84px;padding:12px 12px 14px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;text-align:left;cursor:pointer;overflow:hidden;touch-action:manipulation}
@@ -135,7 +135,18 @@ h2.sec.first{margin-top:6px}
 .tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--orange)}
 .tabs em{font-style:normal;margin-left:6px;padding:1px 6px;background:#2a2a29;color:var(--fg);font-size:11px;border-radius:9px}
 .tabs em.hot{background:var(--orange);color:#fff}
+.tabs em.dot{display:inline-block;width:8px;height:8px;padding:0;border-radius:50%;background:#77776f;font-size:0;vertical-align:middle;margin-top:-3px}
+.tabs em.dot.hot{background:var(--orange)}
 section.pane{margin-top:24px}
+.sub{margin-top:14px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.sub button{grid-column:span 3;min-width:0;min-height:46px;padding:0 6px;border:1px solid #2f2f2e;background:#121211;color:var(--mute);font:inherit;font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;cursor:pointer;touch-action:manipulation}
+.sub button[aria-selected="true"]{background:var(--fg);border-color:var(--fg);color:#0e0e0e}
+.sub em{font-style:normal;margin-left:6px;padding:1px 6px;background:#2a2a29;color:var(--fg);font-size:11px;border-radius:9px}
+.sub em.hot{background:var(--orange);color:#fff}
+.sub button[aria-selected="true"] em{background:#0e0e0e;color:var(--fg)}
+.sub button[aria-selected="true"] em.hot{background:var(--orange);color:#fff}
+#subG button:nth-child(-n+3){grid-column:span 2}
+@media (min-width:620px){#subG{grid-template-columns:repeat(5,1fr)}#subG button,#subG button:nth-child(-n+3){grid-column:span 1}}
 .big{font-size:clamp(64px,18vw,140px);line-height:.85;letter-spacing:-.02em}
 .rows{margin-top:20px;border-top:1px solid var(--rule)}
 .rows div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--rule)}
@@ -219,7 +230,6 @@ h2.sec{margin-top:30px;font-size:22px}
     <div class="pvf" id="pvf"><iframe id="pvFrame" title="What the screen shows now" tabindex="-1" aria-hidden="true"></iframe></div>
     <p class="pvl"><a id="openScreen" href="../screen/" target="tas3d-screen">Open the screen on this device ↗</a></p>
     <div class="seg" role="group" aria-label="Screen">
-      <button type="button" data-s="blank" aria-pressed="false">Blank</button>
       <button type="button" data-s="logo" aria-pressed="false">Logo</button>
       <button type="button" data-s="checkin" aria-pressed="true">Check-in</button>
       <button type="button" data-s="poll" aria-pressed="false">Poll</button>
@@ -235,16 +245,23 @@ h2.sec{margin-top:30px;font-size:22px}
   <div class="tabs" role="tablist">
     <div class="trow">
     <button type="button" role="tab" data-tab="checkin" aria-selected="true">Check-in<em id="tN">0</em></button>
-    <button type="button" role="tab" data-tab="poll" aria-selected="false">Poll<em id="tP" hidden></em></button>
-    <button type="button" role="tab" data-tab="qs" aria-selected="false">Q&amp;A<em id="tQ">0</em></button>
     <button type="button" role="tab" data-tab="slides" aria-selected="false">Slides</button>
+    <button type="button" role="tab" data-tab="game" aria-selected="false">Game<em id="tGm" class="dot" hidden></em></button>
+    <button type="button" role="tab" data-tab="snd" aria-selected="false">Sound<em id="tS" class="dot" hidden></em></button>
+    <button type="button" role="tab" data-tab="scr" aria-selected="false">Screen<em id="tX" class="dot" hidden></em></button>
     </div>
-    <div class="trow">
-    <button type="button" role="tab" data-tab="game" aria-selected="false">Game<em id="tG" hidden></em></button>
-    <button type="button" role="tab" data-tab="snd" aria-selected="false">Sound<em id="tS" hidden></em></button>
-    <button type="button" role="tab" data-tab="scr" aria-selected="false">Screen<em id="tX" hidden></em></button>
-    <button type="button" role="tab" data-tab="rnd" aria-selected="false">Random<em id="tR" hidden></em></button>
-    </div>
+  </div>
+  <!-- inside Game: everything the hall takes part in; inside Sound: short tracks and background music -->
+  <div class="sub" id="subG" role="tablist" aria-label="Game" hidden>
+    <button type="button" role="tab" data-sub="render" aria-selected="true">Render<em id="tG" hidden></em></button>
+    <button type="button" role="tab" data-sub="quiz" aria-selected="false">Quiz<em id="tZ" hidden></em></button>
+    <button type="button" role="tab" data-sub="rnd" aria-selected="false">Random<em id="tR" hidden></em></button>
+    <button type="button" role="tab" data-sub="poll" aria-selected="false">Poll<em id="tP" hidden></em></button>
+    <button type="button" role="tab" data-sub="qs" aria-selected="false">Q&amp;A<em id="tQ">0</em></button>
+  </div>
+  <div class="sub" id="subS" role="tablist" aria-label="Sound" hidden>
+    <button type="button" role="tab" data-sub="trk" aria-selected="true">Sound<em id="tS1" hidden></em></button>
+    <button type="button" role="tab" data-sub="mus" aria-selected="false">Music<em id="tS2" hidden></em></button>
   </div>
 
   <section class="pane" id="p-checkin">
@@ -313,6 +330,7 @@ h2.sec{margin-top:30px;font-size:22px}
   </section>
 
   <section class="pane" id="p-game" hidden>
+    <div id="gRender">
     <div class="poll gcard">
       <p class="kick" id="gK">The opening game · Render TAS3D 2026</p>
       <h2 id="gH">Not started</h2>
@@ -334,8 +352,9 @@ h2.sec{margin-top:30px;font-size:22px}
       <button type="button" data-k="long" aria-pressed="false">Long</button>
     </div>
     <p class="hint" id="gLenH" style="margin-top:8px"></p>
+    </div>
 
-    <div class="poll gcard" style="margin-top:26px">
+    <div class="poll gcard" id="gQuiz">
       <p class="kick" id="zK">Quiz · Render or photo?</p>
       <h2 id="zH">Not started</h2>
       <p class="hint" id="zN" style="margin-top:10px"></p>
@@ -352,15 +371,14 @@ h2.sec{margin-top:30px;font-size:22px}
   </section>
 
   <section class="pane" id="p-snd" hidden>
+    <p class="hint" id="sndHint"></p>
     <p class="hint bad" id="sndSt" hidden></p>
     <div id="sndTracks" hidden>
-      <h2 class="sec first">Tracks</h2>
       <div class="slots" id="slots"></div>
       <div class="b" style="margin-top:10px"><button type="button" class="btn" id="sStop">Stop the track</button></div>
       <div class="vol"><span>Volume</span><input type="range" id="vJ" min="0" max="100" step="1" value="100" aria-label="Tracks volume"><b id="vJv">100%</b></div>
     </div>
     <div id="sndMusic" hidden>
-      <h2 class="sec">Music</h2>
       <p class="bgnow" id="bgNow">—</p>
       <div class="b" style="margin-top:10px;display:flex;gap:8px"><button type="button" class="btn o" id="bgPlay">Play</button><button type="button" class="btn" id="bgNext">Next track</button></div>
       <div class="vol"><span>Volume</span><input type="range" id="vB" min="0" max="100" step="1" value="50" aria-label="Music volume"><b id="vBv">50%</b></div>
@@ -413,8 +431,15 @@ h2.sec{margin-top:30px;font-size:22px}
 
   function start() {
     $('panel').hidden = false;
-    var tab = 'checkin';
-    try { tab = localStorage.getItem('tas3d-host-tab') || 'checkin'; } catch (e) {}
+    // tabs: Check-in, Slides, Game, Sound, Screen. Inside Game: Render (the opening game), Quiz, Random, Poll, Q&A;
+    // inside Sound: Sound (short tracks) and Music (background). The choice is remembered on this device.
+    var tab = 'checkin', subG = 'render', subS = 'trk';
+    try { tab = localStorage.getItem('tas3d-host-tab') || 'checkin'; subG = localStorage.getItem('tas3d-host-subg') || 'render'; subS = localStorage.getItem('tas3d-host-subs') || 'trk'; } catch (e) {}
+    if (/^(poll|qs|rnd)$/.test(tab)) { subG = tab; tab = 'game'; }      // remembered from before these moved into Game
+    if (!/^(checkin|slides|game|snd|scr)$/.test(tab)) tab = 'checkin';
+    if (!/^(render|quiz|rnd|poll|qs)$/.test(subG)) subG = 'render';
+    if (!/^(trk|mus)$/.test(subS)) subS = 'trk';
+    function keepTabs() { try { localStorage.setItem('tas3d-host-tab', tab); localStorage.setItem('tas3d-host-subg', subG); localStorage.setItem('tas3d-host-subs', subS); } catch (e) {} }
     var frame = $('pvFrame'), pvWin = null;
     var hub = TasHub(render, { onReact: function (x) { if (pvWin) pvWin.react(x); } });
     var S = hub.state;
@@ -437,7 +462,13 @@ h2.sec{margin-top:30px;font-size:22px}
 
     // ---- tabs
     document.querySelectorAll('.tabs button').forEach(function (b) {
-      b.addEventListener('click', function () { tab = b.getAttribute('data-tab'); try { localStorage.setItem('tas3d-host-tab', tab); } catch (e) {} render(); });
+      b.addEventListener('click', function () { tab = b.getAttribute('data-tab'); keepTabs(); render(); });
+    });
+    document.querySelectorAll('#subG button').forEach(function (b) {
+      b.addEventListener('click', function () { subG = b.getAttribute('data-sub'); keepTabs(); render(); });
+    });
+    document.querySelectorAll('#subS button').forEach(function (b) {
+      b.addEventListener('click', function () { subS = b.getAttribute('data-sub'); keepTabs(); render(); });
     });
     var opened = Date.now();
     twoClick($('logout'), 'Log out', 'Log out for sure?', function () { TasAuth.logout(); location.href = '../hi/'; });
@@ -583,9 +614,14 @@ h2.sec{margin-top:30px;font-size:22px}
         : !au || !fresh ? 'Waiting for the screen…'
         : !au.f ? 'No folders “Sound” or “Music” in the main folder.'
         : au.blk ? 'Click once on the screen computer: the browser there holds the sound until then.' : '';
+      var slots = ok ? au.slots : [], trk = subS === 'trk';
+      // the two inner tabs: Sound = short tracks for a moment, Music = the background
+      $('sndHint').textContent = trk ? 'Short tracks: a speaker coming out, a transition. The first 6 files of the folder “Sound”. While one plays, the music gets quieter.'
+        : 'Background music: before the start, a coffee break. The files of the folder “Music”; the next one starts by itself.';
+      if (!msg && ok && trk && !slots.length) msg = 'No folder “Sound” in the main folder, or no audio files in it.';
+      if (!msg && ok && !trk && !(au.bg && au.bg.n)) msg = 'No folder “Music” in the main folder, or no audio files in it.';
       $('sndSt').textContent = msg; $('sndSt').hidden = !msg;
-      var slots = ok ? au.slots : [];
-      $('sndTracks').hidden = !slots.length;
+      $('sndTracks').hidden = !slots.length || !trk;
       $('slots').querySelectorAll('.slot').forEach(function (b, i) {
         var x = slots[i], playing = ok && au.pl === i;
         b.hidden = !x; b.disabled = !x;
@@ -597,7 +633,7 @@ h2.sec{margin-top:30px;font-size:22px}
       });
       $('sStop').disabled = !ok || au.pl < 0;
       var bgn = ok && au.bg ? au.bg.n : 0;
-      $('sndMusic').hidden = !bgn;
+      $('sndMusic').hidden = !bgn || trk;
       $('bgNow').textContent = !bgn ? '—' : (au.bg.on ? 'Playing: ' : 'Paused: ') + (au.bg.cur || '').replace(/\.[a-z0-9]+$/i, '');
       // the music list: tap a track to play it
       var ml = ok && au.bg && au.bg.list ? au.bg.list : [], msig = JSON.stringify([ml, au && au.bg && au.bg.i, au && au.bg && au.bg.on]);
@@ -622,6 +658,8 @@ h2.sec{margin-top:30px;font-size:22px}
       }
       $('vJ').disabled = $('vB').disabled = !ok;
       $('tS').hidden = !(ok && (au.pl >= 0 || (au.bg && au.bg.on))); $('tS').textContent = '♪'; $('tS').classList.toggle('hot', ok && au.pl >= 0);
+      $('tS1').hidden = !(ok && au.pl >= 0); $('tS1').textContent = '♪'; $('tS1').classList.add('hot');
+      $('tS2').hidden = !(ok && au.bg && au.bg.on); $('tS2').textContent = '♪';
     }
     setInterval(function () { if (tab === 'snd') renderSound(); }, 500);
 
@@ -665,7 +703,7 @@ h2.sec{margin-top:30px;font-size:22px}
         b.querySelector('.d').textContent = i === cur ? 'on the screen · tap to take off' : spPend && spPend.i === i ? 'sending…' : '';
       });
       $('spOff').disabled = !spOn();
-      $('tX').hidden = !spOn(); $('tX').textContent = 'On'; $('tX').classList.toggle('hot', spOn());
+      $('tX').hidden = !spOn(); $('tX').textContent = '\u25cf'; $('tX').classList.toggle('hot', spOn());
     }
 
     // ---- the quiz "Render or photo?": the pictures are in the folder "Quiz" on the screen computer (the answer is in each file's
@@ -735,7 +773,13 @@ h2.sec{margin-top:30px;font-size:22px}
       $('live').classList.toggle('off', !n);
       $('liveT').textContent = n ? 'Live' : 'No connection';
       document.querySelectorAll('.tabs button').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
-      $('p-checkin').hidden = tab !== 'checkin'; $('p-poll').hidden = tab !== 'poll'; $('p-qs').hidden = tab !== 'qs'; $('p-slides').hidden = tab !== 'slides'; $('p-game').hidden = tab !== 'game'; $('p-snd').hidden = tab !== 'snd'; $('p-scr').hidden = tab !== 'scr'; $('p-rnd').hidden = tab !== 'rnd';
+      var gm = tab === 'game';
+      $('subG').hidden = !gm; $('subS').hidden = tab !== 'snd';
+      document.querySelectorAll('#subG button').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-sub') === subG ? 'true' : 'false'); });
+      document.querySelectorAll('#subS button').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-sub') === subS ? 'true' : 'false'); });
+      $('p-checkin').hidden = tab !== 'checkin'; $('p-slides').hidden = tab !== 'slides'; $('p-snd').hidden = tab !== 'snd'; $('p-scr').hidden = tab !== 'scr';
+      $('p-game').hidden = !(gm && (subG === 'render' || subG === 'quiz')); $('gRender').hidden = subG !== 'render'; $('gQuiz').hidden = subG !== 'quiz';
+      $('p-rnd').hidden = !(gm && subG === 'rnd'); $('p-poll').hidden = !(gm && subG === 'poll'); $('p-qs').hidden = !(gm && subG === 'qs');
       if (tab === 'slides') slidesUI();
       var hasPoll = !!(S.now && S.now.k === 'poll');
       // is the screen page running somewhere? (it says so every 8 s)
@@ -856,7 +900,7 @@ h2.sec{margin-top:30px;font-size:22px}
       $('zEnd').hidden = !(zon && z.st === 'show' && zlast);
       $('zOff').hidden = !zon;
       $('zOff').className = 'btn' + (z.st === 'end' ? ' o' : '');
-      if (zon && !gon) { $('tG').hidden = false; $('tG').textContent = 'Quiz'; $('tG').classList.toggle('hot', z.st === 'ask'); }
+      $('tZ').hidden = !zon; $('tZ').textContent = z.st === 'ask' || z.st === 'show' ? (z.r + 1) + '/' + z.n : z.st === 'end' ? '✓' : 'On'; $('tZ').classList.toggle('hot', z.st === 'ask');
 
       // random guests
       var pi = hub.pickInfo();
@@ -865,6 +909,11 @@ h2.sec{margin-top:30px;font-size:22px}
       $('rndRe').hidden = !(pi.on && pi.seen < pi.n); $('rndRe').textContent = 'Replace the silent (' + (pi.n - pi.seen) + ')';
       $('rndOff').hidden = !pi.on;
       $('tR').hidden = !pi.on; $('tR').textContent = pi.n;
+      // the Game tab itself: what is on inside it, and how many questions wait
+      var gmWhat = g.st === 'run' ? Math.floor(gp * 100) + '%' : gon && g.st !== 'done' ? 'Render' : zon && z.st !== 'end' ? 'Quiz' : p && p.open ? 'Poll' : pi.on ? 'Pick' : '';
+      var gmQ = hub.questions().length;
+      $('tGm').hidden = !gmWhat && !gmQ; $('tGm').textContent = gmQ ? String(gmQ) : '\u25cf'; $('tGm').classList.toggle('hot', !!gmWhat);
+      $('tGm').title = [gmWhat, gmQ ? gmQ + ' questions' : ''].filter(Boolean).join(' · ');
 
       var are = S.now && S.now.k === 'poll' ? S.now.re : '';
       $('aShift').hidden = !are;
@@ -906,7 +955,7 @@ h2.sec{margin-top:30px;font-size:22px}
           // before and after: ask the same question once more, then show how the hall moved
           var root = x.re || x.id, pair = hub.shift(root);
           var ag = document.createElement('button'); ag.type = 'button'; ag.className = 'btn'; ag.textContent = 'Ask again';
-          ag.addEventListener('click', function () { guard('Ask again', function () { hub.askAgain(x.id); tab = 'poll'; render(); window.scrollTo(0, 0); }); });
+          ag.addEventListener('click', function () { guard('Ask again', function () { hub.askAgain(x.id); tab = 'game'; subG = 'poll'; keepTabs(); render(); window.scrollTo(0, 0); }); });
           bb.appendChild(ag);
           if (pair && pair.b) {
             var onS = S.cfg.scene === 'shift' && S.cfg.cmp === root;
