@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '6c1d53a209';</script>
+<script>window.TAS3D_BUILD = '4be6dfa8cc';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -420,8 +420,8 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
 <script src="../assets/config.js?v=1f1140d2"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
 <script src="../assets/hub.js?v=0779ac73"></script>
-<script src="../assets/deck.js?v=4d0024cd"></script>
-<script src="../assets/slides.js?v=74316182"></script>
+<script src="../assets/deck.js?v=5f786737"></script>
+<script src="../assets/slides.js?v=7de7643c"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -1014,7 +1014,14 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     $('stage').hidden = false;
     if (PREVIEW) {                                    // the host panel calls TasPreview.render / react
       document.documentElement.classList.add('pv');
-      window.TasPreview = { render: function (S, up, slide) { pvSlide = slide || null; render(S, up); }, react: onReact };
+      // a slide whose picture is still being drawn on the screen computer: the last picture stays instead of a flash of the logo
+      var lastCur = '';
+      window.TasPreview = { render: function (S, up, slide) {
+        if (slide && slide.cur) lastCur = slide.cur;
+        else if (slide && lastCur) { var c = {}; for (var k in slide) c[k] = slide[k]; c.cur = lastCur; slide = c; }
+        if (!slide) lastCur = '';
+        pvSlide = slide || null; render(S, up);
+      }, react: onReact };
       return;
     }
     $('ctl').hidden = false; $('bSet').hidden = DEMO; wake(); keepAwake();

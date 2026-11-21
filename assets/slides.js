@@ -564,15 +564,28 @@
       return { f: fi, n: f.name, k: f.k, p, c: f.c, dur: f.dur ? Math.round(f.dur) : undefined, lp: f.k === 'vid' && (d.sp || loops(f)) ? 1 : undefined };
     }
     const pvT = {};
+    // a picture that is ready right now (no waiting): '' when it still has to be drawn
+    function have(d, i) {
+      if (!d || i < 0 || i >= d.total) return '';
+      const [fi, p] = d.items[i], key = d.files[fi].sig + '|' + p;
+      return snaps.get(key) || thumbs.get(key) || '';
+    }
     function pubPv(d0) {
       const id = d0.id;
       clearTimeout(pvT[id]);
       pvT[id] = setTimeout(async () => {
         const d = byId[id]; if (!d) return;          // the folder list may have been read again meanwhile
         const i = Math.min(pos[id] || 0, Math.max(0, d.total - 1));
-        const cur = await thumb(d, i), nxt = await thumb(d, i + 1);
-        if (byId[id] !== d || (d.total && (pos[id] || 0) !== i)) return;   // moved again meanwhile: that move publishes
-        pub(B + '/pv/' + id, { sn, seq: ++seq, t: Date.now(), i, total: d.total, it: info(d, i), nx: info(d, i + 1), cur, nxt, v: videoState(d, i), ack: ack[id] || '' }, true);
+        const send = (cur, nxt) => pub(B + '/pv/' + id, { sn, seq: ++seq, t: Date.now(), i, total: d.total, it: info(d, i), nx: info(d, i + 1), cur, nxt, v: videoState(d, i), ack: ack[id] || '' }, true);
+        // the position and the confirmation go out at once, with the pictures that are ready; a picture that still
+        // has to be drawn (a heavy PDF page takes seconds) follows by itself — the remotes never wait for it
+        const c0 = have(d, i), n0 = have(d, i + 1);
+        send(c0, n0);
+        if ((!c0 && d.total) || (!n0 && i + 1 < d.total)) {
+          const cur = await thumb(d, i), nxt = await thumb(d, i + 1);
+          if (byId[id] !== d || (d.total && (pos[id] || 0) !== i)) return;   // moved again meanwhile: that move publishes
+          if (cur !== c0 || nxt !== n0) send(cur, nxt);
+        }
         thumb(d, i + 2); if (i > 0) thumb(d, i - 1);
       }, 40);
     }

@@ -338,17 +338,30 @@
     }
     back.addEventListener('click', function () { choose(''); });
     function setLive(id) { if (opt.setLive) opt.setLive(id); }
+    // the pictures of the slides seen so far (by folder, number of slides and slide): shown at once when the speaker comes back
+    // to a slide or the screen has not drawn its picture yet
+    var pics = {}, picQ = [];
+    function keepPic(id, total, i, src) {
+      if (!src) return;
+      var k = id + '|' + total + '|' + i;
+      if (!(k in pics)) { picQ.push(k); if (picQ.length > 80) delete pics[picQ.shift()]; }
+      pics[k] = src;
+    }
+    function seenPic(id, total, i) { return pics[id + '|' + total + '|' + i] || ''; }
 
     function command(op, extra) {
       if (!open || !cl.live()) return;
-      var d = find(open), p = S.pv[open], n = cl.cmd(op, open, extra);
+      var d = find(open), p = S.pv[open], n = cl.cmd(op, open, extra), was = pend;
       pend = { n: n, at: Date.now() };
       [1500, 3000, 5000, 8000].forEach(function (ms) { setTimeout(function () { if (pend && pend.n === n) cl.resend(n); }, ms); });
       // show the next slide at once (its preview is already here); the screen confirms in a moment
+      // counted from the slide shown here (a tap before the screen has confirmed the last one moves on, not twice to the same slide)
       if (p && d) {
-        if (op === 'next' && p.i + 1 < d.total) { pend.i = p.i + 1; pend.cur = p.nxt || ''; pend.it = p.nx; }
-        if (op === 'prev' && p.i > 0) { pend.i = p.i - 1; }
-        if (op === 'file' && d.files[extra.f]) { pend.i = d.files[extra.f].from; }
+        var base = was && was.i != null ? was.i : p.i, to = null;
+        if (op === 'next' && base + 1 < d.total) to = base + 1;
+        if (op === 'prev' && base > 0) to = base - 1;
+        if (op === 'file' && d.files[extra.f]) to = d.files[extra.f].from;
+        if (to != null) { pend.i = to; pend.cur = seenPic(open, d.total, to); pend.it = to === p.i + 1 ? p.nx : to === p.i ? p.it : null; }
       }
       render();
     }
@@ -451,7 +464,10 @@
       }
       // ---- preview
       var total = d ? d.total : 0, i = pend && pend.i != null ? pend.i : p ? p.i : 0;
-      var src = pend && pend.cur != null ? pend.cur : p ? p.cur : '';
+      var fits = !!(p && d && p.total === total);       // not a preview left from before the folder changed
+      if (fits) { keepPic(open, total, p.i, p.cur); keepPic(open, total, p.i + 1, p.nxt); }
+      var src = pend && pend.i != null ? pend.cur : fits ? p.cur : '';
+      if (!src) src = seenPic(open, total, i);
       var it = pend && pend.it ? pend.it : pend && pend.i != null ? null : p ? p.it : null;
       if (src) { if (cur.getAttribute('src') !== src) cur.setAttribute('src', src); cur.hidden = false; } else cur.hidden = true;
       R.ph.textContent = src ? '' : !d ? '' : !total ? 'No slides in this folder yet.' : 'Preview is coming…';
@@ -477,10 +493,11 @@
       // ---- next
       var nxi = pend ? null : p && p.nx;
       R.nx.hidden = !d || !total;
-      R.nxt.style.backgroundImage = !pend && p && p.nxt ? 'url("' + p.nxt + '")' : '';
+      var nsrc = seenPic(open, total, i + 1);
+      R.nxt.style.backgroundImage = nsrc && i + 1 < total ? 'url("' + nsrc + '")' : '';
       nxp.innerHTML = '';
       nxp.appendChild(el('b', '', 'Next'));
-      nxp.appendChild(document.createTextNode(pend ? '…' : nxi ? what(nxi) : p ? 'This is the last slide.' : ''));
+      nxp.appendChild(document.createTextNode(i + 1 >= total ? 'This is the last slide.' : pend || !fits ? '…' : nxi ? what(nxi) : ''));
       // ---- files
       var fsig = JSON.stringify([d && d.files, it && it.f]);
       if (fsig !== shownFiles) {
