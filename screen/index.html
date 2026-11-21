@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '56ba8e98a3';</script>
+<script>window.TAS3D_BUILD = '6c1d53a209';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -414,13 +414,14 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   <p id="sndSt"></p>
   <h3>Connection</h3>
   <p id="netSt"></p>
+  <p id="verSt" style="margin-top:6px;opacity:.6"></p>
 </div>
 <div class="dropall" id="dropall" hidden>Drop the folder “TAS3D 2026 Presentations”</div>
 <script src="../assets/config.js?v=1f1140d2"></script>
 <script src="../assets/mqtt.js?v=7511af13"></script>
 <script src="../assets/hub.js?v=0779ac73"></script>
 <script src="../assets/deck.js?v=4d0024cd"></script>
-<script src="../assets/slides.js?v=f2d94741"></script>
+<script src="../assets/slides.js?v=74316182"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -973,6 +974,8 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
       $('sndSt').appendChild(b);
     }
     $('netSt').textContent = up ? 'Live · ' + up + ' of ' + C.brokers.length + ' servers' : 'No connection — check the internet on this computer.';
+    // which version is open here: the site updates itself, a file saved on the computer does not
+    $('verSt').textContent = window.TAS3D_BUILD ? 'Version ' + window.TAS3D_BUILD : window.TAS3D_FILE ? 'A file saved on this computer: it does not update itself, and PDFs need the internet. The site link is better.' : '';
   }
   $('fAllow').addEventListener('click', function () { if (slides) slides.connect(); });
   $('fPick').addEventListener('click', function () { if (slides) slides.choose(); });

@@ -252,7 +252,12 @@
       if (meta.has(f.sig)) return meta.get(f.sig);
       const n = f.path.split('/').pop();
       let m = { k: 'bad', c: 0, dur: 0, w: '' };
-      if (PDF.test(n)) { try { m = { k: 'pdf', c: (await pdfDoc(f)).numPages, dur: 0, w: '' }; } catch (e) { m.w = 'This PDF does not open. Export it again from PowerPoint or Keynote.'; } }
+      if (PDF.test(n)) {
+        // the PDF reader itself (pdf.js) comes from the site: without it no PDF opens, and the file is not to blame
+        let ok = true; try { await lib(); } catch (e) { ok = false; }
+        if (!ok) return { k: 'bad', c: 0, dur: 0, w: 'The PDF reader did not load (no internet on the screen computer?). Check the connection and reload the screen page.' };
+        try { m = { k: 'pdf', c: (await pdfDoc(f)).numPages, dur: 0, w: '' }; } catch (e) { m.w = 'This PDF does not open. Export it again from PowerPoint or Keynote.'; }
+      }
       else if (IMG.test(n)) m = { k: 'img', c: 1, dur: 0, w: '' };
       else if (VID.test(n)) { try { m = { k: 'vid', c: 1, dur: await videoLength(f), w: '' }; } catch (e) { m.w = 'This video does not play in the browser. Save it as MP4 (H.264).'; } }
       else m.w = warnFor(n);
