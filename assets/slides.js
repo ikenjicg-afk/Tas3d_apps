@@ -40,6 +40,7 @@
     const hub = opt.hub, view = opt.view, NOFS = new URLSearchParams(location.search).has('nofs');
     const box = TasBox(TasSlidesKey.get());
     const sn = rid();                       // this screen session: commands for an earlier one (or replayed) are ignored
+    const T0 = Date.now();                  // when this screen page was opened: of two open screens the remotes follow the later one
     let seq = 0;
     let root = null;                        // {kind: 'handle', h} | {kind: 'files', top}
     let saved = null, rootName = '', need = 'connect', scanning = false, err = '';
@@ -48,20 +49,34 @@
     let soundBlocked = false;
     const POSK = 'tas3d-slidepos-' + C.room, ack = {};
     let pos = {}; try { pos = JSON.parse(localStorage.getItem(POSK) || '{}') || {}; } catch (e) {}
-    const savePos = () => { try { localStorage.setItem(POSK, JSON.stringify(pos)); } catch (e) {} };
+    // ver[folder]: how many times the position of a folder was changed on purpose (a command, a key). Two screens open at
+    // once (a second tab, a monitor backstage) follow the one with the higher number, so they always show the same slide.
+    const VERK = 'tas3d-slidever-' + C.room;
+    let ver = {}; try { ver = JSON.parse(localStorage.getItem(VERK) || '{}') || {}; } catch (e) {}
+    const savePos = () => { try { localStorage.setItem(POSK, JSON.stringify(pos)); localStorage.setItem(VERK, JSON.stringify(ver)); } catch (e) {} };
     const changed = () => { try { opt.onChange && opt.onChange(); } catch (e) {} };
 
     // ---------- the brokers
     let was = 0;
-    const links = TasLinks([B + '/sk'], onMsg, () => {
+    const links = TasLinks([B + '/sk', B + '/pv/+'], onMsg, () => {
       const u = links ? links.up() : 0;
       if (u > was) setTimeout(() => { pubSa(); if (decks.length) { pubDk(); decks.forEach(pubPv); } }, 400);   // a broker that restarted gets everything again
       was = u;
     });
     const seal = (t, o) => box.seal(t, o);
     async function pub(t, o, retain) { try { await links.pub(t, await seal(t, o), { qos: 1, retain: !!retain }); } catch (e) {} }
+    // the latest state of a topic (small): sent again until a broker has it, unless a newer one came meanwhile
+    const keepN = {};
+    function keep(t, o) {
+      const n = keepN[t] = (keepN[t] || 0) + 1;
+      (async function go(k) {
+        if (keepN[t] !== n) return;
+        try { await links.pub(t, await seal(t, o), { qos: 1, retain: true }); }
+        catch (e) { if (k < 12) setTimeout(() => go(k + 1), 700 + k * 300); }
+      })(0);
+    }
     function pubSa() {
-      pub(B + '/sa', { sn, seq: ++seq, t: Date.now(), f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0 });
+      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0 });
     }
     setInterval(pubSa, 8000); setTimeout(pubSa, 1500);
     // closing or reloading this page: "bye" (sealed in advance, so it goes out at once) — the remotes forget this screen
@@ -70,7 +85,7 @@
     window.addEventListener('pagehide', () => { if (byeText) try { links.pub(B + '/sa', byeText, {}).catch(() => {}); } catch (e) {} });
     let helloAt = 0;
     function pubDk() {
-      pub(B + '/dk', { sn, seq: ++seq, t: Date.now(), folder: rootName, quiz: quiz.length ? quiz.map((q) => ({ n: q.n, a: q.a })) : undefined, decks: decks.map((d) => ({
+      pub(B + '/dk', { sn, st: T0, seq: ++seq, t: Date.now(), folder: rootName, quiz: quiz.length ? quiz.map((q) => ({ n: q.n, a: q.a })) : undefined, decks: decks.map((d) => ({
         id: d.id, name: d.name, total: d.total, sp: d.sp ? 1 : undefined, ho: d.ho ? 1 : undefined,
         files: d.files.map((f) => ({ n: f.name, k: f.k, c: f.c, from: f.from, dur: f.dur ? Math.round(f.dur) : undefined, lp: f.k === 'vid' && (d.sp || loops(f)) ? 1 : undefined, w: f.w || undefined }))
       })) }, true);
@@ -78,8 +93,9 @@
     setInterval(() => { if (decks.length) pubDk(); }, 60000);
 
     // ---------- commands from the remotes
-    const seen = new Set(), seenQ = [];
+    const seen = new Set(), seenQ = [], lastK = {};
     async function onMsg(t, x) {
+      if (t.indexOf(B + '/pv/') === 0) return onPv(t.slice(B.length + 4), x);
       if (t !== B + '/sk' || !x) return;
       const d = await box.open(t, x);
       if (!d || typeof d.n !== 'string' || d.n.length > 40 || seen.has(d.n)) return;   // the same command comes through both brokers
@@ -92,12 +108,18 @@
       if (!(Array.isArray(d.sn) ? d.sn.indexOf(sn) >= 0 : d.sn === sn)) return;   // for this screen (and this session) only
       const dk = byId[d.d]; if (!dk) return;
       if ((dk.sp || dk.ho) && d.from !== 'host') return;   // the pause pictures and the host's own folder: the host only
+      if (d.op === 'pix') { picsAgain(dk); return; }       // a remote has no picture of this folder: send them again
       const i = pos[dk.id] || 0, on = isOn(dk);
       // the host controls everything; a speaker controls the screen only after the host's Start (cfg.live),
       // and before that may only look through their own slides while they are not on the screen
       const boss = d.from === 'host' || cfg.live === dk.id;
       if (!boss && (on || /^(show|hide|play|pause|restart)$/.test(d.op))) return;
       if (d.from !== 'host' && /^(show|hide)$/.test(d.op) && opt.locked && opt.locked()) return;   // the opening game is on the screen
+      // a tap that comes late, after a later tap of the same remote was already done (it took a slower way): not done
+      if (typeof d.c === 'string' && d.c.length < 30 && Number.isInteger(d.k)) {
+        if (d.k < (lastK[d.c] || 0) && /^(go|next|prev|file)$/.test(d.op)) return;
+        lastK[d.c] = Math.max(lastK[d.c] || 0, d.k);
+      }
       switch (d.op) {
         case 'next': setPos(dk, i + 1); break;
         case 'prev': setPos(dk, i - 1); break;
@@ -118,8 +140,25 @@
       if (!d.total) return;
       i = Math.max(0, Math.min(d.total - 1, i | 0));
       if ((pos[d.id] || 0) === i) return;
-      pos[d.id] = i; savePos();
+      pos[d.id] = i; ver[d.id] = (ver[d.id] || 0) + 1; savePos();
       if (isOn(d)) paint();
+    }
+    // ---------- another screen open at the same time: the position that was set last wins on both
+    const held = {};                                   // positions that came before this screen has read the folder
+    async function onPv(id, x) {
+      if (!x) return;
+      const p = await box.open(B + '/pv/' + id, x);
+      if (!p || p.sn === sn || !Number.isInteger(p.i) || !Number.isInteger(p.pn) || !Number.isInteger(p.total)) return;   // mine, or a screen of an older version
+      const d = byId[id];
+      if (d) follow(d, p); else held[id] = p;
+    }
+    function follow(d, p) {
+      if (p.total !== d.total || !d.total) return;       // that screen has other files in this folder: nothing to compare
+      const mine = ver[d.id] || 0, i = Math.min(pos[d.id] || 0, d.total - 1), to = Math.max(0, Math.min(d.total - 1, p.i));
+      if (p.pn > mine || (p.pn === mine && to !== i && String(p.sn) > sn)) {
+        ver[d.id] = p.pn; pos[d.id] = to; savePos();
+        if (to !== i) { if (isOn(d)) paint(); pics(d, 300); }
+      } else if (p.pn < mine || (p.pn === mine && to !== i)) pubPv(d);   // mine is newer: it goes out again and that screen follows
     }
 
     // ---------- the folder
@@ -342,6 +381,7 @@
           pubDk();
           for (const d of list) {
             if (pos[d.id] >= d.total) pos[d.id] = Math.max(0, d.total - 1);
+            if (held[d.id]) { const h = held[d.id]; delete held[d.id]; follow(d, h); }
             const o = old[d.id];
             if (!o || JSON.stringify(o.files.map((f) => f.sig)) !== JSON.stringify(d.files.map((f) => f.sig))) pubPv(d);
           }
@@ -563,31 +603,74 @@
       const [fi, p] = d.items[i], f = d.files[fi];
       return { f: fi, n: f.name, k: f.k, p, c: f.c, dur: f.dur ? Math.round(f.dur) : undefined, lp: f.k === 'vid' && (d.sp || loops(f)) ? 1 : undefined };
     }
+    // ---------- what the remotes get
+    // pv/<folder>: where the folder is (slide number, file, video state, the confirmation of the last command) — small, sent at once.
+    // px/<folder>/c and /n: the pictures of the current and the next slide — big, so they go apart: over their own
+    // connections, one at a time, and only when the position has stayed for a moment. A slow upload of a picture never
+    // holds back a position, and a picture that failed is sent again.
     const pvT = {};
-    // a picture that is ready right now (no waiting): '' when it still has to be drawn
-    function have(d, i) {
-      if (!d || i < 0 || i >= d.total) return '';
-      const [fi, p] = d.items[i], key = d.files[fi].sig + '|' + p;
-      return snaps.get(key) || thumbs.get(key) || '';
-    }
+    const at = (d) => Math.min(pos[d.id] || 0, Math.max(0, d.total - 1));
     function pubPv(d0) {
       const id = d0.id;
       clearTimeout(pvT[id]);
-      pvT[id] = setTimeout(async () => {
+      pvT[id] = setTimeout(() => {
         const d = byId[id]; if (!d) return;          // the folder list may have been read again meanwhile
-        const i = Math.min(pos[id] || 0, Math.max(0, d.total - 1));
-        const send = (cur, nxt) => pub(B + '/pv/' + id, { sn, seq: ++seq, t: Date.now(), i, total: d.total, it: info(d, i), nx: info(d, i + 1), cur, nxt, v: videoState(d, i), ack: ack[id] || '' }, true);
-        // the position and the confirmation go out at once, with the pictures that are ready; a picture that still
-        // has to be drawn (a heavy PDF page takes seconds) follows by itself — the remotes never wait for it
-        const c0 = have(d, i), n0 = have(d, i + 1);
-        send(c0, n0);
-        if ((!c0 && d.total) || (!n0 && i + 1 < d.total)) {
-          const cur = await thumb(d, i), nxt = await thumb(d, i + 1);
-          if (byId[id] !== d || (d.total && (pos[id] || 0) !== i)) return;   // moved again meanwhile: that move publishes
-          if (cur !== c0 || nxt !== n0) send(cur, nxt);
-        }
-        thumb(d, i + 2); if (i > 0) thumb(d, i - 1);
+        const i = at(d);
+        keep(B + '/pv/' + id, { sn, st: T0, seq: ++seq, t: Date.now(), pn: ver[id] || 0, i, total: d.total, it: info(d, i), nx: info(d, i + 1), v: videoState(d, i), ack: ack[id] || '' });
+        pics(d, 300);
       }, 40);
+    }
+    let picWas = 0;
+    const picLinks = TasLinks([], () => {}, () => {
+      const u = picLinks ? picLinks.up() : 0;
+      // a broker that restarted: the pictures of the folder on the screen go again (the others when a remote asks, see 'pix')
+      if (u > picWas) setTimeout(() => { for (const k in picSent) delete picSent[k]; const d = byId[cfg.deck]; if (d && cfg.scene === 'slides') pics(d, 0); }, 600);
+      picWas = u;
+    });
+    const picT = {}, picSent = {}, picWant = {}, picQ = [];
+    let picBusy = false;
+    function pics(d0, wait) {
+      const id = d0.id;
+      clearTimeout(picT[id]);
+      picT[id] = setTimeout(async () => {
+        const d = byId[id]; if (!d || !d.total) return;
+        const i = at(d);
+        const cur = await thumb(d, i), nxt = await thumb(d, i + 1);
+        if (byId[id] !== d || at(d) !== i) return;     // moved again meanwhile: that move asks for its own pictures
+        wantPic(id + '/c', { total: d.total, i, img: cur }, isOn(d));
+        wantPic(id + '/n', { total: d.total, i: i + 1, img: i + 1 < d.total ? nxt : '' }, isOn(d));
+        thumb(d, i + 2); if (i > 0) thumb(d, i - 1);
+      }, wait);
+    }
+    const againAt = {};
+    function picsAgain(d) {
+      if (Date.now() - (againAt[d.id] || 0) < 2000) return;   // several remotes ask at once: one answer
+      againAt[d.id] = Date.now();
+      delete picSent[d.id + '/c']; delete picSent[d.id + '/n']; pics(d, 0);
+    }
+    function wantPic(k, o, first) {
+      const s = picSent[k];
+      if (s && s.total === o.total && s.i === o.i && s.img === o.img) { delete picWant[k]; return; }   // the brokers have exactly this
+      picWant[k] = o;
+      const q = picQ.indexOf(k); if (q >= 0) picQ.splice(q, 1);
+      if (first) picQ.unshift(k); else picQ.push(k);   // the folder on the screen first
+      picRun();
+    }
+    async function picRun() {
+      if (picBusy) return;
+      picBusy = true;
+      while (picQ.length) {
+        const k = picQ.shift(), o = picWant[k], t = B + '/px/' + k;
+        if (!o) continue;
+        try {
+          await picLinks.pub(t, await seal(t, { sn, t: Date.now(), total: o.total, i: o.i, img: o.img }), { qos: 1, retain: true });
+          picSent[k] = o; if (picWant[k] === o) delete picWant[k];
+        } catch (e) {                                  // no connection, or too slow this time: again in a moment
+          if (picWant[k] === o && picQ.indexOf(k) < 0) picQ.push(k);
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      }
+      picBusy = false;
     }
 
     // ---------- the slide on the screen
@@ -649,7 +732,8 @@
       if (shown && shown !== L && shown.el) { shown.el.classList.remove('on'); if (shown.k === 'vid') shown.el.pause(); }
       errBox.classList.toggle('on', !ok);
       errBox.textContent = ok ? '' : 'This slide cannot be shown: ' + d.files[d.items[i][0]].name;
-      const fresh = shown !== L;
+      const fresh = shown !== L || !!L.left;            // new on the screen, or back on it after something else was shown
+      L.left = false;
       if (ok) {
         L.el.classList.add('on'); shown = L;
         if (L.k === 'vid') { L.quiet = !!d.sp; L.el.loop = !!d.sp || !!L.lp; }   // a pause video: in a loop and silent (the music is the host's Music); "loop" in the name: in a loop
@@ -687,7 +771,7 @@
         c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
         snaps.set(tk, c.toDataURL('image/jpeg', 0.62)); trim(snaps, 100);
         L.snapped = true;
-        const d = byId[cfg.deck]; if (d) pubPv(d);
+        const d = byId[cfg.deck]; if (d) pics(d, 0);
       } catch (e) {}
     }
     function video(op) {
@@ -720,10 +804,11 @@
         cfg = { scene: c.scene, deck: c.deck || '', live: c.live || '' };
         const now = cfg.scene === 'slides' ? cfg.deck : '';
         view.hidden = !now || !byId[now] || !byId[now].total;
-        if (!now) { if (shown && shown.k === 'vid') shown.el.pause(); }
         if (now !== before) {
+          // the slides left the screen (or another folder came): a video stops, and starts from the beginning when it is shown again
+          if (shown) { shown.left = true; if (shown.k === 'vid') shown.el.pause(); }
           if (now) { const d = byId[now]; if (d) { paint(); setTimeout(() => pubPv(d), 200); } }
-          if (before && byId[before]) { if (shown && shown.k === 'vid') shown.el.pause(); pubPv(byId[before]); }
+          if (before && byId[before]) pubPv(byId[before]);
         }
       },
       has: (id) => !!(byId[id] && byId[id].total),

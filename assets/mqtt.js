@@ -89,8 +89,15 @@
     bytes[0] = 0x30 | (qos << 1) | retain; bytes.set(ln, 1); bytes.set(head, 1 + ln.length); bytes.set(pl, 1 + ln.length + head.length);
     if (!qos) return Promise.resolve(this._send(bytes));
     return new Promise(function (ok, no) {
-      // no confirmation in 8 s: the connection is not working — give up on it (the caller tries again / elsewhere)
-      var t = setTimeout(function () { if (me.wait[id]) { delete me.wait[id]; no(new Error('no answer')); me.close(); } }, 8000);
+      // no confirmation in 8 s: the connection is not working — give up on it (the caller tries again / elsewhere).
+      // A big message (a slide picture) gets more time, 1 s for every 8 KB, and a connection that is slow but alive
+      // (something came from the broker lately) is kept: closing it would lose the small messages behind the picture.
+      var big = bytes.length > 4096, limit = 8000 + (big ? Math.round(bytes.length / 8) : 0);
+      var t = setTimeout(function () {
+        if (!me.wait[id]) return;
+        delete me.wait[id]; no(new Error('no answer'));
+        if (!big || Date.now() - me.rx > 25000) me.close();
+      }, limit);
       me.wait[id] = [function () { clearTimeout(t); ok(); }, function (e) { clearTimeout(t); no(e); }];
       if (!me._send(bytes)) { delete me.wait[id]; clearTimeout(t); no(new Error('not connected')); }
     });

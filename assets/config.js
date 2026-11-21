@@ -11,7 +11,9 @@
 //   <base>/cfg = what the host shows on the screen (kept; {scene: blank|logo|qr|checkin|poll|slides, qr: QR on/off, rx: reactions on/off,
 //     deck: which speaker's folder the slides scene shows, live: the speaker the host has started (only they control the screen), at}).
 // Presentations (encrypted with the slides key, see deck.js): <base>/dk = the speakers' folders and files (kept, from the screen),
-//   <base>/pv/<folder id> = current and next slide previews of one folder (kept), <base>/sa = "the screen is on" (every 8 s),
+//   <base>/pv/<folder id> = where one folder is: slide number, file, video state (kept; small, sent at once),
+//   <base>/px/<folder id>/c and /n = the pictures of the current and the next slide (kept; big, so they go apart, over
+//   connections of their own), <base>/sa = "the screen is on" (every 8 s),
 //   <base>/sk = commands from the speakers' page and the host panel (next, prev, show on screen ...).
 // The game: <base>/game = {id, st: off|ready|run|done, target, per, at, w} (kept, from the host);
 //   <base>/gt/<game>/<phone> = "role:taps so far" (every second while tapping); <base>/gs = the score (kept, from the screen).

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '4be6dfa8cc';</script>
+<script>window.TAS3D_BUILD = 'b9fc61efdc';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -221,7 +221,6 @@ h2.sec{margin-top:30px;font-size:22px}
     <div class="seg" role="group" aria-label="Screen">
       <button type="button" data-s="blank" aria-pressed="false">Blank</button>
       <button type="button" data-s="logo" aria-pressed="false">Logo</button>
-      <button type="button" data-s="qr" aria-pressed="false">QR code</button>
       <button type="button" data-s="checkin" aria-pressed="true">Check-in</button>
       <button type="button" data-s="poll" aria-pressed="false">Poll</button>
       <button type="button" data-s="slides" aria-pressed="false">Slides</button>
@@ -401,10 +400,10 @@ h2.sec{margin-top:30px;font-size:22px}
 
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=1f1140d2"></script>
-<script src="../assets/mqtt.js?v=7511af13"></script>
+<script src="../assets/config.js?v=e0e64972"></script>
+<script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=0779ac73"></script>
-<script src="../assets/deck.js?v=5f786737"></script>
+<script src="../assets/deck.js?v=745ac21b"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
@@ -452,18 +451,33 @@ h2.sec{margin-top:30px;font-size:22px}
       d.querySelector('span').textContent = r[1];
       $('roles').appendChild(d); roleRows[r[0]] = d;
     });
-    // ---- while the game is on the screen, anything that would replace it asks first (a tap by mistake does nothing)
-    var warnGo = null;
+    // ---- anything that changes what the hall sees asks first: a tap by mistake does nothing.
+    // guard(what, fn)       — "Change the screen?"; while the game or the quiz is on the screen, the stronger warning about it
+    // guard(what, fn, 'in') — a step of the game / quiz itself (Start, Reveal, Next …): the plain question
+    // guard(what, fn, 'game') — asks only while the game or the quiz is on the screen (the button has its own "for sure?")
+    // Not asked: the slide arrows, the video buttons and the sound — those are pressed all the time.
+    var warnGo = null, warnAt = 0;
     function gameOn() { return ((S.game.st === 'ready' || S.game.st === 'run') && S.cfg.scene === 'game') || (/^(ready|ask|show)$/.test(S.quiz.st) && S.cfg.scene === 'quiz'); }
-    function guard(what, fn) {
-      if (!gameOn()) return fn();
-      warnGo = fn;
+    function onNow() {
+      var sc = S.cfg.scene, nm = { blank: 'a blank screen', logo: 'the logo', qr: 'the QR code', checkin: 'the check-in', poll: 'the poll', polls: 'all poll results', shift: 'the change of a poll', game: 'the game', quiz: 'the quiz' }[sc];
+      if (sc === 'slides') {
+        nm = 'slides';
+        if (dc && dc.state.list) dc.state.list.decks.forEach(function (d) { if (d.id === S.cfg.deck) nm = d.sp ? 'a picture from “Screen”' : 'slides · ' + d.name; });
+      }
+      return nm || sc;
+    }
+    function guard(what, fn, mode) {
+      var g = gameOn() && mode !== 'in';
+      if (mode === 'game' && !g) return fn();
+      warnGo = fn; warnAt = Date.now();
       var qzOn = S.cfg.scene === 'quiz';
-      $('warnK').textContent = qzOn ? 'The quiz is on the screen' : S.game.st === 'run' ? 'The hall is rendering right now' : 'The game is on the screen';
-      $('warnT').textContent = 'You pressed “' + what + '”. ' + (qzOn ? 'The hall will no longer see the quiz picture.' : S.game.st === 'run'
+      $('warnK').textContent = !g ? 'On the screen now: ' + onNow() : qzOn ? 'The quiz is on the screen' : S.game.st === 'run' ? 'The hall is rendering right now' : 'The game is on the screen';
+      $('warnH').textContent = g ? 'Switch the screen anyway?' : 'Change the screen?';
+      $('warnT').textContent = 'You pressed “' + what + '”. ' + (!g ? 'The hall sees it at once.' : qzOn ? 'The hall will no longer see the quiz picture.' : S.game.st === 'run'
         ? 'The phones keep counting, but the hall will no longer see the render on the screen.'
         : 'The game is waiting for Start; the screen will show something else instead.');
-      $('warnNo').textContent = qzOn ? 'Keep the quiz' : 'Keep the game';
+      $('warnNo').textContent = !g ? 'Cancel' : qzOn ? 'Keep the quiz' : 'Keep the game';
+      $('warnYes').textContent = g ? 'Switch' : 'Yes';
       $('warn').hidden = false;
       try { $('warnNo').focus(); } catch (e) {}
     }
@@ -471,9 +485,10 @@ h2.sec{margin-top:30px;font-size:22px}
     $('warnNo').addEventListener('click', warnClose);
     $('warn').addEventListener('click', function (e) { if (e.target === this) warnClose(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('warn').hidden) warnClose(); });
-    $('warnYes').addEventListener('click', function () { var f = warnGo; warnClose(); if (f) f(); });
+    // the second tap of a double tap lands where the dialog has just appeared: "Yes" counts only a moment later
+    $('warnYes').addEventListener('click', function () { if (Date.now() - warnAt < 400) return; var f = warnGo; warnClose(); if (f) f(); });
 
-    twoClick($('reset'), 'Reset', 'Reset for sure?', function () { guard('Reset', function () { hub.reset(); }); });
+    twoClick($('reset'), 'Reset', 'Reset for sure?', function () { guard('Reset', function () { hub.reset(); }, 'game'); });
 
     // ---- polls
     C.polls.forEach(function (p) {
@@ -507,9 +522,9 @@ h2.sec{margin-top:30px;font-size:22px}
         guard(b.textContent, function () { hub.setCfg({ scene: sc }); });
       });
     });
-    $('tQr').addEventListener('click', function () { hub.setCfg({ qr: !S.cfg.qr }); });
+    $('tQr').addEventListener('click', function () { var to = !S.cfg.qr; guard('QR code: ' + (to ? 'on' : 'off'), function () { hub.setCfg({ qr: to }); }); });
     $('tRx').addEventListener('click', function () { hub.setCfg({ rx: !S.cfg.rx }); });
-    $('qonHide').addEventListener('click', function () { hub.showQuestion(''); });
+    $('qonHide').addEventListener('click', function () { guard('Hide the question', function () { hub.showQuestion(''); }); });
 
     // ---- the opening game
     var gLen = 'normal';
@@ -518,9 +533,9 @@ h2.sec{margin-top:30px;font-size:22px}
     $('gLen').querySelectorAll('button').forEach(function (b) {
       b.addEventListener('click', function () { gLen = b.getAttribute('data-k'); try { localStorage.setItem('tas3d-glen', gLen); } catch (e) {} if (S.game.st === 'ready') hub.setGame({ per: C.game.per[gLen] }); render(); });
     });
-    $('gNew').addEventListener('click', function () { hub.newGame(C.game.per[gLen]); });
-    $('gGo').addEventListener('click', function () { hub.startGame(); });
-    $('gBack').addEventListener('click', function () { hub.setCfg({ scene: 'game' }); });
+    $('gNew').addEventListener('click', function () { guard($('gNew').textContent, function () { hub.newGame(C.game.per[gLen]); }); });
+    $('gGo').addEventListener('click', function () { guard('Start rendering', function () { hub.startGame(); }, 'in'); });
+    $('gBack').addEventListener('click', function () { guard('Back on the screen', function () { hub.setCfg({ scene: 'game' }); }); });
     twoClick($('gFin'), 'Finish now', 'Finish for sure?', function () { hub.finishGame(); });
     $('gOff').addEventListener('click', function () { guard('Close the game', function () { hub.closeGame(); }); });
 
@@ -617,14 +632,14 @@ h2.sec{margin-top:30px;font-size:22px}
     function spCur() { var d = spDeck(), p = d && dc.state.pv[d.id]; return spOn() && p && p.it ? p.it.f : -1; }
     function spShow(i) {
       var d = spDeck(); if (!d) return;
-      guard('Show on the screen', function () {
+      guard('Show “' + ((d.files[i] && d.files[i].n) || 'file') + '”', function () {
         var n = dc.cmd('show', d.id, { f: i });
         spPend = { i: i, at: Date.now() };
         [1500, 3500, 6000].forEach(function (ms) { setTimeout(function () { if (spPend && spPend.i === i && spCur() !== i) dc.resend(n); }, ms); });   // the screen does a command once
         renderScr();
       });
     }
-    $('spOff').addEventListener('click', function () { spPend = null; if (spOn()) hub.setCfg({ scene: 'logo' }); });
+    $('spOff').addEventListener('click', function () { if (spOn()) guard('Take off the screen', function () { spPend = null; hub.setCfg({ scene: 'logo' }); }); });
     function renderScr() {
       var d = spDeck(), on = dc && dc.screenOn(), files = d ? d.files.map(function (f, i) { return { f: f, i: i }; }).filter(function (x) { return x.f.c; }) : [];
       var msg = !dc ? 'Log in again.' : !on ? 'The screen is off.' : !dc.state.list ? 'Waiting for the screen…' : !files.length ? 'No folder “Screen” in the main folder.' : '';
@@ -640,7 +655,7 @@ h2.sec{margin-top:30px;font-size:22px}
           b.innerHTML = '<span class="k"></span><span class="t"></span><span class="d"></span>';
           b.querySelector('.k').textContent = x.f.k === 'vid' ? 'Video' + (x.f.dur ? ' · ' + mmss(x.f.dur) : '') : x.f.k === 'pdf' ? 'PDF' + (x.f.c > 1 ? ' · ' + x.f.c + ' pages' : '') : 'Picture';
           b.querySelector('.t').textContent = x.f.n.replace(/\.[a-z0-9]+$/i, '').replace(/^\d+[\s._\-–—]*/, '') || x.f.n;
-          b.addEventListener('click', function () { if (spCur() === x.i) { spPend = null; hub.setCfg({ scene: 'logo' }); } else spShow(x.i); });
+          b.addEventListener('click', function () { if (spCur() === x.i) guard('Take off the screen', function () { spPend = null; hub.setCfg({ scene: 'logo' }); }); else spShow(x.i); });
           $('spList').appendChild(b);
         });
       }
@@ -660,12 +675,12 @@ h2.sec{margin-top:30px;font-size:22px}
     function zList() { var L = dc && dc.state.list, q = (L && L.quiz) || []; return q.map(function (x, i) { return { i: i, n: x.n, a: x.a }; }); }
     function zOrder() { return zList().filter(function (x) { return x.a; }); }
     function zAsk(r) { var o = zOrder(); if (o[r]) hub.quizAsk(r, o[r].i); }
-    $('zNew').addEventListener('click', function () { var n = zOrder().length; if (n) hub.newQuiz(n); });
-    $('zGo').addEventListener('click', function () { zAsk(0); });
-    $('zRev').addEventListener('click', function () { var o = zOrder()[S.quiz.r]; if (o) hub.quizShow(o.a); });
-    $('zNext').addEventListener('click', function () { zAsk(S.quiz.r + 1); });
-    $('zEnd').addEventListener('click', function () { hub.quizEnd(); });
-    $('zOff').addEventListener('click', function () { hub.closeQuiz(); });
+    $('zNew').addEventListener('click', function () { var n = zOrder().length; if (n) guard('Show the quiz', function () { hub.newQuiz(n); }); });
+    $('zGo').addEventListener('click', function () { guard('Start: picture 1', function () { zAsk(0); }, 'in'); });
+    $('zRev').addEventListener('click', function () { var o = zOrder()[S.quiz.r]; if (o) guard('Reveal now', function () { hub.quizShow(o.a); }, 'in'); });
+    $('zNext').addEventListener('click', function () { var r = S.quiz.r + 1; guard('Next picture', function () { zAsk(r); }, 'in'); });
+    $('zEnd').addEventListener('click', function () { guard('Show the winners', function () { hub.quizEnd(); }, 'in'); });
+    $('zOff').addEventListener('click', function () { guard('Close the quiz', function () { hub.closeQuiz(); }, 'in'); });
 
     // ---- Q&A: who a question can be addressed to
     var qFil = '', whoDirty = false;
@@ -690,18 +705,18 @@ h2.sec{margin-top:30px;font-size:22px}
     // ---- before and after: the open poll is a second vote → its change against the first one
     $('aShift').addEventListener('click', function () {
       var root = S.now && S.now.re; if (!root) return;
-      if (S.cfg.scene === 'shift' && S.cfg.cmp === root) hub.setCfg({ scene: 'poll' });
+      if (S.cfg.scene === 'shift' && S.cfg.cmp === root) guard('Back to the poll', function () { hub.setCfg({ scene: 'poll' }); });
       else guard('Show the change', function () { hub.showShift(root); });
     });
 
     // ---- every poll at once on the screen
     $('allShow').addEventListener('click', function () {
-      if (S.cfg.scene === 'polls') hub.setCfg({ scene: 'logo' });
+      if (S.cfg.scene === 'polls') guard('Take the results off the screen', function () { hub.setCfg({ scene: 'logo' }); });
       else guard('All results on the screen', function () { hub.setCfg({ scene: 'polls' }); });
     });
 
     // ---- questions
-    $('hide').addEventListener('click', function () { hub.showQuestion(''); });
+    $('hide').addEventListener('click', function () { guard('Hide the question', function () { hub.showQuestion(''); }); });
 
     function twoClick(b, label, sure, fn) {
       var t = null;
@@ -727,7 +742,8 @@ h2.sec{margin-top:30px;font-size:22px}
       var on = S.screenSeen && Date.now() - S.screenSeen < 20000, st = $('scrSt');
       st.classList.toggle('off', !on);
       var old = on && window.TAS3D_BUILD && S.screenBuild && S.screenBuild !== window.TAS3D_BUILD;
-      st.textContent = old ? 'Screen: old version — refresh it' : on ? 'Screen: on' : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off';
+      var nScr = dc ? dc.screens() : 0;                  // two tabs or two computers with the screen page: the host should know
+      st.textContent = old ? 'Screen: old version — refresh it' : on ? (nScr > 1 ? nScr + ' screens are open' : 'Screen: on') : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off';
       document.querySelectorAll('.seg button').forEach(function (b) {
         var sc = b.getAttribute('data-s');
         b.setAttribute('aria-pressed', S.cfg.scene === sc ? 'true' : 'false');
@@ -739,7 +755,13 @@ h2.sec{margin-top:30px;font-size:22px}
       $('lvb').hidden = !S.cfg.live;
       if (S.cfg.live) { $('lvbT').innerHTML = ''; var lb = document.createElement('b'); lb.textContent = '\u25cf ' + (lvName || 'A speaker'); $('lvbT').appendChild(lb); $('lvbT').appendChild(document.createTextNode(' is presenting')); }
       // the copy of the screen
-      if (pvWin) { try { pvWin.render(S, n, dc && S.cfg.scene === 'slides' ? dc.state.pv[S.cfg.deck] : null); } catch (e) { pvWin = null; } }
+      var pvS = null;
+      if (dc && S.cfg.scene === 'slides' && dc.state.pv[S.cfg.deck]) {
+        var pv0 = dc.state.pv[S.cfg.deck]; pvS = {};
+        for (var pk in pv0) pvS[pk] = pv0[pk];
+        pvS.cur = dc.pic(S.cfg.deck, pv0.total, pv0.i);
+      }
+      if (pvWin) { try { pvWin.render(S, n, pvS); } catch (e) { pvWin = null; } }
       $('tQr').setAttribute('aria-pressed', S.cfg.qr ? 'true' : 'false'); $('tQr').querySelector('b').textContent = S.cfg.qr ? 'on' : 'off';
       $('tRx').setAttribute('aria-pressed', S.cfg.rx ? 'true' : 'false'); $('tRx').querySelector('b').textContent = S.cfg.rx ? 'on' : 'off';
       var shq = hub.shown();
@@ -889,7 +911,7 @@ h2.sec{margin-top:30px;font-size:22px}
           if (pair && pair.b) {
             var onS = S.cfg.scene === 'shift' && S.cfg.cmp === root;
             var cg = document.createElement('button'); cg.type = 'button'; cg.className = 'btn' + (onS ? '' : ' o'); cg.textContent = onS ? 'Change is on the screen · take off' : 'Show the change';
-            cg.addEventListener('click', function () { if (S.cfg.scene === 'shift' && S.cfg.cmp === root) hub.setCfg({ scene: 'logo' }); else guard('Show the change', function () { hub.showShift(root); }); });
+            cg.addEventListener('click', function () { if (S.cfg.scene === 'shift' && S.cfg.cmp === root) guard('Take the change off the screen', function () { hub.setCfg({ scene: 'logo' }); }); else guard('Show the change', function () { hub.showShift(root); }); });
             bb.appendChild(cg);
           }
           box.appendChild(bb);
@@ -926,7 +948,7 @@ h2.sec{margin-top:30px;font-size:22px}
           m.appendChild(document.createTextNode((on ? 'On screen · ' : '') + ago(q.t)));
           var b = document.createElement('div'); b.className = 'b';
           var sh = document.createElement('button'); sh.type = 'button';
-          if (on) { sh.className = 'btn'; sh.textContent = 'Hide from screen'; sh.onclick = function () { hub.showQuestion(''); }; }
+          if (on) { sh.className = 'btn'; sh.textContent = 'Hide from screen'; sh.onclick = function () { guard('Hide the question', function () { hub.showQuestion(''); }); }; }
           else { sh.className = 'btn o'; sh.textContent = 'Show on screen'; sh.onclick = function () { guard('Show the question', function () { hub.showQuestion(q.q, q.to); }); }; }
           var dn = document.createElement('button'); dn.type = 'button'; dn.className = 'btn'; dn.textContent = 'Done';
           dn.onclick = function () { hub.doneQuestion(q.id); };

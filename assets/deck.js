@@ -129,7 +129,7 @@
     opt = opt || {};
     var box = TasBox(TasSlidesKey.get());
     // screens: every open screen by its session (sn) — a second screen open somewhere (an old tab, a laptop at home) does not confuse the remote
-    var S = { list: null, pv: {}, sa: null, saAt: 0, screens: {}, cfg: { scene: 'checkin', deck: '', live: '', at: -1, w: '' }, scrAt: 0, scrBuild: '' };
+    var S = { list: null, pv: {}, sa: null, saAt: 0, screens: {}, cfg: { scene: 'checkin', deck: '', live: '', at: -1, w: '' }, scrAt: 0, scrBuild: '', picN: 0 };
     var chT = 0, fns = onChange ? [onChange] : [];
     function changed() { if (!chT) chT = setTimeout(function () { chT = 0; fns.forEach(function (f) { try { f(S); } catch (e) {} }); }, 30); }
     // the same message comes through both servers (and their bridge): decrypt it once
@@ -144,6 +144,56 @@
       was = u; changed();
     });
     function newer(a, b) { return !b || +a.t > +b.t || (+a.t === +b.t && +a.seq > +b.seq); }
+    // a screen that is open now and has the folder (it says so every 8 s)
+    function alive(sn) { var x = S.screens[sn]; return !!(x && x.d.f && Date.now() - x.at < 30000); }
+    // two screens open at once: this remote follows one of them, not each in turn. The one that is open now wins over one
+    // that is gone; of two open ones, the one whose position was set last (pn), then the one that was opened last (st).
+    function newerPv(a, b) {
+      if (!b) return true;
+      if (a.sn === b.sn) return newer(a, b);
+      var la = alive(a.sn), lb = alive(b.sn);
+      if (la !== lb) return la;
+      var pa = +a.pn || 0, pb = +b.pn || 0;
+      if (pa !== pb) return pa > pb;
+      var sa = +a.st || 0, sb = +b.st || 0;
+      if (sa !== sb) return sa > sb;
+      return newer(a, b);
+    }
+    // ---------- pictures of the slides: they come apart from the positions (px/<folder>/c = current, /n = next), over
+    // connections of their own, so a picture on a slow phone network never holds back "which slide is on"
+    var pics = {}, picQ = [];
+    function keepPic(id, total, i, src) {
+      if (!src || typeof src !== 'string' || src.slice(0, 11) !== 'data:image/') return;
+      var k = id + '|' + total + '|' + i;
+      if (pics[k] === src) return;
+      if (!(k in pics)) { picQ.push(k); if (picQ.length > 160) delete pics[picQ.shift()]; }
+      pics[k] = src; S.picN++;
+    }
+    var picRaw = {}, picSubs = [];
+    var picLinks = TasLinks([], function (t, x) {
+      if (!x || picRaw[t] === x) return;
+      picRaw[t] = x;
+      box.open(t, x).then(function (d) {
+        if (!d || !Number.isInteger(d.i) || !Number.isInteger(d.total)) return;
+        var id = t.slice(B.length + 4).split('/')[0];
+        if (d.img) { keepPic(id, d.total, d.i, d.img); changed(); }
+      });
+    }, function () {});
+    // which pictures this device needs now: every folder's current slide (the host's list), or all of one folder
+    function wantPics(list) {
+      list.forEach(function (f) { if (picSubs.indexOf(f) < 0) picLinks.sub(f); });
+      picSubs.forEach(function (f) { if (list.indexOf(f) < 0) { picLinks.unsub(f); for (var k in picRaw) if (match(f, k)) delete picRaw[k]; } });
+      picSubs = list.slice();
+    }
+    function match(f, t) { var a = f.split('/'), b = t.split('/'); if (a.length !== b.length) return false; for (var i = 0; i < a.length; i++) if (a[i] !== '+' && a[i] !== b[i]) return false; return true; }
+    var nextOf = [];
+    function picFilters() {
+      var l = [];
+      if (opt.all) { l.push(B + '/px/+/c'); nextOf.forEach(function (id) { if (id) l.push(B + '/px/' + id + '/n'); }); }
+      else if (watching) l.push(B + '/px/' + watching + '/+');
+      wantPics(l);
+    }
+    picFilters();
     function onMsg(t, x) {
       if (t === B + '/cfg') {
         var c = json(x); if (!c) return;
@@ -158,7 +208,14 @@
       lastRaw[t] = x;
       box.open(t, x).then(function (d) {
         if (!d || typeof d !== 'object') return;
-        if (t === B + '/dk') { if (Array.isArray(d.decks) && newer(d, S.list)) { S.list = d; changed(); } }
+        if (t === B + '/dk') {
+          // the list of folders: of two screens that are open with different folders, the one opened last
+          // (they would otherwise replace each other's list every minute)
+          if (!Array.isArray(d.decks)) return;
+          var cur = S.list;
+          if (cur && d.sn !== cur.sn && alive(cur.sn) && !((+d.st || 0) > (+cur.st || 0))) return;
+          if (!cur || d.sn !== cur.sn || newer(d, cur)) { S.list = d; changed(); }
+        }
         else if (t === B + '/sa' && typeof d.sn === 'string') {
           var now = Date.now();
           if (d.bye) delete S.screens[d.sn]; else S.screens[d.sn] = { at: now, d: d };
@@ -173,7 +230,13 @@
           if (best) { S.sa = best.d; S.saAt = best.at; }
           changed();
         }
-        else if (t.indexOf(B + '/pv/') === 0) { var id = t.slice(B.length + 4); if (newer(d, S.pv[id])) { S.pv[id] = d; changed(); } }
+        else if (t.indexOf(B + '/pv/') === 0) {
+          var id = t.slice(B.length + 4);
+          // a screen of an older version sends the pictures inside this message
+          if (d.cur) keepPic(id, d.total, d.i, d.cur);
+          if (d.nxt) keepPic(id, d.total, d.i + 1, d.nxt);
+          if (newerPv(d, S.pv[id])) { S.pv[id] = d; changed(); }
+        }
         else if (t === B + '/au') { if (newer(d, S.au)) { S.au = d; S.auAt = Date.now(); changed(); } }
       });
     }
@@ -186,9 +249,10 @@
       if (!sns.length && S.sa) sns.push(S.sa.sn);
       return sns;
     }
+    var cid = rid(), cmdK = 0;                         // this remote and the order of its taps (a late tap is not done after a later one)
     function cmd(op, deck, extra) {
       var n = rid();
-      var body = { sn: targets(op), n: n, op: op, d: deck || '', from: opt.from || 'spk' };
+      var body = { sn: targets(op), n: n, op: op, d: deck || '', from: opt.from || 'spk', c: cid, k: ++cmdK };
       for (var e in extra || {}) body[e] = extra[e];
       sent[n] = body; send(body);
       return n;
@@ -207,7 +271,14 @@
         if (watching) links.unsub(B + '/pv/' + watching);
         watching = id || '';
         if (watching) links.sub(B + '/pv/' + watching);
+        picFilters();
       },
+      // the host panel: the folders whose next slide is needed too (the one that is open, the one on the screen)
+      next: function (ids) { ids = ids.filter(Boolean); if (ids.join() === nextOf.join()) return; nextOf = ids; picFilters(); },
+      // the picture of slide i of a folder ('' = not here yet)
+      pic: function (id, total, i) { return pics[id + '|' + total + '|' + i] || ''; },
+      // how many screen pages are open right now (they say "I am here" every 8 s; a closed one says goodbye)
+      screens: function () { var n = 0, now = Date.now(); for (var k in S.screens) if (now - S.screens[k].at < 20000) n++; return n; },
       screenOn: function () { return (S.saAt && Date.now() - S.saAt < 20000) || (S.scrAt && Date.now() - S.scrAt < 20000); },
       live: function () { var now = Date.now(); for (var k in S.screens) if (S.screens[k].d.f && now - S.screens[k].at < 20000) return true; return false; }
     };
@@ -278,6 +349,15 @@
     if (!it) return '';
     return it.n + (it.k === 'pdf' && it.c > 1 ? ' · page ' + (it.p + 1) + ' of ' + it.c : it.k === 'vid' ? ' · video' : '');
   }
+  // slide i of a folder → its file and the page in it (the same as the screen's "it"), from the list of files
+  function itemAt(d, i) {
+    if (!d || i < 0 || i >= d.total) return null;
+    for (var k = 0; k < d.files.length; k++) {
+      var f = d.files[k];
+      if (f.c && i >= f.from && i < f.from + f.c) return { f: k, n: f.n, k: f.k, p: i - f.from, c: f.c, dur: f.dur, lp: f.lp };
+    }
+    return null;
+  }
   // TasDeckUI(root, {mode: 'host' | 'speaker', client, setLive(id)})
   //   host — every folder: Start (that speaker may now control the screen) / Stop, show, change slides;
   //   speaker — chooses their folder; looks through it any time; once the host has pressed Start, shows it and controls the screen.
@@ -288,7 +368,8 @@
     cl.listen(function () { render(); });
     var open = '';
     if (!host) { try { open = localStorage.getItem(MY) || ''; } catch (e) {} cl.watch(open); }
-    var pend = null;                                    // the last command, until the screen confirms it: {n, at, i, cur, it}
+    var pend = null;                                    // the last command, until the screen confirms it: {n, at, i}
+    var pixFor = '', pixAt = 0;                          // a slide whose picture is missing here, and since when
 
     root.innerHTML = '';
     var R = {};
@@ -338,33 +419,28 @@
     }
     back.addEventListener('click', function () { choose(''); });
     function setLive(id) { if (opt.setLive) opt.setLive(id); }
-    // the pictures of the slides seen so far (by folder, number of slides and slide): shown at once when the speaker comes back
-    // to a slide or the screen has not drawn its picture yet
-    var pics = {}, picQ = [];
-    function keepPic(id, total, i, src) {
-      if (!src) return;
-      var k = id + '|' + total + '|' + i;
-      if (!(k in pics)) { picQ.push(k); if (picQ.length > 80) delete pics[picQ.shift()]; }
-      pics[k] = src;
-    }
-    function seenPic(id, total, i) { return pics[id + '|' + total + '|' + i] || ''; }
-
     function command(op, extra) {
       if (!open || !cl.live()) return;
-      var d = find(open), p = S.pv[open], n = cl.cmd(op, open, extra), was = pend;
-      pend = { n: n, at: Date.now() };
-      [1500, 3000, 5000, 8000].forEach(function (ms) { setTimeout(function () { if (pend && pend.n === n) cl.resend(n); }, ms); });
-      // show the next slide at once (its preview is already here); the screen confirms in a moment
-      // counted from the slide shown here (a tap before the screen has confirmed the last one moves on, not twice to the same slide)
-      if (p && d) {
-        var base = was && was.i != null ? was.i : p.i, to = null;
+      var d = find(open), p = S.pv[open], was = pend, to = null;
+      // the slide to go to is counted here, from the slide this remote shows (a tap before the screen has confirmed the
+      // last one moves on), and the screen is told the number: "slide 7", not "one further". So a tap that is sent
+      // twice, or lost while the next one arrives, or reaches two screens, still ends on the same slide everywhere.
+      if (p && d && p.total === d.total) {
+        var base = was && was.i != null ? was.i : p.i;
         if (op === 'next' && base + 1 < d.total) to = base + 1;
         if (op === 'prev' && base > 0) to = base - 1;
         if (op === 'file' && d.files[extra.f]) to = d.files[extra.f].from;
-        if (to != null) { pend.i = to; pend.cur = seenPic(open, d.total, to); pend.it = to === p.i + 1 ? p.nx : to === p.i ? p.it : null; }
+        if ((op === 'next' || op === 'prev') && to == null) return;   // already at the first / the last slide
       }
+      var n = to != null && op !== 'file' ? cl.cmd('go', open, { i: to }) : cl.cmd(op, open, extra);
+      pend = { n: n, at: Date.now() };
+      [1200, 2500, 4500, 7000].forEach(function (ms) { setTimeout(function () { if (pend && pend.n === n) cl.resend(n); }, ms); });
+      // shown at once (the picture of the next slide is already here); the screen confirms in a moment
+      if (to != null) pend.i = to;
       render();
     }
+    // the host panel asks before anything that changes what the hall sees
+    function ask(what, fn) { if (opt.guard) opt.guard(what, fn); else fn(); }
     // a speaker controls the screen only after the host's Start; before that they look through their slides here
     function mayControl(id) { return host || S.cfg.live === id; }
     function stepAllowed(id) { return host || S.cfg.live === id || !onScreen(id); }
@@ -374,7 +450,7 @@
     restart.addEventListener('click', function () { command('restart'); });
     show.addEventListener('click', function () {
       var op = onScreen(open) ? 'hide' : 'show';
-      if (op === 'show' && opt.guard) opt.guard('Show on the screen', function () { command('show'); }); else command(op);
+      ask(op === 'show' ? 'Show on the screen' : 'Take off the screen', function () { command(op); });
     });
     live.addEventListener('click', function () { setLive(S.cfg.live === open ? '' : open); });
     document.addEventListener('keydown', function (e) {
@@ -396,8 +472,10 @@
       else if (!sa.f) msg = host
         ? (sa.need === 'reconnect' ? 'On the screen computer: move the mouse, open Settings (bottom right) and press “Allow access”.' : 'On the screen computer: move the mouse, open Settings (bottom right) and connect the folder “TAS3D 2026 Presentations”.')
         : 'The presentations folder is not open on the screen computer yet. Tell the host.';
+      else if (host && cl.screens() > 1) msg = cl.screens() + ' screen pages are open (two tabs, or a second computer). They follow each other, but close the ones you do not need.';
       else { warn = false; msg = host ? 'Folder on the screen computer: ' + (sa.folder || '') + ' · ' + decks().length + (decks().length === 1 ? ' folder' : ' folders') : ''; }
       R.st.textContent = msg; R.st.hidden = !msg; R.st.classList.toggle('warn', warn);
+      if (host) cl.next([open, S.cfg.scene === 'slides' ? S.cfg.deck : '']);   // their next slides' pictures are needed too
 
       var d = open ? find(open) : null;
       if (open && !d && L) { open = ''; if (!host) { try { localStorage.removeItem(MY); } catch (e) {} cl.watch(''); } }
@@ -433,8 +511,8 @@
         });
       }
       if (host) box.querySelectorAll('.dk-row').forEach(function (r) {   // small previews of where each speaker is
-        var p = S.pv[r.getAttribute('data-id')], th = r.querySelector('.th'), k = String(p && p.seq);
-        if (th.getAttribute('data-u') !== k) { th.setAttribute('data-u', k); th.style.backgroundImage = p && p.cur ? 'url("' + p.cur + '")' : ''; }
+        var id = r.getAttribute('data-id'), p = S.pv[id], th = r.querySelector('.th'), src = p ? cl.pic(id, p.total, p.i) : '';
+        if (th.getAttribute('data-u') !== src) { th.setAttribute('data-u', src); th.style.backgroundImage = src ? 'url("' + src + '")' : ''; }
       });
     }
     function renderDeck(d, lv) {
@@ -464,13 +542,18 @@
       }
       // ---- preview
       var total = d ? d.total : 0, i = pend && pend.i != null ? pend.i : p ? p.i : 0;
-      var fits = !!(p && d && p.total === total);       // not a preview left from before the folder changed
-      if (fits) { keepPic(open, total, p.i, p.cur); keepPic(open, total, p.i + 1, p.nxt); }
-      var src = pend && pend.i != null ? pend.cur : fits ? p.cur : '';
-      if (!src) src = seenPic(open, total, i);
-      var it = pend && pend.it ? pend.it : pend && pend.i != null ? null : p ? p.it : null;
+      var fits = !!(p && d && p.total === total);       // not a state left from before the folder changed
+      if (i > total - 1) i = Math.max(0, total - 1);
+      var src = cl.pic(open, total, i);
+      // no picture of this slide here (a broker lost it, or this phone was away): ask the screen for it, at most every 4 s
+      if (!src && total && lv && fits && !pend) {
+        var pk = open + '|' + i;
+        if (pixFor !== pk) { pixFor = pk; pixAt = Date.now(); }
+        else if (Date.now() - pixAt > 2500) { pixAt = Date.now() + 1500; cl.cmd('pix', open); }
+      } else if (src) pixFor = '';
+      var it = itemAt(d, i) || (fits && !pend ? p.it : null);
       if (src) { if (cur.getAttribute('src') !== src) cur.setAttribute('src', src); cur.hidden = false; } else cur.hidden = true;
-      R.ph.textContent = src ? '' : !d ? '' : !total ? 'No slides in this folder yet.' : 'Preview is coming…';
+      R.ph.textContent = src ? '' : !d ? '' : !total ? 'No slides in this folder yet.' : 'Slide ' + (i + 1) + ' · its picture is coming…';
       R.pv.classList.toggle('wait', !!pend);
       R.tag.textContent = it && it.k === 'vid' ? 'Video' + (it.dur ? ' · ' + mmss(it.dur) : '') + (it.lp ? ' · loop' : '') + (p && p.v && !pend ? (p.v.play ? ' · playing' : p.v.end ? ' · ended' : ' · paused') : '') : '';
       R.posN.textContent = total ? (i + 1) + ' / ' + total : '';
@@ -491,13 +574,13 @@
       else if (p && p.v && p.v.mute && isOn) note = 'The video plays without sound: someone has to click once on the screen computer.';
       R.note.textContent = note;
       // ---- next
-      var nxi = pend ? null : p && p.nx;
+      var nxi = itemAt(d, i + 1);
       R.nx.hidden = !d || !total;
-      var nsrc = seenPic(open, total, i + 1);
+      var nsrc = cl.pic(open, total, i + 1);
       R.nxt.style.backgroundImage = nsrc && i + 1 < total ? 'url("' + nsrc + '")' : '';
       nxp.innerHTML = '';
       nxp.appendChild(el('b', '', 'Next'));
-      nxp.appendChild(document.createTextNode(i + 1 >= total ? 'This is the last slide.' : pend || !fits ? '…' : nxi ? what(nxi) : ''));
+      nxp.appendChild(document.createTextNode(i + 1 >= total ? 'This is the last slide.' : nxi ? what(nxi) : ''));
       // ---- files
       var fsig = JSON.stringify([d && d.files, it && it.f]);
       if (fsig !== shownFiles) {
@@ -507,7 +590,7 @@
           b.appendChild(el('span', 'i', String(k + 1))); b.appendChild(el('span', 'n', f.n)); b.appendChild(el('span', 'c', count(f)));
           if (f.w) b.appendChild(el('span', 'w', f.w));
           if (f.k === 'bad' || !f.c) b.disabled = true;
-          else { b.setAttribute('data-ok', '1'); b.addEventListener('click', function () { command('file', { f: k }); }); }
+          else { b.setAttribute('data-ok', '1'); b.addEventListener('click', function () { if (onScreen(open)) ask('Go to “' + f.n + '”', function () { command('file', { f: k }); }); else command('file', { f: k }); }); }
           li.appendChild(b); R.files.appendChild(li);
         });
         if (d && !d.files.length) { var li0 = el('li'); li0.appendChild(el('p', 'dk-empty', 'No files yet. PDF, pictures (JPG, PNG) and videos (MP4) go into this folder on the screen computer.')); R.files.appendChild(li0); }
