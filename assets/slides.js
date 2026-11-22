@@ -407,10 +407,10 @@
 
     // ---------- sound: the folders "Sound" and "Music" inside the one folder. The first 6 tracks of "Sound" (by name) are
     // the slots the host plays (fanfare for a speaker, transitions); "Music" is the music the host chooses (coffee break …):
-    // the host picks a track, it plays and goes on to the next. Volumes from the panel; a slot playing turns the music down.
+    // the host picks a track, it plays and goes on to the next. Volumes from the panel; while a slot plays the music waits.
     const AUD = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac)$/i, BGNAME = /^(music|музыка|background|bg|фон)/i;
     let sroot = null, sname = '', sscan = false, serr = '', sSig = '';
-    let slots = [], bgList = [], cur = null, bgEl = null, bgIdx = 0, bgOn = false, ducked = false, rampT = null;
+    let slots = [], bgList = [], cur = null, bgEl = null, bgIdx = 0, bgOn = false;
     const VOLK = 'tas3d-vol-' + C.room;
     let vj = 1, vb = 0.5;
     try { const v = JSON.parse(localStorage.getItem(VOLK) || 'null'); if (v) { vj = +v.j; vb = +v.b; } } catch (e) {}
@@ -447,61 +447,119 @@
       try { a.preload = 'metadata'; a.src = url; await once(a, 'loadedmetadata', 8000); return isFinite(a.duration) ? Math.round(a.duration) : 0; }
       finally { a.removeAttribute('src'); URL.revokeObjectURL(url); }
     }
-    function playAudio(a) {
+    // No fades and no mixing: a sound starts and stops at once, and two never play together.
+    //  - a new track stops the track before it;
+    //  - while a track plays (or is being opened) the music waits, and goes on from the same place when the track is over;
+    //  - while a video with sound plays on the screen the music waits too (a video without a sound track — a countdown —
+    //    does not stop it);
+    //  - another piece of music stops the one before it.
+    // (Fades were also what went wrong when the window was behind another program: the browser stops drawing there,
+    // the fade never finished, and the old sound kept playing under the new one.)
+    function playAudio(a, fail) {
       const p = a.play();
-      if (p && p.catch) p.catch((e) => { if (e && e.name === 'NotAllowedError') { soundBlocked = true; changed(); pubSa(); pubAu(); } });
+      if (p && p.catch) p.catch((e) => {
+        if (e && e.name === 'NotAllowedError') { soundBlocked = true; changed(); pubSa(); pubAu(); }
+        if (fail) fail(e);
+      });
     }
-    function ramp(el, to, ms, done) {                  // smooth volume changes (no clicks)
-      if (!el) return done && done();
-      const from = el.volume, t0 = performance.now();
-      const step = () => { const k = Math.min(1, (performance.now() - t0) / ms); el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); if (k < 1) requestAnimationFrame(step); else if (done) done(); };
-      requestAnimationFrame(step);
+    let slotN = 0, slotOpening = false, bgN = 0;
+    const bgLevel = () => gain(vb);
+    // a video that sounds right now: on the screen, playing, not muted, and with a sound track in the file
+    const hasAudio = (v) => !!(v.mozHasAudio || v.webkitAudioDecodedByteCount > 0 || (v.audioTracks && v.audioTracks.length));
+    function vidSound() {
+      const L = shown;
+      if (!L || L.k !== 'vid' || !L.el || cfg.scene !== 'slides') return false;
+      const v = L.el;
+      return !v.paused && !v.ended && !v.muted && hasAudio(v);
     }
-    function bgLevel() { return gain(vb) * (ducked ? 0.25 : 1); }
-    function duck(on) { ducked = on; if (bgEl) ramp(bgEl, bgLevel(), on ? 400 : 1200); }
+    const bgMay = () => bgOn && !cur && !slotOpening && !vidSound();
+    let bgWait = false;
+    function bgApply() {                               // the music plays when it is on and nothing else sounds
+      const a = bgEl, w = bgOn && !bgMay();
+      if (w !== bgWait) { bgWait = w; pubAu(); }
+      if (!a) return;
+      a.volume = bgLevel();
+      if (bgMay()) { if (a.paused && !a.ended) playAudio(a); }
+      else if (!a.paused) a.pause();
+    }
+    function dropSlot() { const me = cur; cur = null; if (me) { try { me.a.pause(); } catch (e) {} URL.revokeObjectURL(me.url); } }
+    function slotEl(me, from) {                        // the <audio> of a track (made again when the sound output is lost)
+      const a = new Audio(me.url), x = slots[me.i];
+      a.volume = gain(vj);
+      a.addEventListener('ended', () => { if (cur === me && me.a === a) { dropSlot(); bgApply(); pubAu(); } });
+      a.addEventListener('loadedmetadata', () => { if (x && isFinite(a.duration)) { x.dur = Math.round(a.duration); pubAu(); } if (from) { try { a.currentTime = from; } catch (e) {} } });
+      me.a = a;
+      playAudio(a, () => { if (cur === me && me.a === a && soundBlocked) { dropSlot(); bgApply(); pubAu(); } });   // no sound allowed yet: the music is not kept waiting
+    }
     async function playSlot(i) {
       const x = slots[i]; if (!x) return;
-      stopSlot(120);
-      let f; try { f = await x.get(); } catch (e) { return; }
-      const url = URL.createObjectURL(f), a = new Audio(url);
-      a.volume = gain(vj);
-      const me = { a, i, url, at: Date.now() };
-      cur = me;
-      a.addEventListener('ended', () => { if (cur === me) { cur = null; duck(false); pubAu(); } URL.revokeObjectURL(url); });
-      a.addEventListener('loadedmetadata', () => { if (isFinite(a.duration)) { x.dur = Math.round(a.duration); pubAu(); } });
-      playAudio(a); duck(true); pubAu();
+      const n = ++slotN;
+      dropSlot(); slotOpening = true; bgApply(); pubAu();
+      let f = null; try { f = await x.get(); } catch (e) {}
+      if (n !== slotN) return;                         // another track, or Stop, was pressed meanwhile: that one counts
+      slotOpening = false;
+      if (!f) { bgApply(); pubAu(); return; }
+      const me = { a: null, i, url: URL.createObjectURL(f), at: Date.now() };
+      cur = me; slotEl(me, 0);
+      bgApply(); pubAu();
     }
-    function stopSlot(ms) {
-      const me = cur; if (!me) return;
-      cur = null;
-      ramp(me.a, 0, ms || 500, () => { me.a.pause(); URL.revokeObjectURL(me.url); });
-      duck(false); pubAu();
+    function stopSlot() { slotN++; slotOpening = false; dropSlot(); bgApply(); pubAu(); }
+    function bgEl2(url, from) {                         // the <audio> of the music
+      const a = new Audio(url);
+      a.volume = bgLevel();
+      a.addEventListener('ended', () => { if (bgEl === a) bgLoad(bgIdx + 1); });
+      if (from) a.addEventListener('loadedmetadata', () => { try { a.currentTime = from; } catch (e) {} });
+      bgEl = a; bgApply();
     }
-    async function bgLoad(i, play) {
+    async function bgLoad(i) {
       if (!bgList.length) return;
-      if (bgEl) { const old = bgEl; bgEl = null; ramp(old, 0, 400, () => { old.pause(); URL.revokeObjectURL(old.src); }); }
+      const n = ++bgN;
+      if (bgEl) { const old = bgEl; bgEl = null; try { old.pause(); } catch (e) {} URL.revokeObjectURL(old.src); }
       bgIdx = ((i % bgList.length) + bgList.length) % bgList.length;
+      pubAu();
       let f; try { f = await bgList[bgIdx].get(); } catch (e) { return; }
-      const a = new Audio(URL.createObjectURL(f));
-      a.volume = 0; bgEl = a;
-      a.addEventListener('ended', () => { if (bgEl === a) bgLoad(bgIdx + 1, bgOn); });
-      if (play) { playAudio(a); ramp(a, bgLevel(), 800); }
+      if (n !== bgN) return;                           // another piece was chosen meanwhile
+      bgEl2(URL.createObjectURL(f), 0);
       pubAu();
     }
     function bg(v, i) {
-      if (v === 'play') { bgOn = true; if (!bgEl) bgLoad(bgIdx, true); else { playAudio(bgEl); ramp(bgEl, bgLevel(), 800); } }
-      else if (v === 'pause') { bgOn = false; const el = bgEl; if (el) ramp(el, 0, 700, () => { if (!bgOn) el.pause(); }); }
-      else if (v === 'next' || v === 'prev') bgLoad(bgIdx + (v === 'next' ? 1 : -1), bgOn);
-      else if (v === 'track' && Number.isInteger(i) && bgList[i]) { bgOn = true; bgLoad(i, true); }
+      if (v === 'play') { bgOn = true; if (!bgEl) bgLoad(bgIdx); else bgApply(); }
+      else if (v === 'pause') { bgOn = false; bgApply(); }
+      else if (v === 'next' || v === 'prev') bgLoad(bgIdx + (v === 'next' ? 1 : -1));
+      else if (v === 'track' && Number.isInteger(i) && bgList[i]) { bgOn = true; bgLoad(i); }
       pubAu();
     }
+    // A sound that should be playing but is not. Something outside the page can pause it (a play / pause key, headphones
+    // taken off, the system), and when the sound output is switched (headphones ↔ speakers) the browser can lose the
+    // sound altogether: the time of the track then stands still. Once a second: play again; if the time does not move,
+    // open the sound again from the same place — that puts it on the output that is current now.
+    function reopen(which) {
+      if (which === 'bg' && bgEl) { const old = bgEl, at = old.currentTime || 0, url = old.src; bgEl = null; try { old.pause(); } catch (e) {} bgEl2(url, at); }
+      if (which === 'slot' && cur) { const old = cur.a, at = old.currentTime || 0; try { old.pause(); } catch (e) {} slotEl(cur, at); }
+    }
+    function soundWatch() {
+      if (soundBlocked) return;
+      bgApply();                                       // a video's sound track shows only once it plays
+      const want = [['slot', cur && cur.a, !!cur], ['bg', bgEl, bgMay()]];
+      for (const [which, a, on] of want) {
+        if (!a || !on || a.ended) continue;
+        if (a.paused) { a.still = 0; playAudio(a); continue; }
+        if (a.readyState < 2) continue;                // still opening
+        a.still = a.lastT === a.currentTime ? (a.still || 0) + 1 : 0; a.lastT = a.currentTime;
+        if (a.still >= 3) reopen(which);
+      }
+    }
+    setInterval(soundWatch, 1000);
+    try { navigator.mediaDevices.addEventListener('devicechange', () => { setTimeout(() => { if (cur) reopen('slot'); if (bgEl && bgMay()) reopen('bg'); }, 300); }); } catch (e) {}
+    // the play / pause keys of the keyboard and of headphones do nothing to the screen: the host panel is in charge
+    try { ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach((k) => { try { navigator.mediaSession.setActionHandler(k, () => {}); } catch (e) {} }); } catch (e) {}
     function sound(d) {
       if (d.a === 'play' && Number.isInteger(d.i)) playSlot(d.i);
-      else if (d.a === 'stop') stopSlot(500);
+      else if (d.a === 'stop') stopSlot();
       else if (d.a === 'bg') bg(String(d.v || ''), d.i);
       else if (d.a === 'vol') {
         if (typeof d.j === 'number' && d.j >= 0 && d.j <= 1) { vj = d.j; if (cur) cur.a.volume = gain(vj); }
-        if (typeof d.b === 'number' && d.b >= 0 && d.b <= 1) { vb = d.b; if (bgEl && bgOn) bgEl.volume = bgLevel(); }
+        if (typeof d.b === 'number' && d.b >= 0 && d.b <= 1) { vb = d.b; if (bgEl) bgEl.volume = bgLevel(); }
         try { localStorage.setItem(VOLK, JSON.stringify({ j: vj, b: vb })); } catch (e) {}
         pubAu();
       }
@@ -513,7 +571,7 @@
       auT = setTimeout(() => pub(B + '/au', {
         sn, seq: ++seq, t: Date.now(), f: sroot ? 1 : 0, folder: sname,
         slots: slots.map((x) => ({ n: x.name, d: x.dur || 0 })),
-        bg: { n: bgList.length, list: bgList.slice(0, 200).map((x) => x.name), i: bgIdx, cur: bgList[bgIdx] ? bgList[bgIdx].name : '', on: bgOn ? 1 : 0 },
+        bg: { n: bgList.length, list: bgList.slice(0, 200).map((x) => x.name), i: bgIdx, cur: bgList[bgIdx] ? bgList[bgIdx].name : '', on: bgOn ? 1 : 0, w: bgOn && !bgMay() ? 1 : 0 },
         pl: cur ? cur.i : -1, pe: cur ? Date.now() - cur.at : 0, vj, vb, blk: soundBlocked ? 1 : 0
       }, true), 80);
     }
@@ -702,7 +760,12 @@
           L.url = URL.createObjectURL(await f.get());
           const v = document.createElement('video'); v.src = L.url; v.preload = 'auto'; v.playsInline = true;
           await once(v, 'loadeddata', 10000);
-          ['play', 'pause', 'ended', 'volumechange'].forEach((ev) => v.addEventListener(ev, () => { const dd = byId[cfg.deck]; if (dd && shown === L) pubPv(dd); }));
+          ['play', 'pause', 'ended', 'volumechange'].forEach((ev) => v.addEventListener(ev, () => { const dd = byId[cfg.deck]; if (dd && shown === L) pubPv(dd); bgApply(); }));
+          v.addEventListener('playing', () => setTimeout(bgApply, 250));   // the music waits under a video with sound
+          // paused by something other than the host (the browser pauses a silent video when its window goes behind
+          // another program; a play / pause key): it plays on
+          v.addEventListener('pause', () => { if (L.want && shown === L && !v.ended) setTimeout(() => { if (L.want && shown === L && v.paused && !v.ended) playV(v, L.quiet); }, 120); });
+          v.addEventListener('ended', () => { L.want = false; });
           L.lp = loops(f);
           v.addEventListener('playing', () => {
             if (shown !== L || L.snapped || L.snapT) return;
@@ -722,6 +785,7 @@
     function dropL(L) {
       L.dead = true;
       if (layers.get(L.key) === L) layers.delete(L.key);
+      L.want = false;
       if (L.el) { if (L.k === 'vid') { L.el.pause(); L.el.removeAttribute('src'); L.el.load(); } L.el.remove(); }
       if (L.url) URL.revokeObjectURL(L.url);
     }
@@ -732,15 +796,15 @@
       const L = prepare(d, i);
       let ok = true; try { await L.p; } catch (e) { ok = false; }
       if (t !== tok) return;
-      if (shown && shown !== L && shown.el) { shown.el.classList.remove('on'); if (shown.k === 'vid') shown.el.pause(); }
+      if (shown && shown !== L && shown.el) { shown.el.classList.remove('on'); if (shown.k === 'vid') { shown.want = false; shown.el.pause(); } }
       errBox.classList.toggle('on', !ok);
       errBox.textContent = ok ? '' : 'This slide cannot be shown: ' + d.files[d.items[i][0]].name;
       const fresh = shown !== L || !!L.left;            // new on the screen, or back on it after something else was shown
       L.left = false;
       if (ok) {
         L.el.classList.add('on'); shown = L;
-        if (L.k === 'vid') { L.quiet = !!d.sp; L.el.loop = !!d.sp || !!L.lp; }   // a pause video: in a loop and silent (the music is the host's Music); "loop" in the name: in a loop
-        if (fresh && L.k === 'vid') { L.el.currentTime = 0; playV(L.el, L.quiet); }
+        if (L.k === 'vid') { L.quiet = false; L.el.loop = !!d.sp || !!L.lp; }   // a video from "Screen": in a loop, with its sound; "loop" in the name: in a loop
+        if (fresh && L.k === 'vid') { L.want = true; L.el.currentTime = 0; playV(L.el, L.quiet); }
       }
       else shown = null;
       const keep = new Set([keyOf(d, i)]);
@@ -761,7 +825,7 @@
       if (!soundBlocked) return;
       soundBlocked = false;
       if (shown && shown.k === 'vid' && !shown.quiet) { shown.el.muted = false; }
-      if (bgOn && bgEl) playAudio(bgEl);               // the background music that was asked for before the click
+      bgApply();                                       // the background music that was asked for before the click
       changed(); pubSa(); pubAu();
     });
     // the still of a video that has just started on the screen (see snaps)
@@ -780,9 +844,22 @@
     function video(op) {
       if (!shown || shown.k !== 'vid') return;
       const v = shown.el;
-      if (op === 'pause') v.pause();
-      else { if (op === 'restart' || v.ended) v.currentTime = 0; playV(v, shown.quiet); }
+      if (op === 'pause') { shown.want = false; v.pause(); }
+      else { shown.want = true; if (op === 'restart' || v.ended) v.currentTime = 0; playV(v, shown.quiet); }
     }
+    // The window of the screen behind another program: the browser pauses a video without sound there (a pause video, a
+    // countdown) until the window is in front again. A video that is being read by the page is left playing, so one
+    // dot of the playing video is read once a second; and a video that got paused anyway is started again.
+    const kc = document.createElement('canvas'); kc.width = kc.height = 2;
+    const kctx = kc.getContext('2d');
+    setInterval(() => {
+      const L = shown;
+      if (!L || L.k !== 'vid' || !L.want || !L.el || cfg.scene !== 'slides') return;
+      const v = L.el;
+      if (v.ended) return;
+      if (v.paused) playV(v, L.quiet);
+      else if (v.readyState >= 2) { try { kctx.drawImage(v, 0, 0, 2, 2); } catch (e) {} }
+    }, 1000);
     function videoState(d, i) {
       if (!isOn(d) || !shown || shown.k !== 'vid' || !d.total || shown.key !== keyOf(d, Math.min(i, d.total - 1))) return null;
       const v = shown.el;
@@ -799,7 +876,7 @@
       connect: () => connect(false),
       choose: () => connect(true),
       drop,                                          // a folder dragged onto the screen
-      unmute() { if (soundBlocked) { soundBlocked = false; if (shown && shown.k === 'vid' && !shown.quiet) shown.el.muted = false; if (bgOn && bgEl) playAudio(bgEl); changed(); pubSa(); pubAu(); } },
+      unmute() { if (soundBlocked) { soundBlocked = false; if (shown && shown.k === 'vid' && !shown.quiet) shown.el.muted = false; bgApply(); changed(); pubSa(); pubAu(); } },
       useHandle: (h) => useHandle(h, false),         // tests (headless Chrome here cannot keep a folder in IndexedDB)
       // what the screen shows (from the host's settings); called on every change
       setCfg(c) {
@@ -809,7 +886,7 @@
         view.hidden = !now || !byId[now] || !byId[now].total;
         if (now !== before) {
           // the slides left the screen (or another folder came): a video stops, and starts from the beginning when it is shown again
-          if (shown) { shown.left = true; if (shown.k === 'vid') shown.el.pause(); }
+          if (shown) { shown.left = true; if (shown.k === 'vid') { shown.want = false; shown.el.pause(); } }
           if (now) { const d = byId[now]; if (d) { paint(); setTimeout(() => pubPv(d), 200); } }
           if (before && byId[before]) pubPv(byId[before]);
         }

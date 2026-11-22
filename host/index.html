@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'f6a5374aca';</script>
+<script>window.TAS3D_BUILD = 'a4ce000f8a';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -634,7 +634,8 @@ h2.sec{margin-top:30px;font-size:22px}
       $('sStop').disabled = !ok || au.pl < 0;
       var bgn = ok && au.bg ? au.bg.n : 0;
       $('sndMusic').hidden = !bgn || trk;
-      $('bgNow').textContent = !bgn ? '—' : (au.bg.on ? 'Playing: ' : 'Paused: ') + (au.bg.cur || '').replace(/\.[a-z0-9]+$/i, '');
+      // "waiting": the music is on, but a track or a video with sound is playing — it goes on by itself after that
+      $('bgNow').textContent = !bgn ? '—' : (au.bg.on ? (au.bg.w ? 'Waiting (a track or a video with sound is playing): ' : 'Playing: ') : 'Paused: ') + (au.bg.cur || '').replace(/\.[a-z0-9]+$/i, '');
       // the music list: tap a track to play it
       var ml = ok && au.bg && au.bg.list ? au.bg.list : [], msig = JSON.stringify([ml, au && au.bg && au.bg.i, au && au.bg && au.bg.on]);
       if ($('mList').getAttribute('data-s') !== msig) {

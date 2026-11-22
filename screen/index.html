@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'f6a5374aca';</script>
+<script>window.TAS3D_BUILD = 'a4ce000f8a';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -425,11 +425,69 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   <p id="verSt" style="margin-top:6px;opacity:.6"></p>
 </div>
 <div class="dropall" id="dropall" hidden>Drop the folder “TAS3D 2026 Presentations”</div>
+<script>
+// The screen goes on when its window is behind another program (the operator opens something else on this computer).
+// There the browser slows a page down: its timers run once a second, after five minutes once a minute, and nothing is
+// drawn at all — the screen would answer the host late, look "off" in the host panel, and a PDF page asked for meanwhile
+// would not be ready. So on this page:
+//  - every setTimeout / setInterval is kept by a worker (a worker's clock is not slowed down);
+//  - "before the next frame" (requestAnimationFrame, which the PDF reader waits for) falls back to a timer while the
+//    window is not drawn.
+// Videos and sound are looked after in slides.js. The small copy of the screen in the host panel (?preview) is left alone.
+(function () {
+  if (!window.Worker || /[?&]preview\b/.test(location.search)) return;
+  var st = window.setTimeout, si = window.setInterval, ct = window.clearTimeout, ci = window.clearInterval, w;
+  try {
+    w = new Worker(URL.createObjectURL(new Blob(['var t={};onmessage=function(e){var d=e.data,id=d[1];if(d[0]===0){clearTimeout(t[id]);clearInterval(t[id]);delete t[id]}else if(d[0]===1){t[id]=setTimeout(function(){delete t[id];postMessage(id)},d[2])}else{t[id]=setInterval(function(){postMessage(id)},d[2])}}'], { type: 'text/javascript' })));
+  } catch (e) { return; }
+  var jobs = {}, n = 0, BASE = 1e9, dead = false;
+  function run(j) { j.fn.apply(window, j.a); }
+  function add(rep, args) {
+    var fn = args[0];
+    if (dead || typeof fn !== 'function') return (rep ? si : st).apply(window, args);
+    var id = BASE + (++n), ms = Math.max(rep ? 1 : 0, +args[1] || 0);
+    jobs[id] = { fn: fn, a: Array.prototype.slice.call(args, 2), rep: rep, ms: ms };
+    w.postMessage([rep ? 2 : 1, id, ms]);
+    return id;
+  }
+  function drop(id, native) {
+    if (!(id >= BASE)) return native.call(window, id);
+    var j = jobs[id]; if (!j) return;
+    delete jobs[id];
+    if (j.nat != null) (j.rep ? ci : ct).call(window, j.nat); else if (!dead) w.postMessage([0, id]);
+  }
+  w.onmessage = function (e) { var j = jobs[e.data]; if (!j) return; if (!j.rep) delete jobs[e.data]; run(j); };
+  // the worker stopped: the timers that are waiting go back to the browser's own
+  w.onerror = function () {
+    if (dead) return; dead = true;
+    Object.keys(jobs).forEach(function (id) {
+      var j = jobs[id];
+      j.nat = j.rep ? si.call(window, function () { run(j); }, j.ms) : st.call(window, function () { delete jobs[id]; run(j); }, j.ms);
+    });
+  };
+  window.setTimeout = function () { return add(false, arguments); };
+  window.setInterval = function () { return add(true, arguments); };
+  window.clearTimeout = function (id) { drop(id, ct); };
+  window.clearInterval = function (id) { drop(id, ci); };
+
+  var raf = window.requestAnimationFrame, caf = window.cancelAnimationFrame, frames = {}, fn2 = 0;
+  function fire(id, t) { var f = frames[id]; if (!f) return; delete frames[id]; if (f.r) caf.call(window, f.r); if (f.t) clearTimeout(f.t); f.cb(t == null ? performance.now() : t); }
+  function byTimer(id) { frames[id].t = setTimeout(function () { fire(id); }, 16); }
+  window.requestAnimationFrame = function (cb) {
+    var id = BASE + (++fn2); frames[id] = { cb: cb, r: 0, t: 0 };
+    if (document.hidden) byTimer(id); else frames[id].r = raf.call(window, function (t) { fire(id, t); });
+    return id;
+  };
+  window.cancelAnimationFrame = function (id) { var f = frames[id]; if (!f) return caf.call(window, id); delete frames[id]; if (f.r) caf.call(window, f.r); if (f.t) clearTimeout(f.t); };
+  // frames asked for while the window was drawn would wait until it is drawn again: they go by the timer now
+  document.addEventListener('visibilitychange', function () { if (document.hidden) Object.keys(frames).forEach(function (id) { if (!frames[id].t) byTimer(id); }); });
+})();
+</script>
 <script src="../assets/config.js?v=e0e64972"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=0779ac73"></script>
 <script src="../assets/deck.js?v=e96bfcc7"></script>
-<script src="../assets/slides.js?v=ce598943"></script>
+<script src="../assets/slides.js?v=225549c8"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
