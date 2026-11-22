@@ -244,8 +244,8 @@
     // a command goes to every screen that has the folder open (one is usual; a second one, e.g. a monitor backstage, follows too)
     var sent = {};
     function targets(op) {
-      var now = Date.now(), sns = [], need = op === 'snd' ? 'au' : 'f';   // sound: the screen with the sound folder
-      for (var k in S.screens) if (now - S.screens[k].at < 30000 && S.screens[k].d[need]) sns.push(k);
+      var now = Date.now(), sns = [], need = op === 'snd' ? 'au' : op === 'reload' || op === 'upd' ? '' : 'f';   // sound: the screen with the sound folder; "update yourself": every screen
+      for (var k in S.screens) if (now - S.screens[k].at < 30000 && (!need || S.screens[k].d[need])) sns.push(k);
       if (!sns.length && S.sa) sns.push(S.sa.sn);
       return sns;
     }
@@ -473,8 +473,9 @@
         ? (sa.need === 'reconnect' ? 'On the screen computer: move the mouse, open Settings (bottom right) and press “Allow access”.' : 'On the screen computer: move the mouse, open Settings (bottom right) and connect the folder “TAS3D 2026 Presentations”.')
         : 'The presentations folder is not open on the screen computer yet. Tell the host.';
       else if (host && sa.fc === 0) msg = 'Another window is in front on the screen computer. Click once on the screen there: until then the clicker and the keys do nothing.';
+      else if (host && sa.ua && !/^(Chrome|Edge|Opera|Yandex) /.test(sa.ua)) msg = 'The screen is open in ' + sa.ua + '. Open it in Google Chrome there: in other browsers videos stop in the background and sound needs a click for every video.';
       else if (host && cl.screens() > 1) msg = cl.screens() + ' screen pages are open (two tabs, or a second computer). They follow each other, but close the ones you do not need.';
-      else { warn = false; msg = host ? 'Folder on the screen computer: ' + (sa.folder || '') + ' · ' + decks().length + (decks().length === 1 ? ' folder' : ' folders') : ''; }
+      else { warn = false; msg = host ? 'Folder on the screen computer: ' + (sa.folder || '') + ' · ' + decks().length + (decks().length === 1 ? ' folder' : ' folders') + (sa.ua ? ' · ' + sa.ua : '') : ''; }
       R.st.textContent = msg; R.st.hidden = !msg; R.st.classList.toggle('warn', warn);
       if (host) cl.next([open, S.cfg.scene === 'slides' ? S.cfg.deck : '']);   // their next slides' pictures are needed too
 

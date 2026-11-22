@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'a4ce000f8a';</script>
+<script>window.TAS3D_BUILD = '510921a4e5';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -117,6 +117,8 @@ h2.sec.first{margin-top:6px}
 .allres{margin-top:18px;padding:14px;border:1px solid #2c2c2b;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .allres .btn[aria-pressed="true"]{background:var(--fg);color:#0e0e0e}
 .slot.wait{border-color:var(--orange)}
+.spbad{margin-top:14px;padding:0;list-style:none;font-size:14px;color:var(--mute)}
+.spbad li{margin-top:6px}.spbad b{color:var(--fg);font-weight:400}
 .rnd{margin-top:12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 .rnd input{min-height:58px;padding:0 16px;background:var(--card);border:1px solid #2c2c2b;border-radius:0;color:var(--fg);font:inherit;font-size:28px;font-variant-numeric:tabular-nums}
 .rnd input:focus{outline:none;border-color:var(--orange)}
@@ -228,6 +230,7 @@ h2.sec{margin-top:30px;font-size:22px}
   <div class="scr" aria-label="What the screen shows">
     <p class="kick scrst"><span>On the screen</span><span id="scrSt" class="off">Screen: checking…</span></p>
     <div class="pvf" id="pvf"><iframe id="pvFrame" title="What the screen shows now" tabindex="-1" aria-hidden="true"></iframe></div>
+    <p class="hint bad" id="scrOld" hidden><span id="scrOldT"></span> <button type="button" class="btn" id="scrUpd" style="margin-top:8px">Update the screen</button></p>
     <p class="pvl"><a id="openScreen" href="../screen/" target="tas3d-screen">Open the screen on this device ↗</a></p>
     <div class="seg" role="group" aria-label="Screen">
       <button type="button" data-s="logo" aria-pressed="false">Logo</button>
@@ -391,7 +394,9 @@ h2.sec{margin-top:30px;font-size:22px}
     <div id="spBox" hidden>
       <h2 class="sec first">For a pause</h2>
       <div class="slots" id="spList"></div>
+      <p class="hint bad" id="spSnd" style="margin-top:10px" hidden></p>
       <div class="b" style="margin-top:10px"><button type="button" class="btn" id="spOff">Take off the screen</button></div>
+      <ul class="spbad" id="spBad" hidden></ul>
     </div>
   </section>
 
@@ -418,10 +423,10 @@ h2.sec{margin-top:30px;font-size:22px}
 
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=e0e64972"></script>
+<script src="../assets/config.js?v=f0ae7480"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=0779ac73"></script>
-<script src="../assets/deck.js?v=e96bfcc7"></script>
+<script src="../assets/deck.js?v=05fab4c1"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
@@ -519,6 +524,8 @@ h2.sec{margin-top:30px;font-size:22px}
     // the second tap of a double tap lands where the dialog has just appeared: "Yes" counts only a moment later
     $('warnYes').addEventListener('click', function () { if (Date.now() - warnAt < 400) return; var f = warnGo; warnClose(); if (f) f(); });
 
+    var updAt = 0, nudgeAt = 0;
+    $('scrUpd').addEventListener('click', function () { if (!dc) return; guard('Update the screen', function () { updAt = Date.now(); dc.cmd('reload'); render(); }, 'in'); });
     twoClick($('reset'), 'Reset', 'Reset for sure?', function () { guard('Reset', function () { hub.reset(); }, 'game'); });
 
     // ---- polls
@@ -686,13 +693,13 @@ h2.sec{margin-top:30px;font-size:22px}
       $('spBox').hidden = !files.length || !on;
       var cur = spCur();
       if (spPend && (spPend.i === cur || Date.now() - spPend.at > 8000)) spPend = null;
-      var sig = JSON.stringify(files.map(function (x) { return [x.i, x.f.n, x.f.k, x.f.c]; }));
+      var sig = JSON.stringify(files.map(function (x) { return [x.i, x.f.n, x.f.k, x.f.c, x.f.q]; }));
       if ($('spList').getAttribute('data-s') !== sig) {
         $('spList').setAttribute('data-s', sig); $('spList').innerHTML = '';
         files.forEach(function (x) {
           var b = document.createElement('button'); b.type = 'button'; b.className = 'slot'; b.setAttribute('data-i', x.i);
           b.innerHTML = '<span class="k"></span><span class="t"></span><span class="d"></span>';
-          b.querySelector('.k').textContent = x.f.k === 'vid' ? 'Video' + (x.f.dur ? ' · ' + mmss(x.f.dur) : '') : x.f.k === 'pdf' ? 'PDF' + (x.f.c > 1 ? ' · ' + x.f.c + ' pages' : '') : 'Picture';
+          b.querySelector('.k').textContent = x.f.k === 'vid' ? 'Video' + (x.f.dur ? ' · ' + mmss(x.f.dur) : '') + (x.f.q ? ' · no sound in the file' : '') : x.f.k === 'pdf' ? 'PDF' + (x.f.c > 1 ? ' · ' + x.f.c + ' pages' : '') : 'Picture';
           b.querySelector('.t').textContent = x.f.n.replace(/\.[a-z0-9]+$/i, '').replace(/^\d+[\s._\-–—]*/, '') || x.f.n;
           b.addEventListener('click', function () { if (spCur() === x.i) guard('Take off the screen', function () { spPend = null; hub.setCfg({ scene: 'logo' }); }); else spShow(x.i); });
           $('spList').appendChild(b);
@@ -704,6 +711,18 @@ h2.sec{margin-top:30px;font-size:22px}
         b.querySelector('.d').textContent = i === cur ? 'on the screen · tap to take off' : spPend && spPend.i === i ? 'sending…' : '';
       });
       $('spOff').disabled = !spOn();
+      // the sound of the video that is on: held by the browser (nobody has clicked on the screen computer), or none in the file
+      var pvv = d && spOn() && dc.state.pv[d.id] ? dc.state.pv[d.id].v : null, sn = '';
+      if (pvv && pvv.mute) sn = 'This video plays without sound: click once on the screen computer (the browser holds the sound until then).';
+      else if (pvv && pvv.na) sn = 'This video file has no sound in it (or a kind of sound the browser cannot play: save it as MP4 with AAC sound).';
+      $('spSnd').textContent = sn; $('spSnd').hidden = !sn;
+      // files of the folder that cannot be shown, and why
+      var bad = d ? d.files.filter(function (f) { return !f.c && f.w; }) : [], bs = JSON.stringify(bad.map(function (f) { return [f.n, f.w]; }));
+      if ($('spBad').getAttribute('data-s') !== bs) {
+        $('spBad').setAttribute('data-s', bs); $('spBad').innerHTML = '';
+        bad.forEach(function (f) { var li = document.createElement('li'), b = document.createElement('b'); b.textContent = f.n; li.appendChild(b); li.appendChild(document.createTextNode(' — ' + f.w)); $('spBad').appendChild(li); });
+      }
+      $('spBad').hidden = !bad.length;
       $('tX').hidden = !spOn(); $('tX').textContent = '\u25cf'; $('tX').classList.toggle('hot', spOn());
     }
 
@@ -790,7 +809,19 @@ h2.sec{margin-top:30px;font-size:22px}
       var nScr = dc ? dc.screens() : 0;                  // two tabs or two computers with the screen page: the host should know
       // the clicker's keys go to the window that is active on the screen computer: say so when the screen is not that window
       var noFc = !!(dc && dc.state.sa && dc.state.sa.fc === 0 && Date.now() - dc.state.saAt < 20000);
-      st.textContent = old ? 'Screen: old version — refresh it' : on ? (nScr > 1 ? nScr + ' screens are open' : noFc ? 'Screen: click on it (clicker)' : 'Screen: on') : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off';
+      // the browser on the screen computer holds the sound until someone clicks there once
+      var noSnd = !!(dc && dc.state.au && dc.state.au.blk && on);
+      // the screen page is older than this panel: it takes the new version by itself when nothing is on; the button does it now
+      $('scrOld').hidden = !old;
+      // tell the screen that a newer version is out: it looks at once, and takes it unless something is on that a reload would cut
+      if (old && dc && Date.now() - nudgeAt > 60000) { nudgeAt = Date.now(); dc.cmd('upd'); }
+      // a screen page from before 22.11.2026 does not say its version in "sa" and knows neither "upd" nor "reload": only a reload by hand helps
+      var canUpd = !!(dc && dc.state.sa && dc.state.sa.v);
+      $('scrUpd').hidden = !canUpd;
+      if (old) $('scrOldT').textContent = !canUpd ? 'The screen page is an older version that cannot update itself. Reload it once on the screen computer: ⌘R on a Mac, Ctrl+R on Windows. After that it updates by itself.'
+        : Date.now() - updAt < 15000 ? 'Updating the screen…' : updAt ? 'The screen is still on an older version: reload its page on the screen computer (Ctrl+R, on a Mac ⌘R).' : 'The screen has another version than this panel. It takes the new one by itself when nothing is playing; the button does it now (a playing video starts over, and sound then needs one click on the screen computer).';
+      else updAt = 0;
+      st.textContent = old ? 'Screen: old version — refresh it' : on ? (noSnd ? 'Screen: no sound — click on it' : nScr > 1 ? nScr + ' screens are open' : noFc ? 'Screen: click on it (clicker)' : 'Screen: on') : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off';
       document.querySelectorAll('.seg button').forEach(function (b) {
         var sc = b.getAttribute('data-s');
         b.setAttribute('aria-pressed', S.cfg.scene === sc ? 'true' : 'false');

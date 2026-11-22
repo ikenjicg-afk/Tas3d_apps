@@ -82,7 +82,7 @@ window.TAS3D_CHECKIN = {
 })(window.TAS3D_CHECKIN);
 // A new version of the site was published: fn(newBuild). TAS3D_BUILD is put into each page by tools/build_checkin.py.
 (function () {
-  window.TasUpdate = function (fn) {
+  window.TasUpdate = function (fn, first) {
     var mine = window.TAS3D_BUILD;
     if (!mine || location.protocol === 'file:') return;
     function check() {
@@ -93,7 +93,8 @@ window.TAS3D_CHECKIN = {
     }
     document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
     setInterval(check, 120000);
-    setTimeout(check, 20000);
+    setTimeout(check, first || 20000);
+    return check;
   };
   // open the new version: a new address, so no cached copy of the old page is used
   window.TasUpdate.reload = function (build) {

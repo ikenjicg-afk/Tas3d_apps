@@ -7,7 +7,7 @@
 (function () {
   const C = window.TAS3D_CHECKIN, B = C.base;
   const PDFJS = new URL("../assets/pdfjs-6.2.108/", document.baseURI).href;
-  const PDF = /\.pdf$/i, IMG = /\.(jpe?g|png|webp|gif|avif|bmp|svg)$/i, VID = /\.(mp4|m4v|webm|mov|ogv)$/i;
+  const PDF = /\.pdf$/i, IMG = /\.(jpe?g|png|webp|gif|avif|bmp|svg)$/i, VID = /\.(mp4|m4v|webm|mov|ogv|mkv|3gp|3g2|avi|wmv|flv|mpe?g|ts|mts|m2ts)$/i;
   // not listed at all: hidden and system files, notes, unfinished downloads
   const SKIP = /^\.|^~\$|^(desktop\.ini|thumbs\.db|icon\r?)$|\.(txt|md|rtf|url|webloc|lnk|ini|db|tmp|part|crdownload|download)$/i;
   // a video with the word "loop" in its name ("1. loop 1 min.mp4") plays in a circle until the next slide
@@ -24,11 +24,24 @@
       target.addEventListener(ok, y); target.addEventListener('error', n);
     });
   }
+  // the browser of this computer in a few words ("Chrome 142 · Mac")
+  function browserName() {
+    const u = navigator.userAgent || '';
+    const os = /Mac OS X|Macintosh/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : /Android/.test(u) ? 'Android' : /iPhone|iPad/.test(u) ? 'iOS' : /Linux/.test(u) ? 'Linux' : '';
+    let m, b = 'another browser';
+    if ((m = /Edg\/(\d+)/.exec(u))) b = 'Edge ' + m[1];
+    else if ((m = /OPR\/(\d+)/.exec(u))) b = 'Opera ' + m[1];
+    else if ((m = /YaBrowser\/(\d+)/.exec(u))) b = 'Yandex ' + m[1];
+    else if ((m = /Firefox\/(\d+)/.exec(u))) b = 'Firefox ' + m[1];
+    else if ((m = /Chrome\/(\d+)/.exec(u))) b = 'Chrome ' + m[1];
+    else if ((m = /Version\/(\d+).*Safari/.exec(u))) b = 'Safari ' + m[1];
+    return b + (os ? ' · ' + os : '');
+  }
+  window.TasBrowser = browserName;
   function warnFor(n) {
     if (/\.(pptx?|ppsx?|pptm|potx?|odp)$/i.test(n)) return 'PowerPoint file: the browser cannot show it. Save it as PDF (File → Export → PDF) into this folder; put videos here as separate MP4 files.';
     if (/\.key$/i.test(n)) return 'Keynote file: export it as PDF (File → Export To → PDF) into this folder; put videos here as separate MP4 files.';
     if (/\.(heic|heif)$/i.test(n)) return 'HEIC photo: save it as JPG or PNG.';
-    if (/\.(avi|wmv|mkv|flv|mpe?g|3gp)$/i.test(n)) return 'This video format does not play in the browser. Save it as MP4 (H.264).';
     return 'This file type is not shown.';
   }
   async function shortId(name) {
@@ -40,6 +53,7 @@
     const hub = opt.hub, view = opt.view, NOFS = new URLSearchParams(location.search).has('nofs');
     const box = TasBox(TasSlidesKey.get());
     const sn = rid();                       // this screen session: commands for an earlier one (or replayed) are ignored
+    const UA = browserName();               // "Chrome 142 · Mac": the host panel shows where the screen runs
     const T0 = Date.now();                  // when this screen page was opened: of two open screens the remotes follow the later one
     let seq = 0;
     let root = null;                        // {kind: 'handle', h} | {kind: 'files', top}
@@ -76,7 +90,7 @@
       })(0);
     }
     function pubSa() {
-      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), fc: document.hasFocus() ? 1 : 0, f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0 });
+      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), ua: UA, v: window.TAS3D_BUILD || '', fl: window.TAS3D_FILE ? 1 : 0, fc: document.hasFocus() ? 1 : 0, f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0 });
     }
     setInterval(pubSa, 8000); setTimeout(pubSa, 1500);
     // the keys of a clicker go to the window that is active on this computer: the host panel is told when this one is not
@@ -90,7 +104,7 @@
     function pubDk() {
       pub(B + '/dk', { sn, st: T0, seq: ++seq, t: Date.now(), folder: rootName, quiz: quiz.length ? quiz.map((q) => ({ n: q.n, a: q.a })) : undefined, decks: decks.map((d) => ({
         id: d.id, name: d.name, total: d.total, sp: d.sp ? 1 : undefined, ho: d.ho ? 1 : undefined,
-        files: d.files.map((f) => ({ n: f.name, k: f.k, c: f.c, from: f.from, dur: f.dur ? Math.round(f.dur) : undefined, lp: f.k === 'vid' && (d.sp || loops(f)) ? 1 : undefined, w: f.w || undefined }))
+        files: d.files.map((f) => ({ n: f.name, k: f.k, c: f.c, from: f.from, dur: f.dur ? Math.round(f.dur) : undefined, lp: f.k === 'vid' && (d.sp || loops(f)) ? 1 : undefined, q: f.q ? 1 : undefined, w: f.w || undefined }))
       })) }, true);
     }
     setInterval(() => { if (decks.length) pubDk(); }, 60000);
@@ -104,6 +118,8 @@
       if (!d || typeof d.n !== 'string' || d.n.length > 40 || seen.has(d.n)) return;   // the same command comes through both brokers
       seen.add(d.n); seenQ.push(d.n); if (seenQ.length > 3000) seen.delete(seenQ.shift());
       if (d.op === 'hello') { if (Date.now() - helloAt > 1000) { helloAt = Date.now(); pubSa(); pubAu(); } return; }
+      if (d.op === 'reload') { if (d.from === 'host' && opt.reload) opt.reload(); return; }   // the host's "Update the screen"
+      if (d.op === 'upd') { if (opt.check) opt.check(); return; }                             // "a newer version is out: look now" 
       if (d.op === 'snd') {                            // sound: the host only
         if (d.from === 'host' && (Array.isArray(d.sn) ? d.sn.indexOf(sn) >= 0 : d.sn === sn)) sound(d);
         return;
@@ -301,7 +317,7 @@
         try { m = { k: 'pdf', c: (await pdfDoc(f)).numPages, dur: 0, w: '' }; } catch (e) { m.w = 'This PDF does not open. Export it again from PowerPoint or Keynote.'; }
       }
       else if (IMG.test(n)) m = { k: 'img', c: 1, dur: 0, w: '' };
-      else if (VID.test(n)) { try { m = { k: 'vid', c: 1, dur: await videoLength(f), w: '' }; } catch (e) { m.w = 'This video does not play in the browser. Save it as MP4 (H.264).'; } }
+      else if (VID.test(n)) { try { const vl = await videoLength(f); m = { k: 'vid', c: 1, dur: vl.dur, q: vl.q, w: '' }; } catch (e) { m.w = 'This video does not play in this browser. Save it as MP4 (H.264 video, AAC sound).'; } }
       else m.w = warnFor(n);
       meta.set(f.sig, m);
       return m;
@@ -312,7 +328,9 @@
         v.muted = true; v.preload = 'metadata'; v.src = url;
         await once(v, 'loadedmetadata', 10000);
         if (!v.videoWidth) throw new Error('no picture');
-        return isFinite(v.duration) ? v.duration : 0;
+        // q: the file has no sound the browser can play (no sound track, or a kind it does not know: AC-3, DTS)
+        let q = 0; try { if (v.captureStream) q = v.captureStream().getAudioTracks().length ? 0 : 1; } catch (e) {}
+        return { dur: isFinite(v.duration) ? v.duration : 0, q };
       } finally { v.removeAttribute('src'); v.load(); URL.revokeObjectURL(url); }
     }
     async function buildDeck(folder, files) {
@@ -321,7 +339,7 @@
       const d = { id: await shortId(folder || rootName), name: nm ? (nm.replace(/^\d+[\s._\-–—]*/, '') || nm) : rootName.normalize('NFC'), files: [], items: [], total: 0 };
       for (const f of files) {
         const m = await inspect(f);
-        const e = { name: f.path.normalize('NFC'), k: m.k, c: m.c, dur: m.dur, w: m.w, sig: f.sig, get: f.get, from: d.items.length };
+        const e = { name: f.path.normalize('NFC'), k: m.k, c: m.c, dur: m.dur, q: m.q, w: m.w, sig: f.sig, get: f.get, from: d.items.length };
         for (let p = 0; p < e.c; p++) d.items.push([d.files.length, p]);
         d.files.push(e);
       }
@@ -761,7 +779,7 @@
           const v = document.createElement('video'); v.src = L.url; v.preload = 'auto'; v.playsInline = true;
           await once(v, 'loadeddata', 10000);
           ['play', 'pause', 'ended', 'volumechange'].forEach((ev) => v.addEventListener(ev, () => { const dd = byId[cfg.deck]; if (dd && shown === L) pubPv(dd); bgApply(); }));
-          v.addEventListener('playing', () => setTimeout(bgApply, 250));   // the music waits under a video with sound
+          v.addEventListener('playing', () => { setTimeout(bgApply, 250); setTimeout(() => { const dd = byId[cfg.deck]; if (dd && shown === L) pubPv(dd); }, 2200); });   // the music waits under a video with sound; "no sound track" is known after a moment
           // paused by something other than the host (the browser pauses a silent video when its window goes behind
           // another program; a play / pause key): it plays on
           v.addEventListener('pause', () => { if (L.want && shown === L && !v.ended) setTimeout(() => { if (L.want && shown === L && v.paused && !v.ended) playV(v, L.quiet); }, 120); });
@@ -814,20 +832,34 @@
       setTimeout(() => { if (t !== tok) return; if (i + 2 < d.total) prepare(d, i + 2); if (i > 0) prepare(d, i - 1); }, 250);
     }
     function playV(v, quiet) {
-      v.muted = !!quiet;
-      const p = v.play();
+      v.muted = !!quiet || soundBlocked;               // sound is not allowed yet (see soundOn): silent at once
+      const loud = !v.muted, p = v.play();
       if (p && p.catch) p.catch((e) => {
-        if (e && e.name === 'NotAllowedError' && !quiet) { v.muted = true; soundBlocked = true; v.play().catch(() => {}); changed(); pubSa(); }
+        if (e && e.name === 'NotAllowedError' && loud) { v.muted = true; soundBlocked = true; v.play().catch(() => {}); changed(); pubSa(); pubAu(); }
       });
     }
-    // sound needs one click on this computer (browser rule): the first click turns it on
-    document.addEventListener('pointerdown', () => {
-      if (!soundBlocked) return;
+    // Sound needs one click or one key on this computer after the page is opened (a browser rule): until then a video
+    // plays silent and the screen says so in big letters. The first click or key (F for full screen, the clicker) turns
+    // the sound on, also for the video that is playing now. Chrome and Edge then keep the sound for every next video;
+    // Safari asks for a click for each video, so there the same click is taken every time it comes.
+    const CHROMIUM = /^(Chrome|Edge|Opera|Yandex) /.test(browserName());
+    function soundOn() {
+      const ua = navigator.userActivation;
+      if (ua && !ua.hasBeenActive) return;             // a key that does not count for the browser (Esc, Shift …)
+      const was = soundBlocked, L = shown;
       soundBlocked = false;
-      if (shown && shown.k === 'vid' && !shown.quiet) { shown.el.muted = false; }
+      if (L && L.k === 'vid' && !L.quiet && L.el && cfg.scene === 'slides') {
+        if (L.el.muted) L.el.muted = false;
+        if (L.want && L.el.paused && !L.el.ended) playV(L.el, false);
+      }
+      if (!was) return;
       bgApply();                                       // the background music that was asked for before the click
-      changed(); pubSa(); pubAu();
-    });
+      changed(); pubSa(); pubAu(); const d = byId[cfg.deck]; if (d) pubPv(d);
+    }
+    ['pointerdown', 'mousedown', 'touchend', 'click'].forEach((ev) => document.addEventListener(ev, soundOn, true));
+    document.addEventListener('keydown', () => setTimeout(soundOn, 0), true);
+    // a click the page did not see itself (the browser's own "allow the folder" window): Chrome and Edge only, where one click counts for the whole page
+    setInterval(() => { try { if (CHROMIUM && soundBlocked && navigator.userActivation && navigator.userActivation.hasBeenActive) soundOn(); } catch (e) {} }, 1000);
     // the still of a video that has just started on the screen (see snaps)
     function snapV(L, tk) {
       const v = L.el;
@@ -863,7 +895,7 @@
     function videoState(d, i) {
       if (!isOn(d) || !shown || shown.k !== 'vid' || !d.total || shown.key !== keyOf(d, Math.min(i, d.total - 1))) return null;
       const v = shown.el;
-      return { play: !v.paused && !v.ended ? 1 : 0, end: v.ended ? 1 : 0, mute: v.muted ? 1 : 0 };
+      return { play: !v.paused && !v.ended ? 1 : 0, end: v.ended ? 1 : 0, mute: v.muted ? 1 : 0, na: !v.muted && v.currentTime > 1.5 && !hasAudio(v) ? 1 : 0 };
     }
     let rsT = null;
     window.addEventListener('resize', () => {
@@ -876,7 +908,7 @@
       connect: () => connect(false),
       choose: () => connect(true),
       drop,                                          // a folder dragged onto the screen
-      unmute() { if (soundBlocked) { soundBlocked = false; if (shown && shown.k === 'vid' && !shown.quiet) shown.el.muted = false; bgApply(); changed(); pubSa(); pubAu(); } },
+      unmute: () => soundOn(),
       useHandle: (h) => useHandle(h, false),         // tests (headless Chrome here cannot keep a folder in IndexedDB)
       // what the screen shows (from the host's settings); called on every change
       setCfg(c) {
@@ -896,6 +928,7 @@
       step(n) { const d = byId[cfg.deck]; if (cfg.scene !== 'slides' || !d) return false; setPos(d, (pos[d.id] || 0) + n); pubPv(d); return true; },
       showing: () => cfg.scene === 'slides' && !!byId[cfg.deck],   // slides are on this screen now: the keys change them
       status: () => ({ need, folder: rootName, n: decks.length, scanning, err, sound: !soundBlocked, kind: root ? root.kind : '',
+        vid: !!(shown && shown.k === 'vid' && cfg.scene === 'slides' && shown.el && !shown.el.paused && !shown.el.ended),   // a video is playing on this screen
         sp: (decks.find((d) => d.sp) || { files: [] }).files.filter((f) => f.c).length,   // files for a pause (folder "Screen")
         qz: quiz.filter((q) => q.a).length,          // pictures of the quiz (folder "Quiz") with an answer in the name
         ho: decks.some((d) => d.ho) ? (decks.find((d) => d.ho).files.filter((f) => f.c).length) : -1,   // the host's own folder "Host": files in it, -1 = no folder

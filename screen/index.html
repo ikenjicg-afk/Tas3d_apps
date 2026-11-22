@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'a4ce000f8a';</script>
+<script>window.TAS3D_BUILD = '510921a4e5';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -149,6 +149,12 @@ html.sc-polls .qr{display:none}
 body.idle .ctl{opacity:0;pointer-events:none}
 .ctl button{font:inherit;font-size:max(12px,.85rem);font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#1b1b1b;color:var(--mute);border:0;padding:.5rem .8rem;cursor:pointer}
 .ctl button:hover{color:var(--fg)}
+.ctl .ver{align-self:center;margin-left:.6rem;font-size:max(11px,.7rem);letter-spacing:.04em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+.brwarn{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;width:min(760px,calc(100vw - 48px));padding:28px 32px 30px;background:#151514;border:2px solid var(--orange);box-shadow:0 20px 80px rgba(0,0,0,.6)}
+.brwarn h2{font-size:clamp(22px,2.2vw,34px);letter-spacing:-.01em}
+.brwarn p{margin-top:12px;font-size:clamp(15px,1.2vw,20px);line-height:1.4;color:#cfcfca}
+.brwarn .sbtn{margin-top:18px}
+html.pv .brwarn{display:none!important}
 .ctl button[aria-pressed="true"]{color:var(--fg)}
 
 
@@ -267,6 +273,9 @@ body.idle .setp,body.idle .setp *{cursor:auto}
 .setp .tip{color:var(--mute);font-size:13px}
 .sbtn{margin-top:10px;min-height:42px;padding:0 14px;border:0;background:#2a2a29;color:var(--fg);font:inherit;font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .sbtn.o{background:var(--orange);color:#fff}
+.sndwarn{position:fixed;left:50%;bottom:6vh;transform:translateX(-50%);z-index:9;padding:18px 34px;border:0;background:var(--orange);color:#fff;font:inherit;font-size:clamp(20px,2.4vw,40px);font-weight:700;letter-spacing:.01em;text-align:center;cursor:pointer;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.sndwarn small{display:block;margin-top:6px;font-size:.55em;font-weight:400;opacity:.92}
+html.pv .sndwarn{display:none!important}
 .loc{display:flex;flex-wrap:wrap;gap:6px}
 .loc .sbtn{margin-top:6px;text-transform:none;letter-spacing:0;font-size:14px;text-align:left}
 .loc .sbtn small{margin-left:6px;font-weight:400;opacity:.7}
@@ -391,6 +400,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
 <div class="card" id="card" aria-live="polite"><p class="k" id="cardK">Question from the audience</p><p class="t" id="cardT"></p></div>
 <div class="ctl" role="group" aria-label="Screen controls" id="ctl" hidden>
   <button type="button" id="bFs">Full screen (F)</button>
+  <span class="ver" id="verTag"></span>
 </div>
 <button type="button" class="gear" id="bSet" aria-expanded="false" aria-controls="setp" hidden>
   <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
@@ -425,6 +435,14 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   <p id="verSt" style="margin-top:6px;opacity:.6"></p>
 </div>
 <div class="dropall" id="dropall" hidden>Drop the folder “TAS3D 2026 Presentations”</div>
+<!-- the screen is made for Chrome (and Edge): another browser is told so once -->
+<div class="brwarn" id="brWarn" role="alertdialog" aria-labelledby="brH" hidden>
+  <h2 id="brH"></h2>
+  <p>Open the screen in <b>Google Chrome</b> (or Edge) on this computer. In other browsers a video stops while the window is behind another program, each video needs a click before it gives sound, and the folder has to be dragged in again after every start.</p>
+  <button type="button" class="sbtn" id="brOk">Stay in this browser</button>
+</div>
+<!-- the browser holds the sound until someone clicks or presses a key on this computer: said in big letters, gone after the click -->
+<button type="button" class="sndwarn" id="sndWarn" hidden>Sound is off<small>Click here once, or press any key on this computer</small></button>
 <script>
 // The screen goes on when its window is behind another program (the operator opens something else on this computer).
 // There the browser slows a page down: its timers run once a second, after five minutes once a minute, and nothing is
@@ -435,7 +453,11 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
 //    window is not drawn.
 // Videos and sound are looked after in slides.js. The small copy of the screen in the host panel (?preview) is left alone.
 (function () {
-  if (!window.Worker || /[?&]preview\b/.test(location.search)) return;
+  if (/[?&]preview\b/.test(location.search)) return;
+  // Chrome on a laptop that saves energy stops ("freezes") a page that has been behind other windows for five minutes
+  // and is still busy. A page that holds a lock is left alone, so the screen holds one for as long as it is open.
+  try { if (navigator.locks && navigator.locks.request) navigator.locks.request('tas3d-screen-' + Math.random().toString(36).slice(2), { mode: 'shared' }, function () { return new Promise(function () {}); }).catch(function () {}); } catch (e) {}
+  if (!window.Worker) return;
   var st = window.setTimeout, si = window.setInterval, ct = window.clearTimeout, ci = window.clearInterval, w;
   try {
     w = new Worker(URL.createObjectURL(new Blob(['var t={};onmessage=function(e){var d=e.data,id=d[1];if(d[0]===0){clearTimeout(t[id]);clearInterval(t[id]);delete t[id]}else if(d[0]===1){t[id]=setTimeout(function(){delete t[id];postMessage(id)},d[2])}else{t[id]=setInterval(function(){postMessage(id)},d[2])}}'], { type: 'text/javascript' })));
@@ -483,11 +505,11 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   document.addEventListener('visibilitychange', function () { if (document.hidden) Object.keys(frames).forEach(function (id) { if (!frames[id].t) byTimer(id); }); });
 })();
 </script>
-<script src="../assets/config.js?v=e0e64972"></script>
+<script src="../assets/config.js?v=f0ae7480"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=0779ac73"></script>
-<script src="../assets/deck.js?v=e96bfcc7"></script>
-<script src="../assets/slides.js?v=225549c8"></script>
+<script src="../assets/deck.js?v=05fab4c1"></script>
+<script src="../assets/slides.js?v=3ada5fd4"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -1034,6 +1056,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   var setSig = '';
   function settings(up) {
     var key = !!TasSlidesKey.get(), s = slides ? slides.status() : null;
+    $('sndWarn').hidden = !s || s.sound;                // a video or the music was asked for, and the browser holds the sound
     var cf = hub ? hub.state.cfg : {}, dl = slides ? slides.list().filter(function (d) { return d.total; }) : [];
     var sig = JSON.stringify([key, s, up, $('setp').hidden, cf.scene, cf.deck, dl]);
     if (sig === setSig) return;
@@ -1083,7 +1106,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     }
     $('netSt').textContent = up ? 'Live · ' + up + ' of ' + C.brokers.length + ' servers' : 'No connection — check the internet on this computer.';
     // which version is open here: the site updates itself, a file saved on the computer does not
-    $('verSt').textContent = window.TAS3D_BUILD ? 'Version ' + window.TAS3D_BUILD : window.TAS3D_FILE ? 'A file saved on this computer: it does not update itself, and PDFs need the internet. The site link is better.' : '';
+    $('verSt').textContent = window.TAS3D_FILE ? 'A file saved on this computer' + (window.TAS3D_BUILD ? ', version ' + window.TAS3D_BUILD : '') + '. It does not update itself; with the internet it opens the page on the site instead.' : window.TAS3D_BUILD ? 'Version ' + window.TAS3D_BUILD + ' · updates by itself' : '';
   }
   $('fAllow').addEventListener('click', function () { if (slides) slides.connect(); });
   $('fPick').addEventListener('click', function () { if (slides) slides.choose(); });
@@ -1109,10 +1132,45 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
       startSlides(); settings(hub ? hub.up() : 0);
     }, function (x) { $('keyErr').textContent = x.message; });
   });
+  // ---- which version this page is, and taking a newer one by itself.
+  // A new version of the site is taken at once — also a few seconds after the page opens, in case the browser showed a
+  // copy it had kept — unless the hall is watching or listening to something that a reload would cut: a speaker who has
+  // the screen (Start), the game or the quiz, music or a track. Then it waits for that to end. The host panel shows
+  // "old version" meanwhile and has the button "Update the screen", which does it at once.
+  $('verTag').textContent = (window.TAS3D_FILE ? 'file · ' : '') + (window.TAS3D_BUILD ? 'version ' + window.TAS3D_BUILD : '');
+  var newBuild = '', forceNew = false, T_OPEN = Date.now();
+  // what a reload would cut: a speaker who has the screen, a game or a quiz, a playing video, music or a track; and a
+  // folder that was dragged in (it cannot come back by itself after a reload)
+  function busy() {
+    var S = hub ? hub.state : null; if (!S) return false;
+    var g = S.game, z = S.quiz, sc = S.cfg.scene, ss = slides ? slides.status() : null, sd = ss ? ss.snd : null;
+    return !!S.cfg.live || (sc === 'game' && (g.st === 'ready' || g.st === 'run')) || (sc === 'quiz' && /^(ready|ask|show)$/.test(z.st)) ||
+      !!(sd && (sd.playing >= 0 || sd.bgOn)) || !!(ss && (ss.vid || ss.kind === 'files'));
+  }
+  // a page that has only just been opened loses nothing by loading again
+  function takeNew() { if (newBuild && (forceNew || Date.now() - T_OPEN < 12000 || !busy())) TasUpdate.reload(newBuild); }
+  var checkNew = !PREVIEW && window.TasUpdate ? TasUpdate(function (b) { newBuild = b; takeNew(); }, 2500) : null;
+  if (!PREVIEW) setInterval(takeNew, 5000);
+  function reloadNow() {                               // the host pressed "Update the screen"
+    forceNew = true;
+    if (newBuild) return TasUpdate.reload(newBuild);
+    if (checkNew) checkNew();
+    setTimeout(function () { location.reload(); }, 3000);   // nothing newer found (or this is the file): the page as it is, loaded again
+  }
+  // ---- the screen is made for Chrome and Edge
+  var BR = window.TasBrowser ? TasBrowser() : '';
+  if (!PREVIEW && BR && !/^(Chrome|Edge|Opera|Yandex) /.test(BR)) {
+    var seenBr = ''; try { seenBr = sessionStorage.getItem('tas3d-br') || ''; } catch (e) {}
+    if (!seenBr) {
+      $('brH').textContent = 'This is ' + BR.split(' · ')[0] + ': not the right browser for the screen';
+      $('brWarn').hidden = false;
+      $('brOk').addEventListener('click', function () { $('brWarn').hidden = true; try { sessionStorage.setItem('tas3d-br', '1'); } catch (e) {} });
+    }
+  }
   function startSlides() {
     if (slides || !hub || !window.TasSlidesScreen || !TasSlidesKey.get()) return;
     try {
-      slides = TasSlidesScreen({ hub: hub, view: $('slides'), onChange: function () { render(hub.state, hub.up()); },
+      slides = TasSlidesScreen({ hub: hub, view: $('slides'), reload: reloadNow, check: function () { if (checkNew) checkNew(); }, onChange: function () { render(hub.state, hub.up()); },
         locked: function () { var g = hub.state.game, z = hub.state.quiz; return ((g.st === 'ready' || g.st === 'run') && hub.state.cfg.scene === 'game') || (/^(ready|ask|show)$/.test(z.st) && hub.state.cfg.scene === 'quiz'); } });
     } catch (e) { slides = null; }
     window.TasScreenSlides = slides;                  // tests
