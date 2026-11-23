@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '5a8a240097';</script>
+<script>window.TAS3D_BUILD = '60c6bde270';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -600,9 +600,9 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   document.addEventListener('visibilitychange', function () { if (document.hidden) Object.keys(frames).forEach(function (id) { if (!frames[id].t) byTimer(id); }); });
 })();
 </script>
-<script src="../assets/config.js?v=78403595"></script>
+<script src="../assets/config.js?v=875f2cd5"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
-<script src="../assets/hub.js?v=3877071e"></script>
+<script src="../assets/hub.js?v=2ab16329"></script>
 <script src="../assets/deck.js?v=05fab4c1"></script>
 <script src="../assets/slides.js?v=7c1cf1f9"></script>
 <script>
@@ -1081,6 +1081,8 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   }
   window.TasGameGfx = function () { return GR ? GR.mode() : ''; };   // goes to the host panel with "the screen is on"
   var gFroze = false;
+  // how much is rendered when the prank's step comes (1: the error, 2: the blue screen): config.js says it as the noise left
+  function pkP(n) { var P = C.game.prank || {}, z = n === 2 ? (P.bsod > 0 && P.bsod < 1 ? P.bsod : 0.01) : (P.hang > 0 && P.hang < 1 ? P.hang : 0.5); return 1 - Math.pow(z, 1 / 1.3); }
   function gameView(S, on) {
     var box = $('vGame'), prevSt = gLastSt, prevId = gLastId;
     box.hidden = !on; gOn = on;
@@ -1110,13 +1112,12 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     }
     gDoneId = '';
     box.classList.remove('done');
-    // the prank: the render stands still where it was (a page opened only now shows where the hall got to)
+    // the prank: the render stands still right at its mark — the meter says NOISE 50% (the error) or NOISE 1% (the blue screen)
     if (gGame.st === 'hang' || gGame.st === 'bsod') {
       if (!gFroze) {
         gFroze = true;
-        var tg = (gS && gS.target) || gGame.target || 0;
-        if (!(prevSt === 'run' && prevId === gGame.id)) gShown = gS ? gS.total : 0;
-        var fp = tg ? Math.min(1, gShown / tg) : 0;
+        var tg = (gS && gS.target) || gGame.target || 0, fp = pkP(gGame.st === 'bsod' ? 2 : 1);
+        gShown = tg * fp;
         GR.set(fp, Math.pow(1 - fp, 1.3), true); GR.stop();
       }
       gameText(true); return;

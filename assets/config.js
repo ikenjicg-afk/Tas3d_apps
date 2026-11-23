@@ -16,7 +16,8 @@
 //   connections of their own), <base>/sa = "the screen is on" (every 8 s),
 //   <base>/sk = commands from the speakers' page and the host panel (next, prev, show on screen ...).
 // The game: <base>/game = {id, st: off|ready|run|hang|boot|bsod|done, target, per, pk, ph, t1, at, w} (kept, from the host and the screen);
-//   pk = the prank is on, ph = which render of the prank (1: "Insufficient memory" at 50%, 2: a blue screen at 99%),
+//   pk = the prank is on (always, unless game.prank.on is false), ph = which render of the prank
+//   (1: "Insufficient Memory" when 50% of the noise is left, 2: a blue screen when 1% of the noise is left),
 //   hang = the error window, the game stands still; boot = the host's "Fake reset" (a new game id: everything starts from zero);
 //   bsod = the blue screen, the results come by themselves after `prank.results` seconds.
 //   <base>/gt/<game>/<phone> = "role:taps so far" (every second while tapping); <base>/gs = the score (kept, from the screen).
@@ -44,10 +45,12 @@ window.TAS3D_CHECKIN = {
   // the opening game: the hall renders TAS3D 2026 out of noise together. Samples needed = checked-in guests × per (at least min);
   // normal: a hall tapping at an easy pace ≈ 1 minute;
   // one phone counts at most cap taps a second
-  // prank (the host turns it on): the 1st render stops at `hang` (share of the target) with "Insufficient memory";
-  // the host presses Fake reset, the restart takes `boot` seconds, the 2nd render crashes at `bsod` with a blue screen,
-  // and the results come `results` seconds later
-  game: { per: { short: 100, normal: 170, long: 300 }, min: 1000, cap: 12, prank: { hang: 0.5, bsod: 0.99, boot: 9, results: 10 } },
+  // prank (part of the game; on: false takes it out): hang and bsod are the NOISE left on the screen's meter.
+  // The 1st render stops with "Insufficient Memory" when the meter shows `hang` (0.5 = NOISE 50%); the host presses
+  // Fake reset, the restart takes `boot` seconds; the 2nd render crashes with a blue screen at `bsod` (0.01 = NOISE 1%),
+  // and the results come `results` seconds later.
+  // (the meter: noise = (1 − rendered)^1.3, so NOISE 50% is 41% of the samples and NOISE 1% is 97%)
+  game: { per: { short: 100, normal: 170, long: 300 }, min: 1000, cap: 12, prank: { on: true, hang: 0.5, bsod: 0.01, boot: 9, results: 10 } },
   slides: {
     iterations: 150000,
     ssalt: '4564344c5f5c5d59c48e5cfb395f3c52',

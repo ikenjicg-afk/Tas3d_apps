@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '5a8a240097';</script>
+<script>window.TAS3D_BUILD = '60c6bde270';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -88,8 +88,6 @@ button,input,textarea{font:inherit;color:inherit}
 .glen{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .glen button{min-height:46px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 .glen button[aria-pressed="true"]{background:var(--fg);color:#0e0e0e;border-color:var(--fg)}
-.glen.two{grid-template-columns:repeat(2,1fr)}
-#gPrank button[data-k="on"][aria-pressed="true"]{background:var(--orange);border-color:var(--orange);color:#fff}
 .gcard .btn.big{flex:1 1 100%;min-height:64px;font-size:18px}
 .gcard.pk{border-color:var(--orange)}
 @media (max-width:480px){.tabs button{font-size:12px;letter-spacing:.01em;padding-left:2px;padding-right:2px}.tabs em{margin-left:3px;padding:1px 4px;font-size:10px;letter-spacing:0}.tabs em.dot{margin-left:4px;padding:0;font-size:0}.sub button{font-size:12px;letter-spacing:.01em}.sub em{margin-left:4px;padding:1px 5px;font-size:10px}}
@@ -362,11 +360,7 @@ h2.sec{margin-top:30px;font-size:22px}
       <button type="button" data-k="long" aria-pressed="false">Long</button>
     </div>
     <p class="hint" id="gLenH" style="margin-top:8px"></p>
-    <h2 class="sec">Prank</h2>
-    <div class="glen two" id="gPrank">
-      <button type="button" data-k="off" aria-pressed="true">Off</button>
-      <button type="button" data-k="on" aria-pressed="false">On</button>
-    </div>
+    <h2 class="sec">How it goes</h2>
     <p class="hint" id="gPrankH" style="margin-top:8px"></p>
     </div>
 
@@ -436,9 +430,9 @@ h2.sec{margin-top:30px;font-size:22px}
 
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=78403595"></script>
+<script src="../assets/config.js?v=875f2cd5"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
-<script src="../assets/hub.js?v=3877071e"></script>
+<script src="../assets/hub.js?v=2ab16329"></script>
 <script src="../assets/deck.js?v=05fab4c1"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
@@ -584,22 +578,12 @@ h2.sec{margin-top:30px;font-size:22px}
     $('gLen').querySelectorAll('button').forEach(function (b) {
       b.addEventListener('click', function () { gLen = b.getAttribute('data-k'); try { localStorage.setItem('tas3d-glen', gLen); } catch (e) {} if (S.game.st === 'ready') hub.setGame({ per: C.game.per[gLen] }); render(); });
     });
-    // the prank: the 1st render stops at 50% with "Insufficient Memory" → the host's Fake reset → the 2nd render crashes at 99%
-    // with a blue screen → the results 10 s later (config.js → game.prank). Kept on this device; it counts for the next game.
-    var gPk = false;
-    try { gPk = localStorage.getItem('tas3d-gprank') === '1'; } catch (e) {}
-    $('gPrank').querySelectorAll('button').forEach(function (b) {
-      b.addEventListener('click', function () {
-        gPk = b.getAttribute('data-k') === 'on'; try { localStorage.setItem('tas3d-gprank', gPk ? '1' : '0'); } catch (e) {}
-        // the game on now takes it too (during the render as well: the error comes at 50% of this render)
-        if (S.game.st === 'ready') hub.setGame({ pk: gPk ? 1 : 0, ph: 1 });
-        else if (S.game.st === 'run') hub.setGame({ pk: gPk ? 1 : 0 });
-        render();
-      });
-    });
+    // the prank is part of the game, there is no switch for it: the 1st render stops with "Insufficient Memory" when the
+    // screen's meter says NOISE 50% → the host's Fake reset → the 2nd render crashes with a blue screen at NOISE 1% →
+    // the results 10 s later (config.js → game.prank)
     $('gUpd').addEventListener('click', function () { $('scrUpd').click(); });   // the same as the button at the top (it asks first)
     $('gReset').addEventListener('click', function () { guard('Fake reset', function () { hub.fakeReset(); }, 'in'); });
-    $('gNew').addEventListener('click', function () { guard($('gNew').textContent, function () { hub.newGame(C.game.per[gLen], gPk); }); });
+    $('gNew').addEventListener('click', function () { guard($('gNew').textContent, function () { hub.newGame(C.game.per[gLen]); }); });
     $('gGo').addEventListener('click', function () { guard('Start rendering', function () { hub.startGame(); }, 'in'); });
     $('gBack').addEventListener('click', function () { guard('Back on the screen', function () { hub.setCfg({ scene: 'game' }); }); });
     twoClick($('gFin'), 'Finish now', 'Finish for sure?', function () { hub.finishGame(); });
@@ -910,10 +894,12 @@ h2.sec{margin-top:30px;font-size:22px}
       // the opening game
       var g = S.game, gs = S.gs && S.gs.id === g.id ? S.gs : null, gon = g.st !== 'off' && !!g.id;
       var gt = (gs && gs.target) || g.target || 0, gtot = gs ? gs.total : 0, gp = g.st === 'done' ? 1 : /^(run|hang|bsod)$/.test(g.st) && gt ? Math.min(1, gtot / gt) : 0;
-      var GP = C.game.prank || {}, gpkAt = g.ph === 2 ? Math.round((GP.bsod || 0.99) * 100) : Math.round((GP.hang || 0.5) * 100);
+      // the prank's marks, as the hall sees them on the screen's meter: NOISE 50% (the error), NOISE 1% (the blue screen)
+      var GP = C.game.prank || {}, gHangN = Math.round(Math.pow(1 - hub.prankAt(1), 1.3) * 100), gBsodN = Math.round(Math.pow(1 - hub.prankAt(2), 1.3) * 100), gpkAt = g.ph === 2 ? gBsodN : gHangN;
+      var gNoise = Math.round(Math.pow(1 - gp, 1.3) * 100);
       var gEl = g.t1 ? Math.max(0, Date.now() - g.t1) : 0, gLeft = Math.max(0, Math.ceil(((g.st === 'boot' ? GP.boot || 9 : GP.results || 10) * 1000 - gEl) / 1000));
-      $('gH').textContent = !gon ? 'Not started' : g.st === 'ready' ? 'On the screen · waiting for Start' + (g.pk ? ' · prank on' : '')
-        : g.st === 'run' ? 'Rendering · ' + Math.floor(gp * 100) + '%' + (g.pk ? (g.ph === 2 ? ' · blue screen at ' : ' · the error at ') + gpkAt + '%' : '')
+      $('gH').textContent = !gon ? 'Not started' : g.st === 'ready' ? 'On the screen · waiting for Start'
+        : g.st === 'run' ? 'Rendering · noise ' + gNoise + '%'
         : g.st === 'hang' ? 'Frozen · “Insufficient Memory”' : g.st === 'boot' ? 'Restarting… ' + gLeft + ' s' : g.st === 'bsod' ? 'Blue screen · results in ' + gLeft + ' s'
         : 'Rendered · TAS3D 2026 is open';
       document.querySelector('#gRender .gcard').classList.toggle('pk', /^(hang|boot|bsod)$/.test(g.st));
@@ -923,9 +909,10 @@ h2.sec{margin-top:30px;font-size:22px}
         : (screenOk ? '' : 'The screen is off. ')
           + (g.st === 'ready' ? 'Waiting for Start · ' + S.total + ' checked in'
             : g.st === 'hang' ? 'The hall sees the error and the phones say “Not responding”. Do your restart, then press Fake reset: the render starts again from zero.'
-            : g.st === 'boot' ? 'The screen plays a restart, then counts down 3, 2, 1 and the hall renders again. This time the blue screen comes at ' + gpkAt + '%.'
+            : g.st === 'boot' ? 'The screen plays a restart, then counts down 3, 2, 1 and the hall renders again. This time the blue screen comes when ' + gBsodN + '% of the noise is left.'
             : g.st === 'bsod' ? 'The phones turned blue too. The results come up by themselves.'
-            : (gs ? gs.total + ' of ' + gt + ' samples · ' + gs.np + (gs.np === 1 ? ' person' : ' people') + (gs.ms ? ' · ' + Math.round(gs.ms / 1000) + ' s' : '') : 'Waiting for the screen…'));
+            : (gs ? gs.total + ' of ' + gt + ' samples · ' + gs.np + (gs.np === 1 ? ' person' : ' people') + (gs.ms ? ' · ' + Math.round(gs.ms / 1000) + ' s' : '') : 'Waiting for the screen…')
+              + (g.st === 'run' && g.pk ? (g.ph === 2 ? ' · next: the blue screen at noise ' : ' · next: “Insufficient Memory” at noise ') + gpkAt + '%' : ''));
       var groles = $('gRoles'), rs = gs && gs.roles || {}, rall = 0, rmax = 0;
       for (var rk in rs) { rall += rs[rk]; rmax = Math.max(rmax, rs[rk]); }
       if (!groles.childNodes.length) C.roles.forEach(function (r) { var d = document.createElement('div'); d.setAttribute('data-r', r[0]); d.innerHTML = '<span></span><span></span><i><b></b></i>'; d.querySelector('span').textContent = r[1]; groles.appendChild(d); });
@@ -946,19 +933,18 @@ h2.sec{margin-top:30px;font-size:22px}
       $('tG').classList.toggle('hot', /^(run|hang|boot|bsod)$/.test(g.st));
       $('gLen').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-k') === gLen ? 'true' : 'false'); });
       $('gLenH').textContent = C.game.per[gLen] + ' taps per guest';
-      $('gPrank').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', (b.getAttribute('data-k') === 'on') === gPk ? 'true' : 'false'); });
-      $('gPrankH').textContent = gPk ? 'At ' + Math.round((GP.hang || 0.5) * 100) + '% the screen freezes with “Insufficient Memory” and you press Fake reset. The second render crashes at '
-        + Math.round((GP.bsod || 0.99) * 100) + '% with a blue screen; the results come ' + (GP.results || 10) + ' s later.' + (gon && !/^(ready|run)$/.test(g.st) && !g.pk ? ' Counts for the next game.' : '')
-        : 'The render goes to 100% without tricks.' + (gon && !/^(ready|run)$/.test(g.st) && g.pk ? ' Counts for the next game.' : '');
-      // the prank is done by the screen page: an older screen does not know it, and nothing happens at 50%
+      $('gPrankH').textContent = hub.prankOn() ? 'When the screen shows NOISE ' + gHangN + '%, the render freezes with “Insufficient Memory”: do your restart and press Fake reset. '
+        + 'The second render starts from zero and crashes with a blue screen at NOISE ' + gBsodN + '%. The results come ' + (GP.results || 10) + ' s later.'
+        : 'The hall renders the picture to the end; the results come at NOISE 0%.';
+      // the error and the blue screen are done by the screen page: a screen on another version may not do them
       var gScrOn = S.screenSeen && Date.now() - S.screenSeen < 20000, gScrOld = gScrOn && window.TAS3D_BUILD && S.screenBuild && S.screenBuild !== window.TAS3D_BUILD;
       var gCanUpd = !!(dc && dc.state.sa && dc.state.sa.v);
       // how the screen draws the game picture (it says so with "the screen is on"): none at all is worth a warning
       var gGp = dc && dc.state.sa && Date.now() - dc.state.saAt < 20000 ? String(dc.state.sa.gp || '') : '';
       $('gPic').hidden = !(gon && /^no picture/.test(gGp));
-      $('gOld').hidden = !(gScrOld && (gPk || g.pk) && g.st !== 'done');
+      $('gOld').hidden = !(gScrOld && hub.prankOn() && g.st !== 'done');
       $('gUpd').hidden = !gCanUpd;
-      $('gOldT').textContent = 'The screen runs an older version (' + S.screenBuild + '): it does not know the prank, so nothing would happen at 50%. '
+      $('gOldT').textContent = 'The screen runs another version (' + S.screenBuild + ') than this panel: the error and the blue screen may not come. '
         + (gCanUpd ? 'Update the screen first (then click once on the screen computer for sound).' : 'Reload the screen page on the screen computer: ⌘R on a Mac, Ctrl+R on Windows.');
 
       renderSound();

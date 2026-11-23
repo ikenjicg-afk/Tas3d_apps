@@ -358,7 +358,7 @@
       }
       var was = S.game;
       S.game = { id: /^[a-z0-9]{1,30}$/.test(d.id || '') ? d.id : '', st: /^(off|ready|run|hang|boot|bsod|done)$/.test(d.st) ? d.st : 'off', target: Math.max(0, +d.target || 0), per: +d.per || 0,
-        pk: d.pk ? 1 : 0, ph: +d.ph === 2 ? 2 : 1, t1: +d.t1 || 0, at: at, w: w };
+        pk: d.pk === 0 ? 0 : 1, ph: +d.ph === 2 ? 2 : 1, t1: +d.t1 || 0, at: at, w: w };   // the prank is part of the game: off only when the host says so
       if (S.game.id !== was.id) S.gs = null;
       if (opt.screen) gameScreen(was);
       changed();
@@ -401,10 +401,10 @@
       var roles = {}, players = {}, total = 0, np = 0;
       for (var d in G.ph) { var p = G.ph[d]; roles[p.r] = (roles[p.r] || 0) + p.n; players[p.r] = (players[p.r] || 0) + 1; total += p.n; np++; }
       S.gs = { id: G.id, total: total, target: S.game.target, roles: roles, players: players, np: np, ms: G.ms, st: S.game.st, top: gameTop(), t: Date.now() };
-      var g = S.game, P = C.game.prank || {};
+      var g = S.game;
       if (g.st === 'run' && g.target) {
-        if (g.pk && g.ph !== 2 && total >= g.target * (P.hang || 0.5)) api.setGame({ st: 'hang', t1: Date.now() });        // prank 1: "Insufficient memory"
-        else if (g.pk && g.ph === 2 && total >= g.target * (P.bsod || 0.99)) api.setGame({ st: 'bsod', t1: Date.now() });  // prank 2: the blue screen
+        if (g.pk && g.ph !== 2 && total >= g.target * api.prankAt(1)) api.setGame({ st: 'hang', t1: Date.now() });        // prank 1: "Insufficient Memory" at NOISE 50%
+        else if (g.pk && g.ph === 2 && total >= g.target * api.prankAt(2)) api.setGame({ st: 'bsod', t1: Date.now() });  // prank 2: the blue screen at NOISE 1%
         else if (total >= g.target) api.setGame({ st: 'done' });   // rendered!
       }
       schedGS();
@@ -619,8 +619,15 @@
         pub(B + '/game', JSON.stringify(n), { qos: 1, retain: true });
         onGame(JSON.stringify(n));
       },
-      // pk: the prank is on (see config.js → game.prank)
-      newGame: function (per, pk) { api.setGame({ id: 'g' + rid(), st: 'ready', target: 0, per: per, pk: pk ? 1 : 0, ph: 1, t1: 0 }); api.setCfg({ scene: 'game' }); },
+      // the prank is part of every game (config.js → game.prank; on: false there takes it out)
+      prankOn: function () { var P = C.game.prank; return !!P && P.on !== false; },
+      // how much of the target is rendered when the prank's step n comes (1: the error, 2: the blue screen). The config says
+      // it as the noise left on the screen's meter, and the meter shows noise = (1 − rendered)^1.3 (screen/index.html, hi/index.html)
+      prankAt: function (n) {
+        var P = C.game.prank || {}, noise = n === 2 ? (P.bsod > 0 && P.bsod < 1 ? P.bsod : 0.01) : (P.hang > 0 && P.hang < 1 ? P.hang : 0.5);
+        return 1 - Math.pow(noise, 1 / 1.3);
+      },
+      newGame: function (per) { api.setGame({ id: 'g' + rid(), st: 'ready', target: 0, per: per, pk: api.prankOn() ? 1 : 0, ph: 1, t1: 0 }); api.setCfg({ scene: 'game' }); },
       startGame: function () {
         var per = S.game.per || C.game.per.normal;
         api.setGame({ st: 'run', target: Math.max(C.game.min, Math.round(S.total * per)) });

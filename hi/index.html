@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '5a8a240097';</script>
+<script>window.TAS3D_BUILD = '60c6bde270';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAS3D 2026</title>
 <meta name="robots" content="noindex">
@@ -283,7 +283,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
   <button type="button" role="tab" id="tab-react" aria-controls="pane-react" aria-selected="true">Reactions</button>
   <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false">Questions<em id="qbadge" hidden></em></button>
 </nav>
-<script src="../assets/config.js?v=78403595"></script>
+<script src="../assets/config.js?v=875f2cd5"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script>
 (function () {
@@ -952,7 +952,9 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     $('gsheet').classList.toggle('bsod', gst === 'bsod');
     if (!on) return;
     var target = (gs && gs.target) || game.target || 0, total = gs ? gs.total : 0;
-    var p = gst === 'done' ? 1 : gst === 'boot' ? 0 : target ? Math.min(1, total / target) : 0;
+    // the prank's error comes when the screen's meter says NOISE 50%: the phone shows the same number while it "hangs"
+    var PK = C.game.prank || {}, pHang = 1 - Math.pow(PK.hang > 0 && PK.hang < 1 ? PK.hang : 0.5, 1 / 1.3);
+    var p = gst === 'done' ? 1 : gst === 'boot' ? 0 : gst === 'hang' ? pHang : target ? Math.min(1, total / target) : 0;
     $('gBar').style.width = (p * 100) + '%';
     $('gPct').textContent = Math.floor(p * 100) + '% rendered';
     $('gNoise').textContent = 'Noise ' + Math.round(Math.pow(1 - p, 1.3) * 100) + '%';
