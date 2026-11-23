@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '510921a4e5';</script>
+<script>window.TAS3D_BUILD = 'b627617366';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAS3D 2026</title>
 <meta name="robots" content="noindex">
@@ -173,6 +173,15 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
 .gbtn.done{background:var(--fg);color:#0e0e0e}
 .gteam{margin-top:20px;font-size:17px;line-height:1.35;text-align:center}
 .gteam b{color:var(--orange)}
+.gteam .you{display:block;margin-top:8px}
+/* the prank: the render "hangs" and "restarts" on the phones too, and the blue screen comes up here as well */
+.gbtn.hang{background:#2a2a29;color:#b9b9b5;animation:none}
+.gbtn.hang span{font-size:clamp(22px,7.4vw,32px);letter-spacing:.01em;text-transform:none;font-weight:400}
+.gsheet.bsod{background:#0078d7;color:#fff}
+.gsheet.bsod .kick,.gsheet.bsod .gmeter,.gsheet.bsod .gbtn,.gsheet.bsod .gteam{display:none}
+.gsheet.bsod h2{margin-top:6vh;font-size:clamp(96px,32vw,150px);font-weight:400;line-height:1}
+.gsheet.bsod .note{margin-top:28px;color:#fff;font-size:20px;line-height:1.45}
+.gsheet.bsod .close{color:#fff;border-color:rgba(255,255,255,.6)}
 .gamebar{border-color:var(--orange)}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -274,7 +283,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
   <button type="button" role="tab" id="tab-react" aria-controls="pane-react" aria-selected="true">Reactions</button>
   <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false">Questions<em id="qbadge" hidden></em></button>
 </nav>
-<script src="../assets/config.js?v=f0ae7480"></script>
+<script src="../assets/config.js?v=78403595"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script>
 (function () {
@@ -876,7 +885,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
   // a new version of the site: reload when nothing is going on (the phone keeps its answers)
   if (window.TasUpdate) TasUpdate(function (b) {
     var a = document.activeElement;
-    if (busy || vbusy || qbusy || (st.role && !st.sent) || sheetOpen || gameOpen || game.st === 'run' || (a && /INPUT|TEXTAREA/.test(a.tagName))) return;
+    if (busy || vbusy || qbusy || (st.role && !st.sent) || sheetOpen || gameOpen || /^(run|hang|boot|bsod)$/.test(game.st) || (a && /INPUT|TEXTAREA/.test(a.tagName))) return;
     TasUpdate.reload(b);
   });
 
@@ -891,14 +900,14 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     var at = +d.at || 0, w = String(d.w || '');
     if (at < game.at || (at === game.at && w < game.w)) return;
     var was = game;
-    game = { id: String(d.id || ''), st: /^(off|ready|run|done)$/.test(d.st) ? d.st : 'off', at: at, w: w, target: +d.target || 0 };
+    game = { id: String(d.id || ''), st: /^(off|ready|run|hang|boot|bsod|done)$/.test(d.st) ? d.st : 'off', at: at, w: w, target: +d.target || 0 };
     if (game.id !== was.id) gs = null;
     if (!st.gm || st.gm.id !== game.id) { st.gm = { id: game.id, n: 0 }; gSentN = -1; save(); }
     // 3, 2, 1 — when the start comes live (not when the phone opens during the game)
     if (game.st === 'run' && was.st !== 'run' && !kept && was.id === game.id) { cdEnd = Date.now() + 3000; tick(); }
     gamePop();
     if (game.st === 'off') gameOpen = false;
-    if (game.st === 'done') gameFlush(true);
+    if (game.st === 'done' || game.st === 'bsod') gameFlush(true);   // the last taps before the blue screen still count
     render();
   }
   // the game sheet comes up by itself once for "ready" and once for "run" (a guest can close it)
@@ -935,25 +944,30 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
   }
   function renderGame() {
     if (!game) return;                                 // before the game part of this script has run
-    var on = game.st !== 'off' && !!game.id && view === 'remote';
+    var on = game.st !== 'off' && !!game.id && view === 'remote', gst = game.st;
     $('gsheet').hidden = !(on && gameOpen);
     $('gamebar').hidden = !(on && !gameOpen);
-    $('gamebarT').textContent = game.st === 'done' ? 'Rendered — see the result' : game.st === 'run' ? 'Rendering now — tap!' : 'Render TAS3D with the whole hall';
+    $('gamebarT').textContent = gst === 'done' ? 'Rendered — see the result' : gst === 'run' ? 'Rendering now — tap!' : gst === 'hang' ? 'The render is not responding'
+      : gst === 'boot' ? 'Restarting…' : gst === 'bsod' ? 'The render crashed' : 'Render TAS3D with the whole hall';
+    $('gsheet').classList.toggle('bsod', gst === 'bsod');
     if (!on) return;
     var target = (gs && gs.target) || game.target || 0, total = gs ? gs.total : 0;
-    var p = game.st === 'done' ? 1 : target ? Math.min(1, total / target) : 0;
+    var p = gst === 'done' ? 1 : gst === 'boot' ? 0 : target ? Math.min(1, total / target) : 0;
     $('gBar').style.width = (p * 100) + '%';
     $('gPct').textContent = Math.floor(p * 100) + '% rendered';
     $('gNoise').textContent = 'Noise ' + Math.round(Math.pow(1 - p, 1.3) * 100) + '%';
     var b = $('gBtn'), cd = Date.now() < cdEnd ? Math.ceil((cdEnd - Date.now()) / 1000) : 0, my = gMy();
-    b.classList.toggle('cd', !!cd); b.classList.toggle('done', game.st === 'done');
-    b.disabled = game.st !== 'run' || !!cd;
-    $('gBtnT').textContent = game.st === 'ready' ? 'Get ready' : cd ? String(cd) : game.st === 'run' ? 'Render' : 'Rendered';
-    $('gMine').textContent = my ? my + (my === 1 ? ' sample' : ' samples') : game.st === 'run' && !cd ? 'tap, tap, tap!' : '';
-    $('gK').textContent = game.st === 'done' ? 'Rendered by the whole hall' : 'The opening game';
-    $('gH').textContent = game.st === 'done' ? 'TAS3D 2026 is open' : 'Render TAS3D 2026';
-    $('gSub').textContent = game.st === 'ready' ? 'The host starts the render in a moment. Then tap the button as fast as you can — every tap is a render sample.'
-      : game.st === 'run' ? 'Tap as fast as you can — the noise on the big screen goes away as the whole hall renders.'
+    b.classList.toggle('cd', !!cd); b.classList.toggle('done', gst === 'done'); b.classList.toggle('hang', gst === 'hang' || gst === 'boot');
+    b.disabled = gst !== 'run' || !!cd;
+    $('gBtnT').textContent = gst === 'ready' ? 'Get ready' : cd ? String(cd) : gst === 'run' ? 'Render' : gst === 'hang' ? 'Not responding' : gst === 'boot' ? 'Restarting…' : 'Rendered';
+    $('gMine').textContent = my ? my + (my === 1 ? ' sample' : ' samples') : gst === 'run' && !cd ? 'tap, tap, tap!' : '';
+    $('gK').textContent = gst === 'done' ? 'Rendered by the whole hall' : 'The opening game';
+    $('gH').textContent = gst === 'done' ? 'TAS3D 2026 is open' : gst === 'bsod' ? ':(' : 'Render TAS3D 2026';
+    $('gSub').textContent = gst === 'ready' ? 'The host starts the render in a moment. Then tap the button as fast as you can — every tap is a render sample.'
+      : gst === 'run' ? 'Tap as fast as you can — the noise on the big screen goes away as the whole hall renders.'
+      : gst === 'hang' ? 'The render has stopped responding.'
+      : gst === 'boot' ? 'The render is restarting. Get ready to tap again — it starts from zero.'
+      : gst === 'bsod' ? 'The render ran into a problem and needs to restart.'
       : 'Thank you! The picture is rendered.';
     // your team (your check-in role) and how much it rendered
     var team = '';
@@ -962,6 +976,11 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
       for (var r in gs.roles) { all += gs.roles[r]; if (gs.roles[r] > mine) rank++; }
       var pc = mine / all * 100;
       if (all) team = 'Your team: <b>' + name(st.role) + '</b> · ' + (pc > 0 && pc < 1 ? '<1' : Math.round(pc)) + '% of all samples' + (game.st === 'done' ? ' · place ' + rank : '');
+    }
+    // the end: your own place in the hall (the screen sends every phone's total once)
+    if (gst === 'done' && gs && gs.pl && gs.pl.length && my) {
+      var place = 1; for (var pi = 0; pi < gs.pl.length && gs.pl[pi] > my; pi++) place++;
+      team += '<span class="you">' + (place === 1 ? 'You tapped <b>more than anyone</b> in the hall!' : 'You: <b>place ' + place + '</b> of ' + gs.pl.length) + '</span>';
     }
     $('gTeam').innerHTML = team;
   }

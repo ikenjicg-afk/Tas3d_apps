@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '510921a4e5';</script>
+<script>window.TAS3D_BUILD = 'b627617366';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -255,6 +255,60 @@ html.sc-game .cols,html.sc-game .stage{display:none}
 .game .gqr{position:absolute;left:3.6rem;top:3.4rem;display:flex;gap:1.4rem;align-items:center;padding:1rem;background:#fff;color:#0e0e0e}
 .game .gqr img{width:11rem;height:auto;display:block}
 .game .gqr p{font-size:1.4rem;font-weight:700;line-height:1.2;max-width:12rem}
+/* the results: the 3 phones that tapped most, and every group's samples under its bar */
+.game .gtop{margin-top:1.6rem;display:flex;flex-wrap:wrap;align-items:baseline;gap:.6rem 2.6rem;font-size:1.7rem}
+.game .gtop .l{font-size:1.2rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--orange)}
+.game .gtop p{display:flex;align-items:baseline;gap:.7rem;white-space:nowrap}
+.game .gtop b{display:inline-flex;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:50%;background:#f1f1ee;color:#0e0e0e;font-size:1.25rem}
+.game .gtop p:first-of-type b{background:var(--orange);color:#fff}
+.game .gtop em{font-style:normal;color:#bdbdb8;font-variant-numeric:tabular-nums}
+.game .groles small{display:block;margin-top:.45rem;font-size:1.05rem;color:#9a9a96;font-variant-numeric:tabular-nums;white-space:nowrap}
+.game.fin .hud .gtop{animation:gup .8s 1.25s cubic-bezier(.2,.8,.2,1) both}
+
+/* the prank (host: Game → Render → Prank on): the render stands still with "Insufficient Memory" at 50%; the host's
+   Fake reset plays a restart; the second render crashes at 99% with a blue screen. Windows-like on purpose. */
+.game .pk{position:absolute;inset:0;z-index:4;font-family:"Segoe UI","Segoe UI Variable Text",Selawik,"Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:0}
+.pkveil{position:absolute;inset:0;background:#fff;opacity:0;transition:opacity 2.4s 1.4s}   /* "Not Responding": the window goes pale */
+.pkhang.on .pkveil{opacity:.4}
+.pkdlg{position:absolute;left:50%;top:46%;width:60rem;transform:translate(-50%,-50%);background:#fff;color:#000;border:1px solid #888;
+  box-shadow:0 .6rem 3.4rem rgba(0,0,0,.5),0 0 .3rem rgba(0,0,0,.25);visibility:hidden}
+.pkhang.on .pkdlg{visibility:visible}
+.pkdlg .tb{display:flex;align-items:center;height:3.6rem;padding-left:1.1rem;font-size:1.6rem}
+.pkdlg .tb .ic{flex:none;width:1.7rem;height:1.7rem;margin-right:.9rem}
+.pkdlg .tb b{flex:1;font-weight:400}
+.pkdlg .tb .x{flex:none;display:flex;align-items:center;justify-content:center;width:5rem;height:100%}
+.pkdlg .tb .x svg{width:1.25rem;height:1.25rem}
+.pkdlg .bd{display:flex;align-items:center;gap:2.2rem;padding:2.8rem 3rem 3.6rem}
+.pkdlg .bd .er{flex:none;width:5rem;height:5rem}
+.pkdlg .bd p{font-size:1.9rem;line-height:1.35}
+.pkdlg .ft{display:flex;justify-content:flex-end;padding:1.5rem 2.1rem;background:#f0f0f0;border-top:1px solid #dcdcdc}
+.pkdlg .ft span{min-width:12.5rem;padding:.6rem 2rem;background:#e1e1e1;border:.15rem solid #0078d7;font-size:1.65rem;text-align:center}
+.pkboot{background:#000;color:#fff}
+.pkboot .lg{position:absolute;left:50%;top:37%;width:27rem;aspect-ratio:1600/363;transform:translate(-50%,-50%);background:#fff;
+  -webkit-mask:url(../assets/logo-tas3d-big.png?v=e9db4ae2) center/contain no-repeat;mask:url(../assets/logo-tas3d-big.png?v=e9db4ae2) center/contain no-repeat}
+.pkboot .spin{position:absolute;left:50%;top:76%;width:4.6rem;height:4.6rem;margin:-2.3rem 0 0 -2.3rem}
+.pkboot .spin i{position:absolute;inset:0;opacity:0;animation:pkorb 5.4s infinite}
+.pkboot .spin i::before{content:'';position:absolute;left:50%;top:0;width:.52rem;height:.52rem;margin-left:-.26rem;border-radius:50%;background:#fff}
+.pkboot .spin i:nth-child(2){animation-delay:.24s}.pkboot .spin i:nth-child(3){animation-delay:.48s}.pkboot .spin i:nth-child(4){animation-delay:.72s}.pkboot .spin i:nth-child(5){animation-delay:.96s}
+.pkboot p{position:absolute;left:0;right:0;top:83%;text-align:center;font-size:1.85rem;font-variant-numeric:tabular-nums}
+.pkboot.s0 .lg,.pkboot.s0 .spin,.pkboot.s0 p{visibility:hidden}   /* the black moments before and after */
+@keyframes pkorb{0%{transform:rotate(225deg);opacity:1;animation-timing-function:ease-out}7%{transform:rotate(345deg);animation-timing-function:linear}
+  30%{transform:rotate(455deg);animation-timing-function:ease-in-out}39%{transform:rotate(690deg);animation-timing-function:linear}
+  70%{transform:rotate(815deg);opacity:1;animation-timing-function:ease-out}75%{transform:rotate(945deg);animation-timing-function:ease-out}
+  76%{transform:rotate(945deg);opacity:0}100%{transform:rotate(945deg);opacity:0}}
+.pkbsod{background:#000;color:#fff;font-weight:300}
+.pkbsod.on{background:#0078d7}
+.pkbsod .in{position:absolute;left:10.8%;top:15.5%;width:52rem;visibility:hidden}
+.pkbsod.on .in{visibility:visible}
+.pkbsod .fc{font-size:12rem;line-height:1;margin-left:-.3rem}
+.pkbsod .t1{margin-top:2.4rem;font-size:2.12rem;line-height:1.47}
+.pkbsod .t2{margin-top:2.3rem;font-size:2.12rem;font-variant-numeric:tabular-nums}
+.pkbsod .low{margin-top:2.9rem;display:flex;align-items:flex-start;gap:1.05rem}
+.pkbsod .qr{flex:none;width:6rem;height:6rem;background:#0078d7;isolation:isolate}
+.pkbsod .qr img{display:block;width:100%;height:100%;mix-blend-mode:lighten}    /* black modules → blue, white stays white */
+.pkbsod .s1{font-size:1.1rem;line-height:1.4}
+.pkbsod .s2{margin-top:1.6rem;font-size:.85rem}
+.pkbsod .s2+.s2{margin-top:.8rem}
 
 /* settings: bottom right, for the person at this computer (sizes in px: readable on any screen) */
 .gear{position:fixed;right:24px;bottom:24px;z-index:8;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#1b1b1b;color:var(--mute);border:0;font:inherit;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:opacity .4s}
@@ -363,10 +417,49 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     <p class="gk" id="gK">The opening game</p>
     <h2 class="gt" id="gT">Let’s render TAS3D 2026</h2>
     <p class="gs" id="gS"></p>
+    <div class="gtop" id="gTop" hidden></div>
     <div class="groles" id="gRoles"></div>
   </div>
   <div class="meter"><span class="l">NOISE</span><span class="v" id="gV">100%</span><i><b id="gM"></b></i><span class="sp" id="gSp"></span></div>
   <div class="cd" id="gCd" hidden></div>
+  <!-- the prank: the error window (1st render), the fake restart, the blue screen (2nd render) -->
+  <div class="pk pkhang" id="pkHang" hidden>
+    <div class="pkveil"></div>
+    <div class="pkdlg" role="alertdialog" aria-label="Insufficient Memory">
+      <div class="tb">
+        <svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><rect x=".5" y="1.5" width="15" height="13" fill="#fff" stroke="#404040"/><rect x="1" y="2" width="14" height="3" fill="#404040"/><rect x="3" y="7" width="4" height="5" fill="#2a8c8c"/><rect x="9" y="7" width="4" height="2" fill="#9a9a9a"/></svg>
+        <b>Insufficient Memory</b>
+        <span class="x"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M.5.5l9 9M9.5.5l-9 9" stroke="#000" stroke-width=".9" fill="none"/></svg></span>
+      </div>
+      <div class="bd">
+        <svg class="er" viewBox="0 0 48 48" aria-hidden="true"><defs><radialGradient id="pkRed" cx="38%" cy="32%" r="72%"><stop offset="0" stop-color="#ff8a7a"/><stop offset=".5" stop-color="#e3261b"/><stop offset="1" stop-color="#a40f0f"/></radialGradient></defs>
+          <circle cx="24" cy="24.6" r="23" fill="#000" opacity=".18"/><circle cx="24" cy="24" r="22.6" fill="#fff" stroke="#b9b9b9" stroke-width=".8"/><circle cx="24" cy="24" r="19.4" fill="url(#pkRed)" stroke="#8e0c0c" stroke-width=".8"/>
+          <path d="M16.6 16.6l14.8 14.8M31.4 16.6L16.6 31.4" stroke="#fff" stroke-width="4.4" stroke-linecap="round"/></svg>
+        <p>You don’t have enough system and video memory to finish the render.</p>
+      </div>
+      <div class="ft"><span>OK</span></div>
+    </div>
+  </div>
+  <div class="pk pkboot s0" id="pkBoot" hidden>
+    <i class="lg"></i>
+    <div class="spin" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <p id="pkBootT">Resetting this PC 0%</p>
+  </div>
+  <div class="pk pkbsod" id="pkBsod" hidden>
+    <div class="in">
+      <p class="fc">:(</p>
+      <p class="t1">Your PC ran into a problem and needs to restart. We're just collecting some error info, and then we'll restart for you.</p>
+      <p class="t2" id="pkPct">0% complete</p>
+      <div class="low">
+        <span class="qr"><img src="../assets/qr.svg?v=e3099c7f" alt=""></span>
+        <div>
+          <p class="s1">For more information about this issue and possible fixes, visit https://www.windows.com/stopcode</p>
+          <p class="s2">If you call a support person, give them this info:</p>
+          <p class="s2">Stop code: VIDEO_MEMORY_MANAGEMENT_INTERNAL</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 <section class="quiz" id="vQuiz" hidden aria-label="Quiz: render or photo">
   <img id="qzImg" alt="" decoding="async" hidden>
@@ -505,11 +598,11 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   document.addEventListener('visibilitychange', function () { if (document.hidden) Object.keys(frames).forEach(function (id) { if (!frames[id].t) byTimer(id); }); });
 })();
 </script>
-<script src="../assets/config.js?v=f0ae7480"></script>
+<script src="../assets/config.js?v=78403595"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
-<script src="../assets/hub.js?v=0779ac73"></script>
+<script src="../assets/hub.js?v=3877071e"></script>
 <script src="../assets/deck.js?v=05fab4c1"></script>
-<script src="../assets/slides.js?v=3ada5fd4"></script>
+<script src="../assets/slides.js?v=f60f714b"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -902,23 +995,25 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   function mmss(ms) { var s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
   var gRow = {};
   C.roles.forEach(function (r) {
-    var d = document.createElement('div'); d.innerHTML = '<p><span></span><span>0%</span></p><i><b></b></i>';
+    var d = document.createElement('div'); d.innerHTML = '<p><span></span><span>0%</span></p><i><b></b></i><small></small>';
     d.querySelector('span').textContent = r[1]; $('gRoles').appendChild(d); gRow[r[0]] = d;
   });
   $('gImg').src = "../assets/game-final.jpg?v=de969ab4";
+  var gFroze = false;
   function gameView(S, on) {
-    var box = $('vGame');
+    var box = $('vGame'), prevSt = gLastSt, prevId = gLastId;
     box.hidden = !on; gOn = on;
     gGame = S.game || { st: 'off' }; gS = S.gs && S.game && S.gs.id === S.game.id ? S.gs : null;
+    prank(S, on, prevSt, prevId);
     if (!on) { if (GR) GR.stop(); return; }
     if (!GR) { if (PREVIEW) { $('gC').width = 480; $('gC').height = 270; } GR = BucketRender($('gC'), "../assets/game-720.jpg?v=96227fa3", PREVIEW ? 8 : 30); }
-    // 3, 2, 1 when the host presses Start (not when this page opens in the middle of the game)
-    if (gGame.id !== gLastId) { gShown = 0; gHist = []; GR.game(gGame.id); box.classList.remove('fin'); }
-    if (gGame.st === 'run' && gLastSt === 'ready' && gGame.id === gLastId) gCdEnd = Date.now() + 3000;
-    // the finale with motion only when the hall finishes it now (not when the page opens later)
-    if (gGame.st === 'done' && gLastSt === 'run' && gGame.id === gLastId) { box.classList.remove('fin'); void box.offsetWidth; box.classList.add('fin'); }
+    // 3, 2, 1 when the host presses Start, or after the prank's restart (not when this page opens in the middle of the game)
+    if (gGame.id !== gLastId) { gShown = 0; gHist = []; GR.game(gGame.id); box.classList.remove('fin'); gFroze = false; }
+    if (gGame.st === 'run' && (gLastSt === 'ready' || gLastSt === 'boot') && gGame.id === gLastId) gCdEnd = Date.now() + 3000;
+    // the finale with motion only when the hall finishes it now (not when the page opens later); after the blue screen too
+    if (gGame.st === 'done' && (gLastSt === 'run' || gLastSt === 'bsod') && gGame.id === gLastId) { box.classList.remove('fin'); void box.offsetWidth; box.classList.add('fin'); }
     if (gGame.st !== 'done') box.classList.remove('fin');
-    box.classList.toggle('run', gGame.st === 'run');
+    box.classList.toggle('run', /^(run|hang|boot|bsod)$/.test(gGame.st));
     gLastSt = gGame.st; gLastId = gGame.id;
     $('gQr').hidden = !(qrOn && gGame.st === 'ready');
     if (gGame.st === 'done') {                         // the last buckets come in, then the sharp picture
@@ -931,8 +1026,120 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     }
     gDoneId = '';
     box.classList.remove('done');
+    // the prank: the render stands still where it was (a page opened only now shows where the hall got to)
+    if (gGame.st === 'hang' || gGame.st === 'bsod') {
+      if (!gFroze) {
+        gFroze = true;
+        var tg = (gS && gS.target) || gGame.target || 0;
+        if (!(prevSt === 'run' && prevId === gGame.id)) gShown = gS ? gS.total : 0;
+        var fp = tg ? Math.min(1, gShown / tg) : 0;
+        GR.set(fp, Math.pow(1 - fp, 1.3), true); GR.stop();
+      }
+      gameText(true); return;
+    }
+    gFroze = false;
+    if (gGame.st === 'boot') { GR.stop(); gameText(true); return; }   // the restart covers the whole screen
     GR.start(gameFrame);
     gameText(true);
+  }
+
+  // ---- the prank's sounds: made in the browser, Windows-like. Own files instead: the folder "Sound/Game" on this computer
+  // (a name with "error", "crash", "start" in it — see slides.js gameSound). Sound needs one click or key on this page first.
+  var FX = (function () {
+    var ctx = null, out = null;
+    function ac() {
+      if (PREVIEW) return null;
+      try {
+        if (!ctx) { var A = window.AudioContext || window.webkitAudioContext; if (!A) return null; ctx = new A(); out = ctx.createGain(); out.gain.value = 0.9; out.connect(ctx.destination); }
+        if (ctx.state === 'suspended') ctx.resume().catch(function () {});
+      } catch (e) { return null; }
+      return ctx;
+    }
+    ['pointerdown', 'keydown', 'touchend'].forEach(function (ev) {
+      document.addEventListener(ev, function () {
+        try { if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return; } catch (e) {}
+        ac();
+        if (!$('sndWarn').hidden && hub) setTimeout(function () { render(hub.state, hub.up()); }, 0);
+      }, true);
+    });
+    function bell(f, t, dur, vol) {                    // a short bell: the tone and a quieter, higher partial that fades sooner
+      [[f, vol, dur], [f * 2.76, vol * 0.22, dur * 0.35]].forEach(function (x) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = x[0];
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(x[1], t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + x[2]);
+        o.connect(g); g.connect(out); o.start(t); o.stop(t + x[2] + 0.05);
+      });
+    }
+    var synth = {
+      // an error window: two bell chords, the second one lower
+      error: function () { var t = ctx.currentTime + 0.02; bell(880, t, 0.9, 0.22); bell(1318.5, t, 0.8, 0.12); bell(659.3, t + 0.14, 1.3, 0.24); bell(987.8, t + 0.14, 1.1, 0.12); },
+      // a computer that crashes: the last bit of sound repeats as a buzz until it cuts off
+      crash: function () {
+        var sr = ctx.sampleRate, n = Math.round(sr * 0.046), b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0);
+        for (var i = 0; i < n; i++) { var t = i / sr; d[i] = 0.42 * Math.sin(2 * Math.PI * 110 * t) + 0.26 * ((t * 220) % 1 * 2 - 1) + 0.14 * (Math.sin(2 * Math.PI * 440 * t) > 0 ? 1 : -1) + (Math.random() * 2 - 1) * 0.22; }
+        var s = ctx.createBufferSource(), g = ctx.createGain(), t0 = ctx.currentTime + 0.01, len = 0.9;
+        s.buffer = b; s.loop = true; g.gain.setValueAtTime(0.34, t0); g.gain.setValueAtTime(0.34, t0 + len - 0.015); g.gain.linearRampToValueAtTime(0, t0 + len);
+        s.connect(g); g.connect(out); s.start(t0); s.stop(t0 + len + 0.05);
+      },
+      // back from the restart: a soft rising chime
+      start: function () {
+        var t = ctx.currentTime + 0.02;
+        [523.25, 659.25, 783.99, 987.77, 1046.5].forEach(function (f, i) {
+          var o = ctx.createOscillator(), g = ctx.createGain(), at = t + i * 0.11;
+          o.type = i % 2 ? 'triangle' : 'sine'; o.frequency.value = f;
+          g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.11, at + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, at + 2.2);
+          o.connect(g); g.connect(out); o.start(at); o.stop(at + 2.3);
+        });
+      }
+    };
+    return {
+      play: function (kind) {
+        if (PREVIEW) return;
+        if (slides && slides.gameSound && slides.gameSound(kind)) return;   // an own file for it
+        if (ac() && synth[kind]) { try { synth[kind](); } catch (e) {} }
+      }
+    };
+  })();
+  // ---- the prank on the screen: which step, since when (this page's clock), the sound when a step comes live
+  var pkKey = '', pkAt = 0, pkSt = '', pkT = null, pkErr = false;
+  function prank(S, on, prevSt, prevId) {
+    var g = S.game || {}, st = on && /^(hang|boot|bsod)$/.test(g.st) ? g.st : '', key = st ? g.id + ':' + st : '';
+    if (key !== pkKey) {
+      var live = st === 'boot' ? prevSt === 'hang' : !!st && prevSt === 'run' && prevId === g.id;
+      pkKey = key; pkSt = st; pkErr = false;
+      pkAt = !PREVIEW && S.gpt ? S.gpt : live ? Date.now() : (g.t1 && st === 'boot' ? g.t1 : Date.now() - 60000);
+      if (live && st === 'hang') pkErr = true;          // the error sound comes with the window, a moment after the picture stops
+      if (live && st === 'bsod') FX.play('crash');
+      $('pkHang').classList.remove('on'); $('pkBsod').classList.remove('on');
+    }
+    if (on && g.st === 'run' && prevSt === 'boot' && prevId === g.id) FX.play('start');   // back from the restart
+    // the music and the tracks wait while the computer "restarts" and while the blue screen is up
+    if (slides && slides.hush) slides.hush(st === 'boot' || st === 'bsod');
+    if (st && !pkT) pkT = setInterval(pkTick, 100);
+    if (!st && pkT) { clearInterval(pkT); pkT = null; }
+    pkTick();
+  }
+  function pkTick() {
+    var st = pkSt, e = Date.now() - pkAt, P = C.game.prank || {};
+    $('pkHang').hidden = st !== 'hang';
+    if (st === 'hang') {
+      $('pkHang').classList.toggle('on', e >= 550);
+      if (pkErr && e >= 550) { pkErr = false; FX.play('error'); }
+    }
+    $('pkBoot').hidden = st !== 'boot';
+    if (st === 'boot') {                               // black · the logo with "Resetting this PC n%" · "Restarting" · black
+      var B = (P.boot || 9) * 1000, ph = e < 700 ? 0 : e < B - 1700 ? 1 : e < B - 500 ? 2 : 0;
+      $('pkBoot').className = 'pk pkboot s' + ph;
+      if (ph === 1) { var f = Math.min(1, (e - 700) / (B - 2400)), ef = f < .5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2; $('pkBootT').textContent = 'Resetting this PC ' + Math.min(100, Math.floor(ef * 100)) + '%'; }
+      else if (ph === 2) $('pkBootT').textContent = 'Restarting';
+    }
+    $('pkBsod').hidden = !(st === 'bsod' && e >= 900);   // the picture stops with the buzz, a moment of black, then the blue screen
+    if (st === 'bsod') {
+      $('pkBsod').classList.toggle('on', e >= 1300);
+      var R = (P.results || 10) * 1000, k = Math.max(0, Math.min(1, (e - 1300) / Math.max(1, R - 2200))), steps = [[0, 0], [.12, 10], [.3, 20], [.48, 45], [.66, 61], [.84, 88], [1, 100]], v = 0;
+      for (var i = 0; i < steps.length; i++) if (k >= steps[i][0]) v = steps[i][1];
+      $('pkPct').textContent = v + '% complete';
+    }
   }
   function gameFrame() {                               // every frame: the numbers glide to the real ones, the noise follows
     var target = (gS && gS.target) || gGame.target || 0, total = gS ? gS.total : 0;
@@ -946,35 +1153,48 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   }
   function gameText(force) {
     gTxtAt = Date.now();
-    var st = gGame.st, target = (gS && gS.target) || gGame.target || 0, total = gS ? gS.total : 0;
-    var shown = st === 'done' ? total : gShown, p = st === 'done' ? 1 : st === 'run' && target ? Math.min(1, shown / target) : 0;
-    var noise = st === 'done' ? 0 : st === 'run' ? Math.pow(1 - p, 1.3) : 1;
+    var st = gGame.st, target = (gS && gS.target) || gGame.target || 0, total = gS ? gS.total : 0, going = st === 'run' || st === 'hang' || st === 'bsod';
+    var shown = st === 'done' ? total : gShown, p = st === 'done' ? 1 : going && target ? Math.min(1, shown / target) : 0;
+    var noise = st === 'done' ? 0 : going ? Math.pow(1 - p, 1.3) : 1;
     $('gV').textContent = Math.round(noise * 100) + '%';
     $('gM').style.height = (noise * 100) + '%';
     var cd = Date.now() < gCdEnd ? Math.ceil((gCdEnd - Date.now()) / 1000) : 0;
     $('gCd').hidden = !cd && !(gCdEnd && Date.now() < gCdEnd + 700);
     $('gCd').textContent = cd ? String(cd) : 'Render!';
     var sp = gHist.length > 1 ? (gHist[gHist.length - 1][1] - gHist[0][1]) / Math.max(1, (gHist[gHist.length - 1][0] - gHist[0][0]) / 1000) : 0;
-    $('gSp').textContent = st === 'run' ? fmtN(sp) + ' samples/s' : st === 'done' ? 'clean' : '';
+    $('gSp').textContent = st === 'run' ? fmtN(sp) + ' samples/s' : st === 'hang' || st === 'bsod' ? '0 samples/s' : st === 'done' ? 'clean' : '';
     var np = gS ? gS.np : 0;
     var nm = function (k) { for (var i = 0; i < C.roles.length; i++) if (C.roles[i][0] === k) return C.roles[i][1]; return k; };
     var many = function (k) { var w = nm(k); return /s$/.test(w) ? w : w + 's'; };
-    $('gK').textContent = st === 'ready' ? 'The opening game' : st === 'run' ? 'Rendering · ' + Math.floor(p * 100) + '%' : 'TAS3D 2026 is open';
+    $('gK').textContent = st === 'ready' ? 'The opening game' : going ? 'Rendering · ' + Math.floor(p * 100) + '%' : (gGame.pk && gGame.ph === 2 ? 'Just kidding · ' : '') + 'TAS3D 2026 is open';
+    // the results: the 3 phones that tapped most (no names: their check-in role)
+    var top = st === 'done' && gS && gS.top ? gS.top.filter(function (x) { return x && x[1] > 0; }) : [], tb = $('gTop');
+    tb.hidden = !top.length;
+    var topSig = JSON.stringify(top);
+    if (tb.getAttribute('data-s') !== topSig) {
+      tb.setAttribute('data-s', topSig); tb.innerHTML = '<span class="l">Fastest fingers</span>';
+      top.forEach(function (x, i) {
+        var p1 = document.createElement('p'); p1.innerHTML = '<b></b><span></span><em></em>';
+        p1.querySelector('b').textContent = String(i + 1); p1.querySelector('span').textContent = nm(x[0]); p1.querySelector('em').textContent = fmtN(x[1]) + ' samples';
+        tb.appendChild(p1);
+      });
+    }
     var roles = gS && gS.roles || {}, players = gS && gS.players || {}, all = 0, lead = '', best = 0, hard = '', hardV = 0;
     for (var r in roles) { all += roles[r]; if (roles[r] > best) { best = roles[r]; lead = r; } var pc = players[r] ? roles[r] / players[r] : 0; if (pc > hardV) { hardV = pc; hard = r; } }
     // the end: which group of people rendered most
-    $('gT').textContent = st === 'ready' ? 'Let’s render TAS3D 2026' : st === 'run' ? 'Tap RENDER on your phone' : lead ? many(lead) + ' win!' : 'Rendered by the whole hall';
+    $('gT').textContent = st === 'ready' || st === 'boot' ? 'Let’s render TAS3D 2026' : going ? 'Tap RENDER on your phone' : lead ? many(lead) + ' win!' : 'Rendered by the whole hall';
     if (st === 'ready') $('gS').textContent = 'Check in on your phone — a big RENDER button comes up there. The whole hall renders this picture together.';
-    else if (st === 'run') $('gS').textContent = fmtN(shown) + ' of ' + fmtN(target) + ' samples · ' + np + (np === 1 ? ' person' : ' people') + ' rendering';
+    else if (going || st === 'boot') $('gS').textContent = fmtN(shown) + ' of ' + fmtN(target) + ' samples · ' + np + (np === 1 ? ' person' : ' people') + ' rendering';
     else {
-      $('gS').textContent = (lead ? Math.round(best / all * 100) + '% of all samples' : '')
-        + (gS && gS.ms ? ' · rendered in ' + mmss(gS.ms) : '') + ' by ' + np + (np === 1 ? ' person' : ' people')
+      $('gS').textContent = fmtN(total) + ' samples by ' + np + (np === 1 ? ' person' : ' people') + (gS && gS.ms ? ' · rendered in ' + mmss(gS.ms) : '')
+        + (lead ? ' · ' + many(lead) + ' made ' + Math.round(best / all * 100) + '%' : '')
         + (hard && hard !== lead ? ' · hardest workers: ' + many(hard) + ', ' + Math.round(hardV) + ' samples each' : '');
     }
     C.roles.forEach(function (rr) {
       var d = gRow[rr[0]], v = roles[rr[0]] || 0;
       d.querySelectorAll('span')[1].textContent = pct(v, all);
       d.querySelector('b').style.width = (best ? v / best * 100 : 0) + '%';
+      d.querySelector('small').textContent = st === 'done' && v ? fmtN(v) + ' samples' + (players[rr[0]] ? ' · ' + players[rr[0]] + (players[rr[0]] === 1 ? ' person' : ' people') : '') : '';
       d.classList.toggle('lead', !!lead && rr[0] === lead && all > 0);
     });
     $('gRoles').hidden = st === 'ready';
@@ -1054,9 +1274,16 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   $('bSet').addEventListener('click', function () { this.blur(); openSettings($('setp').hidden); });
   $('setX').addEventListener('click', function () { openSettings(false); });
   var setSig = '';
+  function prankNeedsSound(S) {
+    var g = S.game || {}, ua = navigator.userActivation;
+    return !!g.pk && S.cfg.scene === 'game' && /^(ready|run|hang|boot|bsod)$/.test(g.st) && !!ua && !ua.hasBeenActive;
+  }
   function settings(up) {
     var key = !!TasSlidesKey.get(), s = slides ? slides.status() : null;
-    $('sndWarn').hidden = !s || s.sound;                // a video or the music was asked for, and the browser holds the sound
+    // a video or the music was asked for, and the browser holds the sound; or the prank is on and nobody has clicked here yet
+    var fxNeed = !!hub && prankNeedsSound(hub.state);
+    if (fxNeed && slides && slides.wantSound) slides.wantSound();   // the host panel says "no sound" too
+    $('sndWarn').hidden = !((s && !s.sound) || fxNeed);
     var cf = hub ? hub.state.cfg : {}, dl = slides ? slides.list().filter(function (d) { return d.total; }) : [];
     var sig = JSON.stringify([key, s, up, $('setp').hidden, cf.scene, cf.deck, dl]);
     if (sig === setSig) return;
@@ -1144,7 +1371,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   function busy() {
     var S = hub ? hub.state : null; if (!S) return false;
     var g = S.game, z = S.quiz, sc = S.cfg.scene, ss = slides ? slides.status() : null, sd = ss ? ss.snd : null;
-    return !!S.cfg.live || (sc === 'game' && (g.st === 'ready' || g.st === 'run')) || (sc === 'quiz' && /^(ready|ask|show)$/.test(z.st)) ||
+    return !!S.cfg.live || (sc === 'game' && /^(ready|run|hang|boot|bsod)$/.test(g.st)) || (sc === 'quiz' && /^(ready|ask|show)$/.test(z.st)) ||
       !!(sd && (sd.playing >= 0 || sd.bgOn)) || !!(ss && (ss.vid || ss.kind === 'files'));
   }
   // a page that has only just been opened loses nothing by loading again
@@ -1171,7 +1398,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     if (slides || !hub || !window.TasSlidesScreen || !TasSlidesKey.get()) return;
     try {
       slides = TasSlidesScreen({ hub: hub, view: $('slides'), reload: reloadNow, check: function () { if (checkNew) checkNew(); }, onChange: function () { render(hub.state, hub.up()); },
-        locked: function () { var g = hub.state.game, z = hub.state.quiz; return ((g.st === 'ready' || g.st === 'run') && hub.state.cfg.scene === 'game') || (/^(ready|ask|show)$/.test(z.st) && hub.state.cfg.scene === 'quiz'); } });
+        locked: function () { var g = hub.state.game, z = hub.state.quiz; return (/^(ready|run|hang|boot|bsod)$/.test(g.st) && hub.state.cfg.scene === 'game') || (/^(ready|ask|show)$/.test(z.st) && hub.state.cfg.scene === 'quiz'); } });
     } catch (e) { slides = null; }
     window.TasScreenSlides = slides;                  // tests
   }

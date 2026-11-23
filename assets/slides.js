@@ -385,7 +385,7 @@
           const was = sroot ? sroot.sig : '', sig = JSON.stringify(files.map((f) => [f.path, f.sig]));
           sroot = { files, sig }; sname = [sdir && sdir.name, mdir && mdir.name].filter(Boolean).join(' + ');
           if (sig !== was) soundScan();
-        } else if (sroot) { sroot = null; sname = ''; slots = []; bgList = []; sSig = ''; stopSlot(0); pubAu(); }
+        } else if (sroot) { sroot = null; sname = ''; slots = []; bgList = []; fxFiles = {}; sSig = ''; stopSlot(0); pubAu(); }
         const sig = JSON.stringify([top.name, top.dirs.map((x) => [x.name, x.files.map((f) => f.sig)]), top.files.map((f) => f.sig)]);
         if (sig !== sigAll) {
           const list = [];
@@ -427,6 +427,9 @@
     // the slots the host plays (fanfare for a speaker, transitions); "Music" is the music the host chooses (coffee break …):
     // the host picks a track, it plays and goes on to the next. Volumes from the panel; while a slot plays the music waits.
     const AUD = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac)$/i, BGNAME = /^(music|музыка|background|bg|фон)/i;
+    // "Sound/Game": own sounds for the game's prank instead of the ones the page makes — a name with error / crash / start in it
+    const FXNAME = /^(game|prank|игра|розыгрыш)/i, FXKIND = { error: /error|ошибк|critical|stop|exclam/i, crash: /crash|bsod|blue|синий|сбой/i, start: /start|boot|logon|запуск|включ/i };
+    let fxFiles = {}, hushed = false, fxEl = null;
     let sroot = null, sname = '', sscan = false, serr = '', sSig = '';
     let slots = [], bgList = [], cur = null, bgEl = null, bgIdx = 0, bgOn = false;
     const VOLK = 'tas3d-vol-' + C.room;
@@ -435,20 +438,22 @@
     if (!(vj >= 0 && vj <= 1)) vj = 1; if (!(vb >= 0 && vb <= 1)) vb = 0.5;
     const gain = (v) => v * v;                          // a slider feels even this way (ears hear the low end better)
     function soundRead() {                            // → {slots: [...], bg: [...]}: Sound/…, Music/… (or Sound/Music/…)
-      const top = [], bg = [];
+      const top = [], bg = [], fx = {};
       for (const f of sroot.files) {
         const parts = f.path.split('/'), nm = parts[parts.length - 1];
         if (!AUD.test(nm) || parts.some((q) => SKIP.test(q))) continue;
         const it = { name: nm, sig: f.sig, get: f.get };
         if (parts.length === 1) top.push(it); else if (parts.length === 2 && BGNAME.test(parts[0])) bg.push(it);
+        else if (parts.length === 2 && FXNAME.test(parts[0])) { for (const k in FXKIND) if (!fx[k] && FXKIND[k].test(nm)) fx[k] = it; }
       }
       top.sort((a, b) => nat(a.name, b.name)); bg.sort((a, b) => nat(a.name, b.name));
-      return { slots: top.slice(0, 6), bg };
+      return { slots: top.slice(0, 6), bg, fx };
     }
     function soundScan() {
       if (!sroot) return;
       try {
-        const r = soundRead(), sig = JSON.stringify([r.slots.map((x) => x.sig), r.bg.map((x) => x.sig)]);
+        const r = soundRead(), sig = JSON.stringify([r.slots.map((x) => x.sig), r.bg.map((x) => x.sig), Object.keys(r.fx).map((k) => k + r.fx[k].sig)]);
+        fxFiles = r.fx;
         if (sig !== sSig) {
           sSig = sig;
           r.slots.forEach((x, i) => { const o = slots[i]; x.dur = o && o.sig === x.sig ? o.dur : 0; });
@@ -490,7 +495,7 @@
       const v = L.el;
       return !v.paused && !v.ended && !v.muted && hasAudio(v);
     }
-    const bgMay = () => bgOn && !cur && !slotOpening && !vidSound();
+    const bgMay = () => bgOn && !cur && !slotOpening && !vidSound() && !hushed;   // hushed: the game's prank "restarts the computer"
     let bgWait = false;
     function bgApply() {                               // the music plays when it is on and nothing else sounds
       const a = bgEl, w = bgOn && !bgMay();
@@ -909,6 +914,26 @@
       choose: () => connect(true),
       drop,                                          // a folder dragged onto the screen
       unmute: () => soundOn(),
+      // the game's prank: while the computer "restarts" and the blue screen is up, the music and the tracks wait
+      hush(v) {
+        v = !!v; if (v === hushed) return;
+        hushed = v;
+        if (v && (cur || slotOpening)) stopSlot();
+        bgApply();
+      },
+      // the prank's sound from the folder "Sound/Game", if there is one for it: true = it plays (the page makes none then)
+      gameSound(kind) {
+        const x = fxFiles[kind]; if (!x || soundBlocked) return false;
+        if (fxEl) { try { fxEl.pause(); } catch (e) {} URL.revokeObjectURL(fxEl.src); fxEl = null; }
+        x.get().then((f) => { const a = new Audio(URL.createObjectURL(f)); a.volume = gain(vj); fxEl = a; playAudio(a); }, () => {});
+        return true;
+      },
+      // the prank wants sound and nobody has clicked on this page yet: say so here and in the host panel
+      wantSound() {
+        const ua = navigator.userActivation;
+        if (soundBlocked || !ua || ua.hasBeenActive) return;
+        soundBlocked = true; changed(); pubSa(); pubAu();
+      },
       useHandle: (h) => useHandle(h, false),         // tests (headless Chrome here cannot keep a folder in IndexedDB)
       // what the screen shows (from the host's settings); called on every change
       setCfg(c) {
@@ -933,7 +958,8 @@
         qz: quiz.filter((q) => q.a).length,          // pictures of the quiz (folder "Quiz") with an answer in the name
         ho: decks.some((d) => d.ho) ? (decks.find((d) => d.ho).files.filter((f) => f.c).length) : -1,   // the host's own folder "Host": files in it, -1 = no folder
         snd: { on: !!sroot, folder: sname, slots: slots.length, bg: bgList.length, err: serr,
-          playing: cur ? cur.i : -1, bgOn, bgCur: bgList[bgIdx] ? bgList[bgIdx].name : '', vj, vb, bgVol: bgEl ? bgEl.volume : 0 } }),
+          playing: cur ? cur.i : -1, bgOn, bgCur: bgList[bgIdx] ? bgList[bgIdx].name : '', vj, vb, bgVol: bgEl ? bgEl.volume : 0,
+          bgPlay: !!(bgEl && !bgEl.paused), hushed, fx: Object.keys(fxFiles) } }),
       // the quiz picture i as a URL the page can show (made once per file); its answer: 'r' render, 'p' photo
       quizUrl: async (i) => {
         const q = quiz[i]; if (!q) return '';

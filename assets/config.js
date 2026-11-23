@@ -15,7 +15,10 @@
 //   <base>/px/<folder id>/c and /n = the pictures of the current and the next slide (kept; big, so they go apart, over
 //   connections of their own), <base>/sa = "the screen is on" (every 8 s),
 //   <base>/sk = commands from the speakers' page and the host panel (next, prev, show on screen ...).
-// The game: <base>/game = {id, st: off|ready|run|done, target, per, at, w} (kept, from the host);
+// The game: <base>/game = {id, st: off|ready|run|hang|boot|bsod|done, target, per, pk, ph, t1, at, w} (kept, from the host and the screen);
+//   pk = the prank is on, ph = which render of the prank (1: "Insufficient memory" at 50%, 2: a blue screen at 99%),
+//   hang = the error window, the game stands still; boot = the host's "Fake reset" (a new game id: everything starts from zero);
+//   bsod = the blue screen, the results come by themselves after `prank.results` seconds.
 //   <base>/gt/<game>/<phone> = "role:taps so far" (every second while tapping); <base>/gs = the score (kept, from the screen).
 // <base>/ph = the polls of this round with their results (kept until Reset).
 window.TAS3D_CHECKIN = {
@@ -41,7 +44,10 @@ window.TAS3D_CHECKIN = {
   // the opening game: the hall renders TAS3D 2026 out of noise together. Samples needed = checked-in guests × per (at least min);
   // normal: a hall tapping at an easy pace ≈ 1 minute;
   // one phone counts at most cap taps a second
-  game: { per: { short: 100, normal: 170, long: 300 }, min: 1000, cap: 12 },
+  // prank (the host turns it on): the 1st render stops at `hang` (share of the target) with "Insufficient memory";
+  // the host presses Fake reset, the restart takes `boot` seconds, the 2nd render crashes at `bsod` with a blue screen,
+  // and the results come `results` seconds later
+  game: { per: { short: 100, normal: 170, long: 300 }, min: 1000, cap: 12, prank: { hang: 0.5, bsod: 0.99, boot: 9, results: 10 } },
   slides: {
     iterations: 150000,
     ssalt: '4564344c5f5c5d59c48e5cfb395f3c52',

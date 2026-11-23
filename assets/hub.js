@@ -70,8 +70,9 @@
       rx: {},                                // reactions since this page was opened
       cfg: { scene: 'checkin', qr: true, rx: true, deck: '', live: '', cmp: '', at: 0, w: '' },   // what the screen shows, set by the host
       total: 0, counts: {}, pollCounts: [], pollTotal: 0,
-      game: { id: '', st: 'off', target: 0, per: 0, at: 0, w: '' },   // the opening game (host)
-      gs: null,                              // its score: {id, total, target, roles, players, np, ms} (from the screen)
+      game: { id: '', st: 'off', target: 0, per: 0, pk: 0, ph: 0, t1: 0, at: 0, w: '' },   // the opening game (host; the prank's steps also from the screen)
+      gs: null,                              // its score: {id, total, target, roles, players, np, ms, top, pl} (from the screen)
+      gpt: 0,                                // the screen: when this page saw the prank's current step begin (its own clock)
       screenSeen: 0,                         // when a screen page last said "I am on" (time of this device)
       screenBuild: ''                        // which version of the site that screen runs
     };
@@ -356,36 +357,56 @@
         return;
       }
       var was = S.game;
-      S.game = { id: /^[a-z0-9]{1,30}$/.test(d.id || '') ? d.id : '', st: /^(off|ready|run|done)$/.test(d.st) ? d.st : 'off', target: Math.max(0, +d.target || 0), per: +d.per || 0, at: at, w: w };
+      S.game = { id: /^[a-z0-9]{1,30}$/.test(d.id || '') ? d.id : '', st: /^(off|ready|run|hang|boot|bsod|done)$/.test(d.st) ? d.st : 'off', target: Math.max(0, +d.target || 0), per: +d.per || 0,
+        pk: d.pk ? 1 : 0, ph: +d.ph === 2 ? 2 : 1, t1: +d.t1 || 0, at: at, w: w };
       if (S.game.id !== was.id) S.gs = null;
       if (opt.screen) gameScreen(was);
       changed();
     }
     // the screen: listens to the taps of this game and keeps the score (also over a reload)
+    var PRANK = /^(hang|boot|bsod)$/;
     function gameScreen(was) {
       var g = S.game;
       if (g.id !== G.id) { G = { id: g.id, ph: {}, t0: 0, ms: 0 }; }
       if (g.id && g.st !== 'off' && (g.id !== was.id || was.st === 'off')) links.forEach(function (L) { if (L.c && L.c.ok) L.c.subscribe(B + '/gt/' + g.id + '/+'); });
       if (g.st === 'run' && !G.t0) G.t0 = Date.now() + 3000;      // the phones count down 3, 2, 1 first
-      if (g.st === 'done' && !G.ms && G.t0) G.ms = Math.max(0, Date.now() - G.t0);
+      if ((g.st === 'done' || g.st === 'bsod') && !G.ms && G.t0) G.ms = Math.max(0, Date.now() - G.t0);
+      // a step of the prank: this page's own clock times it (the restart, the blue screen); kept over a reload of the page
+      if (PRANK.test(g.st) && G.ps !== g.st) { G.ps = g.st; G.pt = Date.now(); try { localStorage.setItem(GK, JSON.stringify(G)); } catch (e) {} }
+      else if (!PRANK.test(g.st)) G.ps = '';
+      S.gpt = PRANK.test(g.st) ? G.pt || Date.now() : 0;
       gameScore();
       if (g.st !== (was.st || '') || g.id !== was.id) { gsLast = ''; pushGS(); }   // start / done: the phones hear it at once
     }
     function onTap(gid, dev, x) {
       if (!opt.screen || gid !== G.id || S.game.st === 'off' || !/^[a-z0-9]{12,40}$/.test(dev || '')) return;
+      if (S.game.st === 'hang' || S.game.st === 'boot') return;   // the render "hangs": nothing counts (this render is thrown away anyway)
       var m = /^([a-z]+):(\d{1,7})$/.exec(String(x || '')); if (!m || !ROLE[m[1]]) return;
       var n = +m[2], old = G.ph[dev];
       if (S.game.st === 'done' && old) return;           // the picture is rendered: the score stays
-      if (G.t0) n = Math.min(n, Math.max(0, Math.round((Date.now() - G.t0) / 1000 * C.game.cap)) + 30);   // no auto-clickers
+      // the blue screen: the phones' last totals still come in (taps made before it), but nothing after it
+      var upto = S.game.st === 'bsod' && G.pt ? G.pt : Date.now();
+      if (G.t0) n = Math.min(n, Math.max(0, Math.round((upto - G.t0) / 1000 * C.game.cap)) + 30);   // no auto-clickers
       if (old && old.n >= n) return;
       G.ph[dev] = { r: m[1], n: n };
       gameScore();
     }
+    function gameTop() {                               // the 3 phones that tapped most: [[role, taps], …]
+      var a = [];
+      for (var d in G.ph) a.push([G.ph[d].r, G.ph[d].n]);
+      a.sort(function (x, y) { return y[1] - x[1]; });
+      return a.slice(0, 3);
+    }
     function gameScore() {
       var roles = {}, players = {}, total = 0, np = 0;
       for (var d in G.ph) { var p = G.ph[d]; roles[p.r] = (roles[p.r] || 0) + p.n; players[p.r] = (players[p.r] || 0) + 1; total += p.n; np++; }
-      S.gs = { id: G.id, total: total, target: S.game.target, roles: roles, players: players, np: np, ms: G.ms, st: S.game.st, t: Date.now() };
-      if (S.game.st === 'run' && S.game.target && total >= S.game.target) api.setGame({ st: 'done' });   // rendered!
+      S.gs = { id: G.id, total: total, target: S.game.target, roles: roles, players: players, np: np, ms: G.ms, st: S.game.st, top: gameTop(), t: Date.now() };
+      var g = S.game, P = C.game.prank || {};
+      if (g.st === 'run' && g.target) {
+        if (g.pk && g.ph !== 2 && total >= g.target * (P.hang || 0.5)) api.setGame({ st: 'hang', t1: Date.now() });        // prank 1: "Insufficient memory"
+        else if (g.pk && g.ph === 2 && total >= g.target * (P.bsod || 0.99)) api.setGame({ st: 'bsod', t1: Date.now() });  // prank 2: the blue screen
+        else if (total >= g.target) api.setGame({ st: 'done' });   // rendered!
+      }
       schedGS();
       changed();
     }
@@ -396,11 +417,22 @@
       clearTimeout(gsT); gsT = null; gsAt = Date.now();
       if (!opt.screen || !G.id || !S.gs) return;
       try { localStorage.setItem(GK, JSON.stringify(G)); } catch (e) {}
-      var o = { id: G.id, total: S.gs.total, target: S.game.target, roles: S.gs.roles, players: S.gs.players, np: S.gs.np, ms: G.ms, st: S.game.st };
+      var o = { id: G.id, total: S.gs.total, target: S.game.target, roles: S.gs.roles, players: S.gs.players, np: S.gs.np, ms: G.ms, st: S.game.st, top: S.gs.top };
+      // the end: every phone's total, highest first — a phone finds its own place in the hall (≈ 3 KB for 600 phones, sent once)
+      if (S.game.st === 'done') o.pl = Object.keys(G.ph).map(function (d) { return G.ph[d].n; }).sort(function (a, b) { return b - a; }).slice(0, 3000);
       var txt = JSON.stringify(o); if (txt === gsLast) return; gsLast = txt;
       pub(B + '/gs', txt, { retain: true });
     }
     if (opt.screen) setInterval(function () { if (G.id && S.game.st === 'run' && Date.now() - gsAt > 2500) { gsLast = ''; pushGS(); } }, 3000);
+    // the prank's steps that end by themselves, timed by this screen: the restart → the render again; the blue screen → the results.
+    // Two screens may both do it: the same step, so it does not matter.
+    if (opt.screen) setInterval(function () {
+      var g = S.game, P = C.game.prank || {};
+      if (!G.id || g.id !== G.id || !G.pt || G.ps !== g.st) return;
+      var el = Date.now() - G.pt;
+      if (g.st === 'boot' && el >= (P.boot || 9) * 1000) api.setGame({ st: 'run' });
+      else if (g.st === 'bsod' && el >= (P.results || 10) * 1000) api.setGame({ st: 'done' });
+    }, 250);
 
     // ---- the quiz "Render or photo?" (host: Game tab). The pictures are in the folder "Quiz" on the screen computer and are shown
     // only on the big screen; each phone sends one answer per picture; the screen counts the points (and the time of the right
@@ -581,19 +613,26 @@
       },
       // ---- the opening game (host): Show the game → Start rendering → (done by itself at 100%, or Finish now) → Close
       setGame: function (p) {
-        var n = { id: S.game.id, st: S.game.st, target: S.game.target, per: S.game.per };
+        var n = { id: S.game.id, st: S.game.st, target: S.game.target, per: S.game.per, pk: S.game.pk, ph: S.game.ph, t1: S.game.t1 };
         for (var k in p) n[k] = p[k];
         n.at = Math.max(Date.now(), S.game.at + 1); n.w = WID;
         pub(B + '/game', JSON.stringify(n), { qos: 1, retain: true });
         onGame(JSON.stringify(n));
       },
-      newGame: function (per) { api.setGame({ id: 'g' + rid(), st: 'ready', target: 0, per: per }); api.setCfg({ scene: 'game' }); },
+      // pk: the prank is on (see config.js → game.prank)
+      newGame: function (per, pk) { api.setGame({ id: 'g' + rid(), st: 'ready', target: 0, per: per, pk: pk ? 1 : 0, ph: 1, t1: 0 }); api.setCfg({ scene: 'game' }); },
       startGame: function () {
         var per = S.game.per || C.game.per.normal;
         api.setGame({ st: 'run', target: Math.max(C.game.min, Math.round(S.total * per)) });
         if (S.cfg.scene !== 'game') api.setCfg({ scene: 'game' });
       },
       finishGame: function () { api.setGame({ st: 'done' }); },
+      // the prank: the host "restarts the computer". A new game id, so every count starts from zero on the screen and on
+      // every phone; the screen plays the restart and then starts the render again by itself (the 2nd render: the blue screen)
+      fakeReset: function () {
+        api.setGame({ id: 'g' + rid(), st: 'boot', ph: 2, t1: Date.now() });
+        if (S.cfg.scene !== 'game') api.setCfg({ scene: 'game' });
+      },
       // ---- the quiz (host): Show the quiz → Start (picture 1) → Reveal (or the screen does when the time is up) → Next … → Winners → Close
       setQuiz: function (p) {
         var n = { id: S.quiz.id, st: S.quiz.st, r: S.quiz.r, n: S.quiz.n, i: S.quiz.i, sec: S.quiz.sec, ans: '' };
