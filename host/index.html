@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'b627617366';</script>
+<script>window.TAS3D_BUILD = '7b44e79692';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -343,6 +343,7 @@ h2.sec{margin-top:30px;font-size:22px}
       <h2 id="gH">Not started</h2>
       <div class="gbar"><b id="gB"></b></div>
       <p class="hint" id="gN" style="margin-top:10px"></p>
+      <p class="hint bad" id="gOld" style="margin-top:10px" hidden><span id="gOldT"></span> <button type="button" class="btn" id="gUpd" style="margin-top:8px">Update the screen</button></p>
       <div class="rows" id="gRoles"></div>
       <div class="b">
         <button type="button" class="btn o" id="gNew">Show the game</button>
@@ -589,10 +590,13 @@ h2.sec{margin-top:30px;font-size:22px}
     $('gPrank').querySelectorAll('button').forEach(function (b) {
       b.addEventListener('click', function () {
         gPk = b.getAttribute('data-k') === 'on'; try { localStorage.setItem('tas3d-gprank', gPk ? '1' : '0'); } catch (e) {}
+        // the game on now takes it too (during the render as well: the error comes at 50% of this render)
         if (S.game.st === 'ready') hub.setGame({ pk: gPk ? 1 : 0, ph: 1 });
+        else if (S.game.st === 'run') hub.setGame({ pk: gPk ? 1 : 0 });
         render();
       });
     });
+    $('gUpd').addEventListener('click', function () { $('scrUpd').click(); });   // the same as the button at the top (it asks first)
     $('gReset').addEventListener('click', function () { guard('Fake reset', function () { hub.fakeReset(); }, 'in'); });
     $('gNew').addEventListener('click', function () { guard($('gNew').textContent, function () { hub.newGame(C.game.per[gLen], gPk); }); });
     $('gGo').addEventListener('click', function () { guard('Start rendering', function () { hub.startGame(); }, 'in'); });
@@ -943,8 +947,15 @@ h2.sec{margin-top:30px;font-size:22px}
       $('gLenH').textContent = C.game.per[gLen] + ' taps per guest';
       $('gPrank').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', (b.getAttribute('data-k') === 'on') === gPk ? 'true' : 'false'); });
       $('gPrankH').textContent = gPk ? 'At ' + Math.round((GP.hang || 0.5) * 100) + '% the screen freezes with “Insufficient Memory” and you press Fake reset. The second render crashes at '
-        + Math.round((GP.bsod || 0.99) * 100) + '% with a blue screen; the results come ' + (GP.results || 10) + ' s later.' + (gon && g.st !== 'ready' && !g.pk ? ' Counts for the next game.' : '')
-        : 'The render goes to 100% without tricks.' + (gon && g.st !== 'ready' && g.pk ? ' Counts for the next game.' : '');
+        + Math.round((GP.bsod || 0.99) * 100) + '% with a blue screen; the results come ' + (GP.results || 10) + ' s later.' + (gon && !/^(ready|run)$/.test(g.st) && !g.pk ? ' Counts for the next game.' : '')
+        : 'The render goes to 100% without tricks.' + (gon && !/^(ready|run)$/.test(g.st) && g.pk ? ' Counts for the next game.' : '');
+      // the prank is done by the screen page: an older screen does not know it, and nothing happens at 50%
+      var gScrOn = S.screenSeen && Date.now() - S.screenSeen < 20000, gScrOld = gScrOn && window.TAS3D_BUILD && S.screenBuild && S.screenBuild !== window.TAS3D_BUILD;
+      var gCanUpd = !!(dc && dc.state.sa && dc.state.sa.v);
+      $('gOld').hidden = !(gScrOld && (gPk || g.pk) && g.st !== 'done');
+      $('gUpd').hidden = !gCanUpd;
+      $('gOldT').textContent = 'The screen runs an older version (' + S.screenBuild + '): it does not know the prank, so nothing would happen at 50%. '
+        + (gCanUpd ? 'Update the screen first (then click once on the screen computer for sound).' : 'Reload the screen page on the screen computer: ⌘R on a Mac, Ctrl+R on Windows.');
 
       renderSound();
       renderScr();
