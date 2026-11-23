@@ -90,7 +90,7 @@
       })(0);
     }
     function pubSa() {
-      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), ua: UA, v: window.TAS3D_BUILD || '', fl: window.TAS3D_FILE ? 1 : 0, fc: document.hasFocus() ? 1 : 0, f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0 });
+      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), ua: UA, v: window.TAS3D_BUILD || '', fl: window.TAS3D_FILE ? 1 : 0, fc: document.hasFocus() ? 1 : 0, f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0, gp: window.TasGameGfx ? String(window.TasGameGfx() || '').slice(0, 60) : '' });
     }
     setInterval(pubSa, 8000); setTimeout(pubSa, 1500);
     // the keys of a clicker go to the window that is active on this computer: the host panel is told when this one is not
@@ -351,6 +351,9 @@
     const SNDNAME = /^(sounds?|audio|звуки?)(?![a-zа-яё0-9])/i, MUSNAME = /^(music|музыка)(?![a-zа-яё0-9])/i, SCRNAME = /^(screens?|splash|заставк[аи]|скрин)(?![a-zа-яё0-9])/i, HOSTNAME = /^(host|хост|ведущий)(?![a-zа-яё0-9])/i, QUIZNAME = /^(quiz|квиз|викторина)(?![a-zа-яё0-9])/i;
     // the quiz "Render or photo?": the pictures of the folder "Quiz" in name order; the answer is in the file name
     let quiz = [], quizSig = '';
+    // "Game": the picture of the opening game (and the prank's sounds), right on this computer — no download needed
+    const GAMENAME = /^(game|игра)(?![a-zа-яё0-9])/i;
+    let gamePic = null, gamePicSig = '', gameFx = {};
     const quizUrls = new Map();
     function quizAnswer(name) {
       const n = name.replace(/\.[a-z0-9]+$/i, '').toLowerCase(), r = /render|рендер|(^|[^a-z])cg/.test(n), p = /photo|foto|фото|real/.test(n);
@@ -366,8 +369,23 @@
         // "Screen" = the pictures / videos for a pause. None of them is a speaker.
         const sdir = top.dirs.find((x) => SNDNAME.test(bare(x.name))), mdir = top.dirs.find((x) => MUSNAME.test(bare(x.name)));
         let qchg = false;
-        const qdir = top.dirs.find((x) => QUIZNAME.test(bare(x.name)));
-        top.dirs = top.dirs.filter((x) => x !== sdir && x !== mdir && x !== qdir);
+        const qdir = top.dirs.find((x) => QUIZNAME.test(bare(x.name))), gdir = top.dirs.find((x) => GAMENAME.test(bare(x.name)));
+        top.dirs = top.dirs.filter((x) => x !== sdir && x !== mdir && x !== qdir && x !== gdir);
+        {                                               // "Game": its picture (a name with "final" first, else the first one) and sounds
+          const gf = gdir ? gdir.files.filter((f) => f.path.indexOf('/') < 0 && !SKIP.test(f.path)).sort((a, b) => nat(a.path, b.path)) : [];
+          const pics = gf.filter((f) => IMG.test(f.path) && !/\.svg$/i.test(f.path)), pic = pics.find((f) => /final|финал/i.test(f.path)) || pics[0] || null;
+          const fx = {};
+          gf.filter((f) => AUD.test(f.path)).forEach((f) => { for (const k in FXKIND) if (!fx[k] && FXKIND[k].test(f.path)) fx[k] = { name: f.path, sig: f.sig, get: f.get }; });
+          gameFx = fx;
+          const ps = pic ? pic.path + '|' + pic.sig : '';
+          if (ps !== gamePicSig) {
+            gamePicSig = ps;
+            if (gamePic && gamePic.url) { try { URL.revokeObjectURL(gamePic.url); } catch (e) {} }
+            gamePic = pic ? { name: pic.path, url: '' } : null;
+            if (pic) { try { const blob = await pic.get(); if (gamePic && gamePic.name === pic.path) gamePic.url = URL.createObjectURL(blob); } catch (e) { gamePic = null; } }
+            try { opt.onGamePic && opt.onGamePic(gamePic && gamePic.url ? gamePic.url : ''); } catch (e) {}
+          }
+        }
         {                                               // "Quiz": pictures for "Render or photo?" — not a speaker either
           const qf = qdir ? qdir.files.filter((f) => f.path.indexOf('/') < 0 && IMG.test(f.path) && !SKIP.test(f.path)).sort((a, b) => nat(a.path, b.path)) : [];
           const qs = JSON.stringify(qf.map((f) => f.sig));
@@ -923,7 +941,7 @@
       },
       // the prank's sound from the folder "Sound/Game", if there is one for it: true = it plays (the page makes none then)
       gameSound(kind) {
-        const x = fxFiles[kind]; if (!x || soundBlocked) return false;
+        const x = gameFx[kind] || fxFiles[kind]; if (!x || soundBlocked) return false;   // "Game" folder first, then "Sound/Game"
         if (fxEl) { try { fxEl.pause(); } catch (e) {} URL.revokeObjectURL(fxEl.src); fxEl = null; }
         x.get().then((f) => { const a = new Audio(URL.createObjectURL(f)); a.volume = gain(vj); fxEl = a; playAudio(a); }, () => {});
         return true;
@@ -959,7 +977,9 @@
         ho: decks.some((d) => d.ho) ? (decks.find((d) => d.ho).files.filter((f) => f.c).length) : -1,   // the host's own folder "Host": files in it, -1 = no folder
         snd: { on: !!sroot, folder: sname, slots: slots.length, bg: bgList.length, err: serr,
           playing: cur ? cur.i : -1, bgOn, bgCur: bgList[bgIdx] ? bgList[bgIdx].name : '', vj, vb, bgVol: bgEl ? bgEl.volume : 0,
-          bgPlay: !!(bgEl && !bgEl.paused), hushed, fx: Object.keys(fxFiles) } }),
+          bgPlay: !!(bgEl && !bgEl.paused), hushed, fx: Object.keys(Object.assign({}, fxFiles, gameFx)) },
+        gamePic: gamePic ? gamePic.name : '' }),
+      gamePicUrl: () => (gamePic && gamePic.url) || '',
       // the quiz picture i as a URL the page can show (made once per file); its answer: 'r' render, 'p' photo
       quizUrl: async (i) => {
         const q = quiz[i]; if (!q) return '';

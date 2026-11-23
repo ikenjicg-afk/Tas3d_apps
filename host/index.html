@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '7b44e79692';</script>
+<script>window.TAS3D_BUILD = '5a8a240097';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -343,6 +343,7 @@ h2.sec{margin-top:30px;font-size:22px}
       <h2 id="gH">Not started</h2>
       <div class="gbar"><b id="gB"></b></div>
       <p class="hint" id="gN" style="margin-top:10px"></p>
+      <p class="hint bad" id="gPic" style="margin-top:10px" hidden>The screen has no game picture to render (it did not load there): the hall sees black. Put the picture into the folder “Game” in the presentations folder on the screen computer, or reload the screen page.</p>
       <p class="hint bad" id="gOld" style="margin-top:10px" hidden><span id="gOldT"></span> <button type="button" class="btn" id="gUpd" style="margin-top:8px">Update the screen</button></p>
       <div class="rows" id="gRoles"></div>
       <div class="b">
@@ -952,6 +953,9 @@ h2.sec{margin-top:30px;font-size:22px}
       // the prank is done by the screen page: an older screen does not know it, and nothing happens at 50%
       var gScrOn = S.screenSeen && Date.now() - S.screenSeen < 20000, gScrOld = gScrOn && window.TAS3D_BUILD && S.screenBuild && S.screenBuild !== window.TAS3D_BUILD;
       var gCanUpd = !!(dc && dc.state.sa && dc.state.sa.v);
+      // how the screen draws the game picture (it says so with "the screen is on"): none at all is worth a warning
+      var gGp = dc && dc.state.sa && Date.now() - dc.state.saAt < 20000 ? String(dc.state.sa.gp || '') : '';
+      $('gPic').hidden = !(gon && /^no picture/.test(gGp));
       $('gOld').hidden = !(gScrOld && (gPk || g.pk) && g.st !== 'done');
       $('gUpd').hidden = !gCanUpd;
       $('gOldT').textContent = 'The screen runs an older version (' + S.screenBuild + '): it does not know the prank, so nothing would happen at 50%. '
