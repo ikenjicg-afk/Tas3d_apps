@@ -120,6 +120,10 @@
       if (d.op === 'hello') { if (Date.now() - helloAt > 1000) { helloAt = Date.now(); pubSa(); pubAu(); } return; }
       if (d.op === 'reload') { if (d.from === 'host' && opt.reload) opt.reload(); return; }   // the host's "Update the screen"
       if (d.op === 'upd') { if (opt.check) opt.check(); return; }                             // "a newer version is out: look now" 
+      if (d.op === 'scrvol') {                         // the volume of the videos from "Screen": the host only
+        if (d.from === 'host' && (Array.isArray(d.sn) ? d.sn.indexOf(sn) >= 0 : d.sn === sn) && typeof d.x === 'number' && d.x >= 0 && d.x <= 1) setScrVol(d.x);
+        return;
+      }
       if (d.op === 'snd') {                            // sound: the host only
         if (d.from === 'host' && (Array.isArray(d.sn) ? d.sn.indexOf(sn) >= 0 : d.sn === sn)) sound(d);
         return;
@@ -451,9 +455,16 @@
     let sroot = null, sname = '', sscan = false, serr = '', sSig = '';
     let slots = [], bgList = [], cur = null, bgEl = null, bgIdx = 0, bgOn = false;
     const VOLK = 'tas3d-vol-' + C.room;
-    let vj = 1, vb = 0.5;
-    try { const v = JSON.parse(localStorage.getItem(VOLK) || 'null'); if (v) { vj = +v.j; vb = +v.b; } } catch (e) {}
-    if (!(vj >= 0 && vj <= 1)) vj = 1; if (!(vb >= 0 && vb <= 1)) vb = 0.5;
+    let vj = 1, vb = 0.5, vx = 1;                       // tracks, music, and the videos from "Screen" (the host's Screen tab)
+    try { const v = JSON.parse(localStorage.getItem(VOLK) || 'null'); if (v) { vj = +v.j; vb = +v.b; vx = v.x === undefined ? 1 : +v.x; } } catch (e) {}
+    if (!(vj >= 0 && vj <= 1)) vj = 1; if (!(vb >= 0 && vb <= 1)) vb = 0.5; if (!(vx >= 0 && vx <= 1)) vx = 1;
+    const volSave = () => { try { localStorage.setItem(VOLK, JSON.stringify({ j: vj, b: vb, x: vx })); } catch (e) {} };
+    // the videos from the folder "Screen" play at the volume of the Screen tab; a speaker's video always plays at its full volume
+    function setScrVol(x) {
+      vx = x;
+      if (shown && shown.k === 'vid' && shown.sp && shown.el) shown.el.volume = gain(vx);
+      volSave(); pubAu();
+    }
     const gain = (v) => v * v;                          // a slider feels even this way (ears hear the low end better)
     function soundRead() {                            // → {slots: [...], bg: [...]}: Sound/…, Music/… (or Sound/Music/…)
       const top = [], bg = [], fx = {};
@@ -511,7 +522,7 @@
       const L = shown;
       if (!L || L.k !== 'vid' || !L.el || cfg.scene !== 'slides') return false;
       const v = L.el;
-      return !v.paused && !v.ended && !v.muted && hasAudio(v);
+      return !v.paused && !v.ended && !v.muted && v.volume > 0 && hasAudio(v);   // turned down to zero: the music may play
     }
     const bgMay = () => bgOn && !cur && !slotOpening && !vidSound() && !hushed;   // hushed: the game's prank "restarts the computer"
     let bgWait = false;
@@ -601,7 +612,7 @@
       else if (d.a === 'vol') {
         if (typeof d.j === 'number' && d.j >= 0 && d.j <= 1) { vj = d.j; if (cur) cur.a.volume = gain(vj); }
         if (typeof d.b === 'number' && d.b >= 0 && d.b <= 1) { vb = d.b; if (bgEl) bgEl.volume = bgLevel(); }
-        try { localStorage.setItem(VOLK, JSON.stringify({ j: vj, b: vb })); } catch (e) {}
+        volSave();
         pubAu();
       }
     }
@@ -613,7 +624,7 @@
         sn, seq: ++seq, t: Date.now(), f: sroot ? 1 : 0, folder: sname,
         slots: slots.map((x) => ({ n: x.name, d: x.dur || 0 })),
         bg: { n: bgList.length, list: bgList.slice(0, 200).map((x) => x.name), i: bgIdx, cur: bgList[bgIdx] ? bgList[bgIdx].name : '', on: bgOn ? 1 : 0, w: bgOn && !bgMay() ? 1 : 0 },
-        pl: cur ? cur.i : -1, pe: cur ? Date.now() - cur.at : 0, vj, vb, blk: soundBlocked ? 1 : 0
+        pl: cur ? cur.i : -1, pe: cur ? Date.now() - cur.at : 0, vj, vb, vx, blk: soundBlocked ? 1 : 0
       }, true), 80);
     }
     setInterval(() => { if (cur || bgOn) pubAu(); }, 5000);
@@ -845,6 +856,7 @@
       if (ok) {
         L.el.classList.add('on'); shown = L;
         if (L.k === 'vid') { L.quiet = false; L.el.loop = !!d.sp || !!L.lp; }   // a video from "Screen": in a loop, with its sound; "loop" in the name: in a loop
+        if (L.k === 'vid') { L.sp = !!d.sp; L.el.volume = d.sp ? gain(vx) : 1; }   // "Screen": the volume of the Screen tab
         if (fresh && L.k === 'vid') { L.want = true; L.el.currentTime = 0; playV(L.el, L.quiet); }
       }
       else shown = null;
@@ -977,7 +989,7 @@
         ho: decks.some((d) => d.ho) ? (decks.find((d) => d.ho).files.filter((f) => f.c).length) : -1,   // the host's own folder "Host": files in it, -1 = no folder
         snd: { on: !!sroot, folder: sname, slots: slots.length, bg: bgList.length, err: serr,
           playing: cur ? cur.i : -1, bgOn, bgCur: bgList[bgIdx] ? bgList[bgIdx].name : '', vj, vb, bgVol: bgEl ? bgEl.volume : 0,
-          bgPlay: !!(bgEl && !bgEl.paused), hushed, fx: Object.keys(Object.assign({}, fxFiles, gameFx)) },
+          bgPlay: !!(bgEl && !bgEl.paused), hushed, vx, vidVol: shown && shown.k === 'vid' && shown.el ? shown.el.volume : -1, fx: Object.keys(Object.assign({}, fxFiles, gameFx)) },
         gamePic: gamePic ? gamePic.name : '' }),
       gamePicUrl: () => (gamePic && gamePic.url) || '',
       // the quiz picture i as a URL the page can show (made once per file); its answer: 'r' render, 'p' photo

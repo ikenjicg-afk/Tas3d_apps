@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '60c6bde270';</script>
+<script>window.TAS3D_BUILD = '4248746b1c';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -402,7 +402,11 @@ h2.sec{margin-top:30px;font-size:22px}
       <h2 class="sec first">For a pause</h2>
       <div class="slots" id="spList"></div>
       <p class="hint bad" id="spSnd" style="margin-top:10px" hidden></p>
-      <div class="b" style="margin-top:10px"><button type="button" class="btn" id="spOff">Take off the screen</button></div>
+      <div id="spVol" hidden>
+        <div class="vol"><span>Volume</span><input type="range" id="vX" min="0" max="100" step="1" value="100" aria-label="Volume of the videos from the folder Screen"><b id="vXv">100%</b></div>
+        <p class="hint" style="margin-top:6px">For the videos of this tab. A speaker’s video always plays at its full volume.</p>
+      </div>
+      <div class="b" style="margin-top:14px"><button type="button" class="btn" id="spOff">Take off the screen</button></div>
       <ul class="spbad" id="spBad" hidden></ul>
     </div>
   </section>
@@ -433,7 +437,7 @@ h2.sec{margin-top:30px;font-size:22px}
 <script src="../assets/config.js?v=875f2cd5"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=2ab16329"></script>
-<script src="../assets/deck.js?v=05fab4c1"></script>
+<script src="../assets/deck.js?v=c5ce1ee6"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
@@ -699,6 +703,12 @@ h2.sec{margin-top:30px;font-size:22px}
       });
     }
     $('spOff').addEventListener('click', function () { if (spOn()) guard('Take off the screen', function () { spPend = null; hub.setCfg({ scene: 'logo' }); }); });
+    // the volume of the videos from "Screen" (the screen keeps it, also over a reload of its page); no question: like the other sliders
+    var vxT = null, vxDrag = 0;
+    $('vX').addEventListener('input', function () {
+      var el = $('vX'); vxDrag = Date.now(); $('vXv').textContent = el.value + '%';
+      clearTimeout(vxT); vxT = setTimeout(function () { if (dc) dc.cmd('scrvol', '', { x: +el.value / 100 }); }, 120);
+    });
     function renderScr() {
       var d = spDeck(), on = dc && dc.screenOn(), files = d ? d.files.map(function (f, i) { return { f: f, i: i }; }).filter(function (x) { return x.f.c; }) : [];
       var msg = !dc ? 'Log in again.' : !on ? 'The screen is off.' : !dc.state.list ? 'Waiting for the screen…' : !files.length ? 'No folder “Screen” in the main folder.' : '';
@@ -724,6 +734,10 @@ h2.sec{margin-top:30px;font-size:22px}
         b.querySelector('.d').textContent = i === cur ? 'on the screen · tap to take off' : spPend && spPend.i === i ? 'sending…' : '';
       });
       $('spOff').disabled = !spOn();
+      // the volume slider: when the folder has a video, and the screen is new enough to know the volume (it says it in "au")
+      var au = dc && dc.state.au, auOk = !!(au && typeof au.vx === 'number' && on && Date.now() - dc.state.auAt < 60000);
+      $('spVol').hidden = !(auOk && files.some(function (x) { return x.f.k === 'vid'; }));
+      if (auOk && Date.now() - vxDrag > 2500) { $('vX').value = Math.round(au.vx * 100); $('vXv').textContent = $('vX').value + '%'; }   // follows the screen (unless you are moving it)
       // the sound of the video that is on: held by the browser (nobody has clicked on the screen computer), or none in the file
       var pvv = d && spOn() && dc.state.pv[d.id] ? dc.state.pv[d.id].v : null, sn = '';
       if (pvv && pvv.mute) sn = 'This video plays without sound: click once on the screen computer (the browser holds the sound until then).';

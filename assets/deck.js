@@ -129,12 +129,13 @@
     opt = opt || {};
     var box = TasBox(TasSlidesKey.get());
     // screens: every open screen by its session (sn) — a second screen open somewhere (an old tab, a laptop at home) does not confuse the remote
-    var S = { list: null, pv: {}, sa: null, saAt: 0, screens: {}, cfg: { scene: 'checkin', deck: '', live: '', at: -1, w: '' }, scrAt: 0, scrBuild: '', picN: 0 };
+    var S = { list: null, pv: {}, sa: null, saAt: 0, screens: {}, cfg: { scene: 'checkin', deck: '', live: '', at: -1, w: '' }, scrAt: 0, scrBuild: '', picN: 0,
+      tm: { d: '', st: 'off', t0: 0, el: 0, at: -1, w: '' } };   // the talk timer: folder, run | stop | off, started at, ms when stopped
     var chT = 0, fns = onChange ? [onChange] : [];
     function changed() { if (!chT) chT = setTimeout(function () { chT = 0; fns.forEach(function (f) { try { f(S); } catch (e) {} }); }, 30); }
     // the same message comes through both servers (and their bridge): decrypt it once
     var lastRaw = {};
-    var subs = [B + '/dk', B + '/sa', B + '/cfg', B + '/scr'];
+    var subs = [B + '/dk', B + '/sa', B + '/cfg', B + '/scr', B + '/tm'];
     if (opt.sound) subs.push(B + '/au');
     if (opt.all) subs.push(B + '/pv/+');
     var was = 0, links = null, watching = '';
@@ -194,7 +195,7 @@
       wantPics(l);
     }
     picFilters();
-    function onMsg(t, x) {
+    function onMsg(t, x, r) {                           // r: the server kept it and sends it at subscribe (not a message of this moment)
       if (t === B + '/cfg') {
         var c = json(x); if (!c) return;
         var at = +c.at || 0, w = String(c.w || '');
@@ -238,7 +239,35 @@
           if (newerPv(d, S.pv[id])) { S.pv[id] = d; changed(); }
         }
         else if (t === B + '/au') { if (newer(d, S.au)) { S.au = d; S.auAt = Date.now(); changed(); } }
+        else if (t === B + '/tm') {
+          var ta = +d.at || 0, tw = String(d.w || '');
+          if (ta < S.tm.at || (ta === S.tm.at && tw <= S.tm.w)) return;
+          var t0 = +d.t0 || 0;
+          // "run" that comes at this moment (not kept by the server): count from this device's own clock, so a phone whose
+          // clock is off shows the same time as the host. d.t − d.t0 = how long it had run when it was sent (0 at the start).
+          // A page opened later gets the kept message and counts from the host's clock (t0).
+          if (!r && d.st === 'run' && typeof d.t === 'number') t0 = Date.now() - Math.max(0, d.t - t0);
+          S.tm = { d: typeof d.d === 'string' ? d.d : '', st: /^(run|stop)$/.test(d.st) ? d.st : 'off', t0: t0, el: Math.max(0, +d.el || 0), at: ta, w: tw };
+          changed();
+        }
       });
+    }
+    // ---- the talk timer: counts up from 00:00 from the moment the host presses "Start timer"; every device counts by itself
+    // from that moment (t0, the host's clock), so nothing is sent while it runs. One timer at a time, for one folder.
+    var TW = Math.random().toString(36).slice(2, 10);
+    function timer(op, deck) {
+      var now = Date.now(), tm = S.tm, n;
+      if (op === 'start') n = { d: deck || '', st: 'run', t0: now, el: 0 };
+      else if (op === 'stop') { if (tm.st !== 'run') return; n = { d: tm.d, st: 'stop', t0: tm.t0, el: Math.max(0, now - tm.t0) }; }
+      else n = { d: '', st: 'off', t0: 0, el: 0 };
+      n.at = Math.max(now, tm.at + 1); n.w = TW; n.t = now;
+      S.tm = n; changed();
+      box.seal(B + '/tm', n).then(function (x) { return links.pub(B + '/tm', x, { qos: 1, retain: true }); }).catch(function () {});
+    }
+    // the timer of a folder: {st: run | stop | off, ms}
+    function timerOf(id) {
+      var tm = S.tm; if (!id || tm.d !== id || tm.st === 'off') return { st: 'off', ms: 0 };
+      return { st: tm.st, ms: tm.st === 'run' ? Math.max(0, Date.now() - tm.t0) : tm.el };
     }
     function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
     // a command goes to every screen that has the folder open (one is usual; a second one, e.g. a monitor backstage, follows too)
@@ -264,6 +293,7 @@
     setInterval(changed, 3000);                        // "the screen is off" etc. stays right
     return {
       state: S, cmd: cmd, resend: resend, up: function () { return links.up(); },
+      timer: timer, timerOf: timerOf,
       listen: function (f) { fns.push(f); changed(); },
       // the speakers' page listens to the previews of one folder only
       watch: function (id) {
@@ -325,6 +355,16 @@
     '.dk-b{min-height:52px;padding:0 14px;border:0;background:#242423;color:var(--fg);font:inherit;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer;touch-action:manipulation}' +
     '.dk-b.o{background:var(--orange);color:#fff}.dk-b.sm{min-height:40px;padding:0 12px;font-size:12px}.dk-b[disabled]{opacity:.35;cursor:default}' +
     '.dk-show,.dk-live{display:block;width:100%;margin-top:12px}' +
+    // the talk timer: the same row for the host (under Start: a tap starts / stops / resets it) and for the speaker
+    // (the same place, nothing to tap: it only counts up — no colours for "time is running out", no sound)
+    '.dk-tm{display:flex;align-items:center;gap:10px;width:100%;margin-top:8px;min-height:52px;padding:0 14px;border:1px solid #2c2c2b;background:none;color:var(--mute);font:inherit;text-align:left;cursor:pointer;touch-action:manipulation}' +
+    '.dk-tm svg{flex:none;width:20px;height:20px}' +
+    '.dk-tm b{font-size:22px;font-weight:400;font-variant-numeric:tabular-nums}' +
+    '.dk-tm span{margin-left:auto;color:var(--fg);font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}' +
+    '.dk-tm.run{border-color:#4a4a48}.dk-tm.run svg{color:var(--orange)}.dk-tm.run b,.dk-tm.stop b{color:var(--fg)}' +
+    'button.dk-tm:active{opacity:.75}' +
+    'div.dk-tm{cursor:default}div.dk-tm span{color:var(--mute);font-size:12px}' +
+    '.dk-tg.tm{background:none;border:1px solid #3a3a38;color:var(--mute);font-weight:400;font-variant-numeric:tabular-nums;padding:1px 6px}' +
     '.dk-row .dk-b{flex:none}' +
     '.dk-note{margin-top:8px;color:var(--mute);font-size:14px}.dk-note:empty{display:none}' +
     '.dk-nx{margin-top:22px;display:grid;grid-template-columns:132px minmax(0,1fr);gap:12px;align-items:center}' +
@@ -344,6 +384,8 @@
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function mmss(s) { s = Math.round(+s || 0); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
+  function clock(ms) { var s = Math.floor((+ms || 0) / 1000); return ('0' + Math.floor(s / 60)).slice(-2 - (s >= 6000 ? 1 : 0)) + ':' + ('0' + s % 60).slice(-2); }   // 00:00 … 99:59, 100:00
+  var WATCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="14" r="7.5"/><path d="M12 14V9.8M9.6 2.6h4.8M12 2.6v3.9M18.3 7.7l1.4-1.4"/></svg>';
   function count(f) { return f.k === 'pdf' ? f.c + (f.c === 1 ? ' slide' : ' slides') : f.k === 'vid' ? 'video' + (f.dur ? ' ' + mmss(f.dur) : '') + (f.lp ? ' · loop' : '') : f.k === 'img' ? 'picture' : ''; }
   function what(it) {                                   // "file.pdf · page 3 of 12"
     if (!it) return '';
@@ -386,6 +428,10 @@
     add(deck, 'h2', 'dk-name', 'name');
     var on = add(deck, 'div', 'dk-on', 'on'); add(on, 'b', '', 'onB'); add(on, 'span', '', 'onT');
     var live = add(deck, 'button', 'dk-b dk-live', 'live'); live.type = 'button'; live.hidden = !host;
+    // the timer, right under Start: the icon, the time, and for the host what a tap does (Start timer → Stop timer → Reset).
+    // The speaker sees the same row in the same place; there it is not a button.
+    var tmb = add(deck, host ? 'button' : 'div', 'dk-tm', 'tm'); if (host) tmb.type = 'button';
+    tmb.innerHTML = WATCH + '<b>00:00</b><span></span>';
     var pv = add(deck, 'div', 'dk-pv', 'pv');
     var cur = add(pv, 'img', '', 'cur'); cur.alt = ''; cur.hidden = true;
     add(pv, 'span', 'ph', 'ph');
@@ -453,6 +499,24 @@
       ask(op === 'show' ? 'Show on the screen' : 'Take off the screen', function () { command(op); });
     });
     live.addEventListener('click', function () { setLive(S.cfg.live === open ? '' : open); });
+    // the timer does not change what the hall sees: no question
+    tmb.addEventListener('click', function () {
+      if (!host || !open) return;
+      var st = cl.timerOf(open).st;
+      cl.timer(st === 'run' ? 'stop' : st === 'stop' ? 'reset' : 'start', open);
+      tick();
+    });
+    // the time on this page (every second while it runs; nothing comes from the network for it)
+    function tick() {
+      var t = cl.timerOf(open);
+      tmb.className = 'dk-tm' + (t.st === 'run' ? ' run' : t.st === 'stop' ? ' stop' : '');
+      tmb.querySelector('b').textContent = clock(t.ms);
+      tmb.querySelector('span').textContent = host ? (t.st === 'run' ? 'Stop timer' : t.st === 'stop' ? 'Reset' : 'Start timer')
+        : (t.st === 'run' ? 'Your talk' : t.st === 'stop' ? 'Stopped' : 'The host starts it');
+      if (host) { var tg = R.items.querySelector('.dk-tg.tm'); if (tg) tg.lastChild.textContent = clock(cl.timerOf(S.tm.d).ms); }
+    }
+    setInterval(function () { if (S.tm.st === 'run') tick(); }, 250);
+    var wasLive = '';
     document.addEventListener('keydown', function (e) {
       if (!open || deck.hidden || root.offsetParent === null || e.metaKey || e.ctrlKey || e.altKey) return;
       var a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
@@ -464,6 +528,9 @@
     var shownFiles = '';
     function render() {
       var lv = cl.live(), up = cl.screenOn(), sa = S.sa, L = S.list;
+      // the host's Stop (the talk is over): its timer stops too and keeps the time of the talk
+      if (host && wasLive && S.cfg.live !== wasLive && S.tm.d === wasLive && S.tm.st === 'run') cl.timer('stop');
+      wasLive = S.cfg.live;
       // ---- status
       var msg = '', warn = true;
       if (!cl.up()) msg = 'No connection to the server. Check the internet on this device.';
@@ -487,7 +554,7 @@
     }
     function renderList(lv) {
       var ds = decks(), box = R.items;
-      var sig = JSON.stringify([ds.map(function (d) { return [d.id, d.name, d.total, d.files.length, d.ho]; }), S.cfg.scene === 'slides' ? S.cfg.deck : '', S.cfg.live]);
+      var sig = JSON.stringify([ds.map(function (d) { return [d.id, d.name, d.total, d.files.length, d.ho]; }), S.cfg.scene === 'slides' ? S.cfg.deck : '', S.cfg.live, host ? [S.tm.d, S.tm.st] : 0]);
       R.empty.textContent = !S.list ? 'Waiting for the list of folders from the screen…' : ds.length ? '' : 'The folder on the screen computer has no speakers’ folders yet.';
       if (box.getAttribute('data-s') !== sig) {
         box.setAttribute('data-s', sig); box.innerHTML = '';
@@ -501,6 +568,7 @@
           if (d.ho) tx.appendChild(el('span', 'dk-tg', 'Only you'));
           if (S.cfg.live === d.id) tx.appendChild(el('span', 'dk-tg o', host ? 'Presenting' : 'Your talk is on'));
           if (onScreen(d.id)) tx.appendChild(el('span', 'dk-tg', 'On the screen'));
+          if (host && S.tm.d === d.id && S.tm.st !== 'off') { var tg = el('span', 'dk-tg tm'); tg.innerHTML = '<svg style="width:11px;height:11px;vertical-align:-1px;margin-right:4px" ' + WATCH.slice(4); tg.appendChild(document.createTextNode(clock(cl.timerOf(d.id).ms))); tx.appendChild(tg); }
           b.appendChild(tx);
           b.addEventListener('click', function () { choose(d.id); });
           row.appendChild(b);
@@ -537,6 +605,7 @@
       R.on.classList.toggle('hot', isLive || (host && isOn));
       // ---- host: Start / Stop
       live.hidden = !host || !!(d && d.ho);            // the host's own folder: no Start / Stop, just show it
+      tmb.hidden = host ? live.hidden : false; tick();
       if (host) {
         var other = S.cfg.live && S.cfg.live !== open ? find(S.cfg.live) : null;
         live.textContent = isLive ? 'Stop · the screen goes to the logo' : other ? 'Start · instead of ' + other.name : 'Start · give this speaker the screen';
