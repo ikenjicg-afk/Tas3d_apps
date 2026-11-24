@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '4248746b1c';</script>
+<script>window.TAS3D_BUILD = '478c70130b';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -128,6 +128,11 @@ h2.sec.first{margin-top:6px}
 .spkqr{margin-top:12px;display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center}
 .spkqr .qrb{background:#fff;padding:6px;line-height:0;cursor:zoom-in}
 .spkqr .qrb svg{width:100%;height:auto}
+/* the same link as the QR code, to open the speakers' page from here (the host sees what the speakers see) */
+.spkqr .lnk{margin-top:8px;font-size:13px;line-height:1.35;word-break:break-all}
+.spkqr .lnk a{color:var(--fg)}
+.spkbtn{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.spkbtn .btn{display:flex;align-items:center;justify-content:center;text-decoration:none}
 .bigqr{position:fixed;inset:0;z-index:31;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;background:#0e0e0e}
 .bigqr .qrb{width:min(86vw,72vh);background:#fff;padding:10px;line-height:0}
 .bigqr .qrb svg{width:100%;height:auto}
@@ -329,7 +334,10 @@ h2.sec{margin-top:30px;font-size:22px}
     <div class="spk">
       <p class="kick">Speakers</p>
       <div class="spkqr"><div class="qrb" id="spkQr" role="button" tabindex="0" aria-label="Show the speakers' QR code big"></div>
-        <p class="hint">Speakers scan this — no password. Tap to make it big.</p></div>
+        <div><p class="hint">Speakers scan this — no password. Tap to make it big.</p>
+          <p class="lnk"><a id="spkLink" target="_blank" rel="noopener"></a></p>
+          <p class="hint" style="margin-top:6px;font-size:13px">The same page by a link: open it to see what the speakers see.</p></div></div>
+      <div class="spkbtn"><a class="btn" id="spkOpen" target="_blank" rel="noopener">Open the page</a><button type="button" class="btn" id="spkCopy">Copy link</button></div>
     </div>
     <div id="deckui"></div>
   </section>
@@ -600,8 +608,21 @@ h2.sec{margin-top:30px;font-size:22px}
     function slidesUI() { if (!deckUI && dc) deckUI = TasDeckUI($('deckui'), { mode: 'host', client: dc, setLive: setLive, guard: guard }); }
     $('lvbStop').addEventListener('click', function () { setLive(''); });
     // the speakers' QR: their page with the presentations key after # (the key stays on the phones, it is not sent to any server)
-    var spkUrl = new URL('../speakers/', location.href).href + (TasSlidesKey.get() ? '#k=' + TasSlidesKey.get() : '');
+    // (this panel opened as a file from the disk: the speakers' page of the published site, a file:// address is of no use to a phone)
+    var spkPage = location.protocol === 'file:' && window.TAS3D_SITE ? window.TAS3D_SITE + 'speakers/' : new URL('../speakers/', location.href).href;
+    var spkUrl = spkPage + (TasSlidesKey.get() ? '#k=' + TasSlidesKey.get() : '');
     if (window.TasQR) { var qsvg = TasQR(spkUrl); $('spkQr').innerHTML = qsvg; $('bigQrQ').innerHTML = qsvg; }
+    // the same link in words: the address is shown without the key (the link itself carries it, like the QR code)
+    $('spkLink').href = spkUrl; $('spkLink').textContent = spkPage.replace(/^https?:\/\//, '');
+    $('spkOpen').href = spkUrl;
+    $('spkCopy').addEventListener('click', function () {
+      var b = $('spkCopy'), done = function (ok) { b.textContent = ok ? 'Copied' : 'Not copied'; setTimeout(function () { b.textContent = 'Copy link'; }, 1600); };
+      var old = function () {                          // where the clipboard API is not allowed
+        var t = document.createElement('textarea'); t.value = spkUrl; t.setAttribute('readonly', ''); t.style.cssText = 'position:fixed;left:-999px;top:0';
+        document.body.appendChild(t); t.select(); var ok = false; try { ok = document.execCommand('copy'); } catch (e) {} document.body.removeChild(t); done(ok);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(spkUrl).then(function () { done(true); }, old); else old();
+    });
     function bigQr(on) { $('bigQr').hidden = !on; }
     $('spkQr').addEventListener('click', function () { bigQr(true); });
     $('spkQr').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bigQr(true); } });
