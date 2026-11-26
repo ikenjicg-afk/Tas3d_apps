@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '478c70130b';</script>
+<script>window.TAS3D_BUILD = '171151cf20';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -240,7 +240,7 @@ h2.sec{margin-top:30px;font-size:22px}
     <p class="hint bad" id="scrOld" hidden><span id="scrOldT"></span> <button type="button" class="btn" id="scrUpd" style="margin-top:8px">Update the screen</button></p>
     <p class="pvl"><a id="openScreen" href="../screen/" target="tas3d-screen">Open the screen on this device ↗</a></p>
     <div class="seg" role="group" aria-label="Screen">
-      <button type="button" data-s="logo" aria-pressed="false">Logo</button>
+      <button type="button" data-s="blank" aria-pressed="false">Blank</button>
       <button type="button" data-s="checkin" aria-pressed="true">Check-in</button>
       <button type="button" data-s="poll" aria-pressed="false">Poll</button>
       <button type="button" data-s="slides" aria-pressed="false">Slides</button>
@@ -444,8 +444,8 @@ h2.sec{margin-top:30px;font-size:22px}
 </main>
 <script src="../assets/config.js?v=875f2cd5"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
-<script src="../assets/hub.js?v=2ab16329"></script>
-<script src="../assets/deck.js?v=c5ce1ee6"></script>
+<script src="../assets/hub.js?v=c9a643ae"></script>
+<script src="../assets/deck.js?v=da77d3dc"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
@@ -603,8 +603,8 @@ h2.sec{margin-top:30px;font-size:22px}
 
     // ---- slides: the remote for every speaker's folder (made when the tab is first opened)
     var deckUI = null;
-    // Start / Stop: one change (who presents + the logo on the screen), so every device sees both at once
-    function setLive(id) { guard(id ? 'Start (slides)' : 'Stop (slides)', function () { hub.setCfg({ live: id, scene: 'logo' }); }); }
+    // Start / Stop: one change (who presents + a black screen), so every device sees both at once
+    function setLive(id) { guard(id ? 'Start (slides)' : 'Stop (slides)', function () { hub.setCfg({ live: id, scene: 'blank' }); }); }
     function slidesUI() { if (!deckUI && dc) deckUI = TasDeckUI($('deckui'), { mode: 'host', client: dc, setLive: setLive, guard: guard }); }
     $('lvbStop').addEventListener('click', function () { setLive(''); });
     // the speakers' QR: their page with the presentations key after # (the key stays on the phones, it is not sent to any server)
@@ -723,7 +723,7 @@ h2.sec{margin-top:30px;font-size:22px}
         renderScr();
       });
     }
-    $('spOff').addEventListener('click', function () { if (spOn()) guard('Take off the screen', function () { spPend = null; hub.setCfg({ scene: 'logo' }); }); });
+    $('spOff').addEventListener('click', function () { if (spOn()) guard('Take off the screen', function () { spPend = null; hub.setCfg({ scene: 'blank' }); }); });
     // the volume of the videos from "Screen" (the screen keeps it, also over a reload of its page); no question: like the other sliders
     var vxT = null, vxDrag = 0;
     $('vX').addEventListener('input', function () {
@@ -743,9 +743,9 @@ h2.sec{margin-top:30px;font-size:22px}
         files.forEach(function (x) {
           var b = document.createElement('button'); b.type = 'button'; b.className = 'slot'; b.setAttribute('data-i', x.i);
           b.innerHTML = '<span class="k"></span><span class="t"></span><span class="d"></span>';
-          b.querySelector('.k').textContent = x.f.k === 'vid' ? 'Video' + (x.f.dur ? ' · ' + mmss(x.f.dur) : '') + (x.f.q ? ' · no sound in the file' : '') : x.f.k === 'pdf' ? 'PDF' + (x.f.c > 1 ? ' · ' + x.f.c + ' pages' : '') : 'Picture';
+          b.querySelector('.k').textContent = x.f.k === 'vid' ? 'Video' + (x.f.dur ? ' · ' + mmss(x.f.dur) : '') + (x.f.lp ? ' · loop' : ' · once') + (x.f.q ? ' · no sound in the file' : '') : x.f.k === 'pdf' ? 'PDF' + (x.f.c > 1 ? ' · ' + x.f.c + ' pages' : '') : 'Picture';
           b.querySelector('.t').textContent = x.f.n.replace(/\.[a-z0-9]+$/i, '').replace(/^\d+[\s._\-–—]*/, '') || x.f.n;
-          b.addEventListener('click', function () { if (spCur() === x.i) guard('Take off the screen', function () { spPend = null; hub.setCfg({ scene: 'logo' }); }); else spShow(x.i); });
+          b.addEventListener('click', function () { if (spCur() === x.i) guard('Take off the screen', function () { spPend = null; hub.setCfg({ scene: 'blank' }); }); else spShow(x.i); });
           $('spList').appendChild(b);
         });
       }
@@ -817,7 +817,7 @@ h2.sec{margin-top:30px;font-size:22px}
 
     // ---- every poll at once on the screen
     $('allShow').addEventListener('click', function () {
-      if (S.cfg.scene === 'polls') guard('Take the results off the screen', function () { hub.setCfg({ scene: 'logo' }); });
+      if (S.cfg.scene === 'polls') guard('Take the results off the screen', function () { hub.setCfg({ scene: 'blank' }); });
       else guard('All results on the screen', function () { hub.setCfg({ scene: 'polls' }); });
     });
 
@@ -1072,7 +1072,7 @@ h2.sec{margin-top:30px;font-size:22px}
           if (pair && pair.b) {
             var onS = S.cfg.scene === 'shift' && S.cfg.cmp === root;
             var cg = document.createElement('button'); cg.type = 'button'; cg.className = 'btn' + (onS ? '' : ' o'); cg.textContent = onS ? 'Change is on the screen · take off' : 'Show the change';
-            cg.addEventListener('click', function () { if (S.cfg.scene === 'shift' && S.cfg.cmp === root) guard('Take the change off the screen', function () { hub.setCfg({ scene: 'logo' }); }); else guard('Show the change', function () { hub.showShift(root); }); });
+            cg.addEventListener('click', function () { if (S.cfg.scene === 'shift' && S.cfg.cmp === root) guard('Take the change off the screen', function () { hub.setCfg({ scene: 'blank' }); }); else guard('Show the change', function () { hub.showShift(root); }); });
             bb.appendChild(cg);
           }
           box.appendChild(bb);

@@ -652,8 +652,9 @@
       quizAsk: function (r, i) { api.setQuiz({ st: 'ask', r: r, i: i }); if (S.cfg.scene !== 'quiz') api.setCfg({ scene: 'quiz' }); },
       quizShow: function (ans) { if (S.quiz.st === 'ask' && (ans === 'r' || ans === 'p')) api.setQuiz({ st: 'show', ans: ans }); },
       quizEnd: function () { api.setQuiz({ st: 'end' }); },
-      closeQuiz: function () { api.setQuiz({ st: 'off' }); if (S.cfg.scene === 'quiz') api.setCfg({ scene: 'logo' }); },
-      closeGame: function () { api.setGame({ st: 'off' }); api.setCfg({ scene: 'logo' }); },
+      // closed: the screen goes black (the scene "blank"; the logo is not a place to go back to any more)
+      closeQuiz: function () { api.setQuiz({ st: 'off' }); if (S.cfg.scene === 'quiz') api.setCfg({ scene: 'blank' }); },
+      closeGame: function () { api.setGame({ st: 'off' }); api.setCfg({ scene: 'blank' }); },
       // an earlier poll of this round back on the screen, voting closed
       showPoll: function (pid) {
         var x = S.ph[pid]; if (!x) return;

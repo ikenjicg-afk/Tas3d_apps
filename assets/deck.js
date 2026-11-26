@@ -596,7 +596,7 @@
         onT = '';
       } else if (isLive) {
         onB = isOn ? 'Your slides are on the screen' : 'Your talk is on · you have the screen';
-        onT = isOn ? 'Change the slides with ← →. When you finish: “Take off the screen” (the screen goes to the logo).' : 'Press “Show on the screen” when you are ready.';
+        onT = isOn ? 'Change the slides with ← →. When you finish: “Take off the screen” (the screen goes black).' : 'Press “Show on the screen” when you are ready.';
       } else {
         onB = isOn ? 'On the screen · the host controls it' : 'Waiting for the host';
         onT = isOn ? 'The host is showing your slides.' : 'You can look through your slides here. When the host starts your talk, you can put them on the screen.';
@@ -608,7 +608,7 @@
       tmb.hidden = host ? live.hidden : false; tick();
       if (host) {
         var other = S.cfg.live && S.cfg.live !== open ? find(S.cfg.live) : null;
-        live.textContent = isLive ? 'Stop · the screen goes to the logo' : other ? 'Start · instead of ' + other.name : 'Start · give this speaker the screen';
+        live.textContent = isLive ? 'Stop · the screen goes black' : other ? 'Start · instead of ' + other.name : 'Start · give this speaker the screen';
         live.className = 'dk-b dk-live' + (isLive ? '' : ' o');
       }
       // ---- preview

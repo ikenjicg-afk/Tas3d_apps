@@ -10,8 +10,10 @@
   const PDF = /\.pdf$/i, IMG = /\.(jpe?g|png|webp|gif|avif|bmp|svg)$/i, VID = /\.(mp4|m4v|webm|mov|ogv|mkv|3gp|3g2|avi|wmv|flv|mpe?g|ts|mts|m2ts)$/i;
   // not listed at all: hidden and system files, notes, unfinished downloads
   const SKIP = /^\.|^~\$|^(desktop\.ini|thumbs\.db|icon\r?)$|\.(txt|md|rtf|url|webloc|lnk|ini|db|tmp|part|crdownload|download)$/i;
-  // a video with the word "loop" in its name ("1. loop 1 min.mp4") plays in a circle until the next slide
-  const LOOP = /(^|[^a-z0-9])loop([^a-z0-9]|$)/i;
+  // a video with the word "loop" in its name plays in a circle until the next slide — however it is written: "Loop", "loop",
+  // "_loop", "loop_", "-loop-", "1. loop 1 min", "bg loop2" (not inside another word: "looping"). In every folder, "Screen" too.
+  // Every other video plays once: over its last 2 seconds the picture and the sound fade away, and the screen stays black.
+  const LOOP = /(^|[^a-z])loop(?![a-z])/i, FADE = 2;
   const loops = (f) => f.k === 'vid' && LOOP.test(f.name.split('/').pop().replace(/\.[a-z0-9]+$/i, ''));
   const nat = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
   const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -104,7 +106,7 @@
     function pubDk() {
       pub(B + '/dk', { sn, st: T0, seq: ++seq, t: Date.now(), folder: rootName, quiz: quiz.length ? quiz.map((q) => ({ n: q.n, a: q.a })) : undefined, decks: decks.map((d) => ({
         id: d.id, name: d.name, total: d.total, sp: d.sp ? 1 : undefined, ho: d.ho ? 1 : undefined,
-        files: d.files.map((f) => ({ n: f.name, k: f.k, c: f.c, from: f.from, dur: f.dur ? Math.round(f.dur) : undefined, lp: f.k === 'vid' && (d.sp || loops(f)) ? 1 : undefined, q: f.q ? 1 : undefined, w: f.w || undefined }))
+        files: d.files.map((f) => ({ n: f.name, k: f.k, c: f.c, from: f.from, dur: f.dur ? Math.round(f.dur) : undefined, lp: loops(f) ? 1 : undefined, q: f.q ? 1 : undefined, w: f.w || undefined }))
       })) }, true);
     }
     setInterval(() => { if (decks.length) pubDk(); }, 60000);
@@ -152,7 +154,7 @@
           if (Number.isInteger(d.f) && dk.files[d.f] && dk.files[d.f].c) setPos(dk, dk.files[d.f].from);
           if (!on) hub.setCfg({ scene: 'slides', deck: dk.id });
           break;
-        case 'hide': if (on) hub.setCfg({ scene: 'logo' }); break;
+        case 'hide': if (on) hub.setCfg({ scene: 'blank' }); break;   // taken off the screen: black
         case 'play': case 'pause': case 'restart': if (on) video(d.op); break;
         default: return;
       }
@@ -462,7 +464,7 @@
     // the videos from the folder "Screen" play at the volume of the Screen tab; a speaker's video always plays at its full volume
     function setScrVol(x) {
       vx = x;
-      if (shown && shown.k === 'vid' && shown.sp && shown.el) shown.el.volume = gain(vx);
+      if (shown && shown.k === 'vid' && shown.sp && shown.el) fadeV(shown);
       volSave(); pubAu();
     }
     const gain = (v) => v * v;                          // a slider feels even this way (ears hear the low end better)
@@ -714,7 +716,7 @@
     function info(d, i) {
       if (!d || i < 0 || i >= d.total) return null;
       const [fi, p] = d.items[i], f = d.files[fi];
-      return { f: fi, n: f.name, k: f.k, p, c: f.c, dur: f.dur ? Math.round(f.dur) : undefined, lp: f.k === 'vid' && (d.sp || loops(f)) ? 1 : undefined };
+      return { f: fi, n: f.name, k: f.k, p, c: f.c, dur: f.dur ? Math.round(f.dur) : undefined, lp: loops(f) ? 1 : undefined };
     }
     // ---------- what the remotes get
     // pv/<folder>: where the folder is (slide number, file, video state, the confirmation of the last command) — small, sent at once.
@@ -812,7 +814,10 @@
           L.url = URL.createObjectURL(await f.get());
           const v = document.createElement('video'); v.src = L.url; v.preload = 'auto'; v.playsInline = true;
           await once(v, 'loadeddata', 10000);
-          ['play', 'pause', 'ended', 'volumechange'].forEach((ev) => v.addEventListener(ev, () => { const dd = byId[cfg.deck]; if (dd && shown === L) pubPv(dd); bgApply(); }));
+          ['play', 'pause', 'ended', 'volumechange'].forEach((ev) => v.addEventListener(ev, () => {
+            if (ev === 'volumechange' && L.fading) return;      // the fade at the end changes the volume 25 times a second: nothing to tell
+            const dd = byId[cfg.deck]; if (dd && shown === L) pubPv(dd); bgApply();
+          }));
           v.addEventListener('playing', () => { setTimeout(bgApply, 250); setTimeout(() => { const dd = byId[cfg.deck]; if (dd && shown === L) pubPv(dd); }, 2200); });   // the music waits under a video with sound; "no sound track" is known after a moment
           // paused by something other than the host (the browser pauses a silent video when its window goes behind
           // another program; a play / pause key): it plays on
@@ -855,9 +860,10 @@
       L.left = false;
       if (ok) {
         L.el.classList.add('on'); shown = L;
-        if (L.k === 'vid') { L.quiet = false; L.el.loop = !!d.sp || !!L.lp; }   // a video from "Screen": in a loop, with its sound; "loop" in the name: in a loop
-        if (L.k === 'vid') { L.sp = !!d.sp; L.el.volume = d.sp ? gain(vx) : 1; }   // "Screen": the volume of the Screen tab
+        if (L.k === 'vid') { L.quiet = false; L.el.loop = !!L.lp; }   // "loop" in the name: in a loop; every other video once (with its sound)
+        if (L.k === 'vid') L.sp = !!d.sp;                 // "Screen": the volume of the Screen tab
         if (fresh && L.k === 'vid') { L.want = true; L.el.currentTime = 0; playV(L.el, L.quiet); }
+        if (L.k === 'vid') { L.fk = -1; fadeV(L); }
       }
       else shown = null;
       const keep = new Set([keyOf(d, i)]);
@@ -866,6 +872,23 @@
       if (i + 1 < d.total) prepare(d, i + 1);         // the next slides are ready before they are asked for
       setTimeout(() => { if (t !== tok) return; if (i + 2 < d.total) prepare(d, i + 2); if (i > 0) prepare(d, i - 1); }, 250);
     }
+    // the end of a video that is not a loop: over the last FADE seconds the picture goes to black and the sound to silence,
+    // following the video's own time (a pause holds it, "From the start" brings it back). Ended: black.
+    function fadeV(L) {
+      const v = L.el; if (!v || L.k !== 'vid') return;
+      let k = 1;
+      if (!L.lp) {
+        const dur = v.duration, okd = isFinite(dur) && dur > 0, w = okd ? Math.min(FADE, dur / 2) : FADE;
+        k = v.ended ? 0 : okd ? Math.max(0, Math.min(1, (dur - v.currentTime) / w)) : 1;
+      }
+      const base = L.sp ? gain(vx) : 1;                 // "Screen": the volume of the Screen tab; a speaker's video: full
+      if (L.fk === k && L.fb === base) return;
+      L.fk = k; L.fb = base;
+      v.style.opacity = k === 1 ? '' : String(Math.round(k * 1000) / 1000);
+      L.fading = k < 1;
+      const vol = base * k; if (Math.abs(v.volume - vol) > 0.0005) v.volume = vol;
+    }
+    setInterval(() => { if (shown && shown.k === 'vid' && shown.el) fadeV(shown); }, 40);
     function playV(v, quiet) {
       v.muted = !!quiet || soundBlocked;               // sound is not allowed yet (see soundOn): silent at once
       const loud = !v.muted, p = v.play();
@@ -989,7 +1012,7 @@
         ho: decks.some((d) => d.ho) ? (decks.find((d) => d.ho).files.filter((f) => f.c).length) : -1,   // the host's own folder "Host": files in it, -1 = no folder
         snd: { on: !!sroot, folder: sname, slots: slots.length, bg: bgList.length, err: serr,
           playing: cur ? cur.i : -1, bgOn, bgCur: bgList[bgIdx] ? bgList[bgIdx].name : '', vj, vb, bgVol: bgEl ? bgEl.volume : 0,
-          bgPlay: !!(bgEl && !bgEl.paused), hushed, vx, vidVol: shown && shown.k === 'vid' && shown.el ? shown.el.volume : -1, fx: Object.keys(Object.assign({}, fxFiles, gameFx)) },
+          bgPlay: !!(bgEl && !bgEl.paused), hushed, vx, vidVol: shown && shown.k === 'vid' && shown.el ? shown.el.volume : -1, vidOp: shown && shown.k === 'vid' && shown.el ? +(shown.el.style.opacity || 1) : -1, vidLoop: !!(shown && shown.k === 'vid' && shown.el && shown.el.loop), fx: Object.keys(Object.assign({}, fxFiles, gameFx)) },
         gamePic: gamePic ? gamePic.name : '' }),
       gamePicUrl: () => (gamePic && gamePic.url) || '',
       // the quiz picture i as a URL the page can show (made once per file); its answer: 'r' render, 'p' photo
