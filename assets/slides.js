@@ -926,6 +926,23 @@
     // the sound on, also for the video that is playing now. Chrome and Edge then keep the sound for every next video;
     // Safari asks for a click for each video, so there the same click is taken every time it comes.
     const CHROMIUM = /^(Chrome|Edge|Opera|Yandex) /.test(browserName());
+    // May this page sound at all? Asked right when it opens, not when the first video or the game's first sound comes:
+    // an AudioContext that the browser lets run means yes. So "Sound is off — click here once" is on the screen, and
+    // "no sound" in the host panel, before the show and not in the middle of it. (A page opened by a click in the host
+    // panel, or loaded again after a click, may sound although nobody has clicked on it: soundFree.)
+    let soundFree = false;
+    (function probe() {
+      const A = window.AudioContext || window.webkitAudioContext;
+      if (!A) return;
+      let c = null; try { c = new A(); } catch (e) { return; }
+      setTimeout(() => {
+        const run = c.state === 'running', ua = navigator.userActivation;
+        try { c.close(); } catch (e) {}
+        if (run) { soundFree = true; return; }
+        if (ua && ua.hasBeenActive) return;            // clicked meanwhile
+        if (!soundBlocked) { soundBlocked = true; changed(); pubSa(); pubAu(); }
+      }, 500);
+    })();
     function soundOn() {
       const ua = navigator.userActivation;
       if (ua && !ua.hasBeenActive) return;             // a key that does not count for the browser (Esc, Shift …)
@@ -1010,7 +1027,7 @@
       // the prank wants sound and nobody has clicked on this page yet: say so here and in the host panel
       wantSound() {
         const ua = navigator.userActivation;
-        if (soundBlocked || !ua || ua.hasBeenActive) return;
+        if (soundBlocked || soundFree || !ua || ua.hasBeenActive) return;
         soundBlocked = true; changed(); pubSa(); pubAu();
       },
       useHandle: (h) => useHandle(h, false),         // tests (headless Chrome here cannot keep a folder in IndexedDB)

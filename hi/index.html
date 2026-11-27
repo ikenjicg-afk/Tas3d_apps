@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'cdbdb8a476';</script>
+<script>window.TAS3D_BUILD = '6d656b1fa2';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAS3D 2026</title>
 <meta name="robots" content="noindex">
@@ -372,7 +372,7 @@ button.pgi:active{background:#171716}
   <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false">Questions<em id="qbadge" hidden></em></button>
   <button type="button" role="tab" id="tab-prog" aria-controls="pane-prog" aria-selected="false">Programme</button>
 </nav>
-<script src="../assets/config.js?v=f7917e49"></script>
+<script src="../assets/config.js?v=39c28a0f"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script>
 (function () {
@@ -1128,7 +1128,7 @@ button.pgi:active{background:#171716}
   // the host shows the game: the RENDER button pops up; Start rendering: 3, 2, 1 and everybody taps.
   // The phone sends its own total ("role:taps so far") about once a second — a lost message does not matter, the next one has it all.
   var game = { id: '', st: 'off', at: -1, w: '' }, gs = null, gameOpen = false, gameSeen = '', cdEnd = 0, cdT = null;
-  var gTaps = [], gSentN = -1, gIdleT = null, gFlushT = null;
+  var gTaps = [], gSentN = -1, gIdleT = null, gFlushT = null, gPId = '', gPMax = 0;
   function gMy() { return st.gm && st.gm.id === game.id ? st.gm.n : 0; }
   function onGame(text, kept) {
     var d = json(text); if (!d) return;
@@ -1190,6 +1190,9 @@ button.pgi:active{background:#171716}
     // the prank's error comes when the screen's meter says NOISE 50%: the phone shows the same number while it "hangs"
     var PK = C.game.prank || {}, pHang = 1 - Math.pow(PK.hang > 0 && PK.hang < 1 ? PK.hang : 0.5, 1 / 1.3);
     var p = gst === 'done' ? 1 : gst === 'boot' ? 0 : gst === 'hang' ? pHang : target ? Math.min(1, total / target) : 0;
+    // the screen sets the amount again once it knows the hall's pace: the meter here never goes back
+    if (gPId !== game.id || gst === 'boot' || gst === 'ready') { gPId = game.id; gPMax = 0; }
+    if (gst === 'run') { p = Math.max(gPMax, p); gPMax = p; }
     $('gBar').style.width = (p * 100) + '%';
     $('gPct').textContent = Math.floor(p * 100) + '% rendered';
     $('gNoise').textContent = 'Noise ' + Math.round(Math.pow(1 - p, 1.3) * 100) + '%';

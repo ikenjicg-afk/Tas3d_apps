@@ -454,6 +454,34 @@
       else if (g.st === 'bsod' && el >= (P.results || 10) * 1000) api.setGame({ st: 'done' });
     }, 250);
 
+    // ---- how long the game lasts: C.game.time seconds of tapping for the whole game (with the prank: both renders
+    // together), whatever the number of guests and however fast they tap. The first guess of the target is guests × per
+    // (startGame). After C.game.cal seconds of tapping this screen measures the hall's pace — samples a second over the last
+    // seconds — and sets the target so that this render lasts its share of the time at that pace. Each render (each game
+    // id) is measured once; G.cal says it is done (kept over a reload of the page). Two screens would both do it: about
+    // the same number, the later one stays.
+    var calLog = [];
+    function gamePer() { var p = C.game.per; return typeof p === 'number' ? p : (p && p.normal) || 330; }
+    function gameCal() {
+      var g = S.game, T = +C.game.time || 0, now = Date.now();
+      if (g.st !== 'run' || !G.id || g.id !== G.id || !G.t0 || G.cal || !T) { calLog = []; return; }
+      if (now < G.t0) return;                           // 3, 2, 1
+      var total = S.gs ? S.gs.total : 0;
+      // The pace is the growth of the total between two moments, not the total itself: a phone tells its total every 2 s, so
+      // what this screen knows is about a second behind — at both moments alike. The window starts 3 s into the tapping
+      // (by then every phone has told its total once) and is at most 7 s long.
+      calLog.push([now, total]); while (calLog.length > 1 && (calLog[0][0] < G.t0 + 3000 || now - calLog[0][0] > 7000)) calLog.shift();
+      if (now - G.t0 < (+C.game.cal || 10) * 1000) return;
+      var dt = (now - calLog[0][0]) / 1000, dn = total - calLog[0][1];
+      if (calLog[0][0] < G.t0 + 3000 || dt < 2.5 || dn < 6) return;   // too early, or nobody is tapping yet: wait for the hall
+      var rate = dn / dt, F = g.pk ? api.prankAt(1) + api.prankAt(2) : 1, next = !g.pk ? 1 : g.ph === 2 ? api.prankAt(2) : api.prankAt(1);
+      var target = Math.max(+C.game.min || 0, Math.round(rate * T / F));
+      target = Math.max(target, Math.ceil((total + rate * 5) / next));   // what comes next (the error, the blue screen, the end) is never closer than 5 s
+      G.cal = 1; G.rate = Math.round(rate * 10) / 10; try { localStorage.setItem(GK, JSON.stringify(G)); } catch (e) {}
+      if (Math.abs(target - g.target) > g.target * 0.03) api.setGame({ target: target });
+    }
+    if (opt.screen) setInterval(gameCal, 500);
+
     // ---- the quiz "Render or photo?" (host: Game tab). The pictures are in the folder "Quiz" on the screen computer and are shown
     // only on the big screen; each phone sends one answer per picture; the screen counts the points (and the time of the right
     // answers, for ties) and at the end names the top three.
@@ -648,10 +676,11 @@
         var P = C.game.prank || {}, noise = n === 2 ? (P.bsod > 0 && P.bsod < 1 ? P.bsod : 0.01) : (P.hang > 0 && P.hang < 1 ? P.hang : 0.5);
         return 1 - Math.pow(noise, 1 / 1.3);
       },
-      newGame: function (per) { api.setGame({ id: 'g' + rid(), st: 'ready', target: 0, per: per, pk: api.prankOn() ? 1 : 0, ph: 1, t1: 0 }); api.setCfg({ scene: 'game' }); },
+      newGame: function (per) { api.setGame({ id: 'g' + rid(), st: 'ready', target: 0, per: per || gamePer(), pk: api.prankOn() ? 1 : 0, ph: 1, t1: 0 }); api.setCfg({ scene: 'game' }); },
+      // the first guess of the samples needed: guests × per. The screen fits it to the hall's pace a few seconds later (gameCal)
       startGame: function () {
-        var per = S.game.per || C.game.per.normal;
-        api.setGame({ st: 'run', target: Math.max(C.game.min, Math.round(S.total * per)) });
+        var per = S.game.per || gamePer();
+        api.setGame({ st: 'run', target: Math.max(C.game.min, Math.round(Math.max(1, S.total) * per)) });
         if (S.cfg.scene !== 'game') api.setCfg({ scene: 'game' });
       },
       finishGame: function () { api.setGame({ st: 'done' }); },

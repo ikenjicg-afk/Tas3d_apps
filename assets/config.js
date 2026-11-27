@@ -15,7 +15,8 @@
 //   <base>/px/<folder id>/c and /n = the pictures of the current and the next slide (kept; big, so they go apart, over
 //   connections of their own), <base>/sa = "the screen is on" (every 8 s),
 //   <base>/sk = commands from the speakers' page and the host panel (next, prev, show on screen ...).
-// The game: <base>/game = {id, st: off|ready|run|hang|boot|bsod|done, target, per, pk, ph, t1, at, w} (kept, from the host and the screen);
+// The game: <base>/game = {id, st: off|ready|run|hang|boot|bsod|done, target, per, pk, ph, t1, at, w} (kept, from the host and the screen;
+//   target = the samples needed: the screen sets it again once it knows the hall's pace — see game.time below);
 //   pk = the prank is on (always, unless game.prank.on is false), ph = which render of the prank
 //   (1: "Insufficient Memory" when 50% of the noise is left, 2: a blue screen when 1% of the noise is left),
 //   hang = the error window, the game stands still; boot = the host's "Fake reset" (a new game id: everything starts from zero);
@@ -44,15 +45,20 @@ window.TAS3D_CHECKIN = {
   host: { salt: 'edaa75343e03677b0559f9c0f6e435ab', iterations: 150000, hash: '8954e5646d38bb5d211581f1b8c99e1cdc5cb5da114af8b9ca5c51e8ec775902' },
   // Slides key (made by tools/make_slide_keys.js; no password is written here): the speakers' password gives the key,
   // the host password opens it too ("wrap"). Previews and commands of the presentations are encrypted with it.
-  // the opening game: the hall renders TAS3D 2026 out of noise together. Samples needed = checked-in guests × per (at least min);
-  // normal: a hall tapping at an easy pace ≈ 1 minute;
+  // the opening game: the hall renders TAS3D 2026 out of noise together.
+  // time: for how many seconds the hall taps in the whole game (with the prank: both renders together) — 150 = 2.5 minutes,
+  //   whatever the number of guests and however fast they tap. How: the first guess of the samples needed is
+  //   checked-in guests × per (at least min); after `cal` seconds of tapping the screen measures the hall's real pace
+  //   (samples a second) and sets the amount so that the render lasts its share of `time` at that pace. With the prank the
+  //   1st render (to NOISE 50%) is about 30% of the time and the 2nd (to NOISE 1%) about 70%; each one is measured once.
+  //   time: 0 = no measuring, the amount stays guests × per.
   // one phone counts at most cap taps a second
   // prank (part of the game; on: false takes it out): hang and bsod are the NOISE left on the screen's meter.
   // The 1st render stops with "Insufficient Memory" when the meter shows `hang` (0.5 = NOISE 50%); the host presses
   // Fake reset, the restart takes `boot` seconds; the 2nd render crashes with a blue screen at `bsod` (0.01 = NOISE 1%),
   // and the results come `results` seconds later.
   // (the meter: noise = (1 − rendered)^1.3, so NOISE 50% is 41% of the samples and NOISE 1% is 97%)
-  game: { per: { short: 100, normal: 170, long: 300 }, min: 1000, cap: 12, prank: { on: true, hang: 0.5, bsod: 0.01, boot: 9, results: 10 } },
+  game: { time: 150, cal: 10, per: 330, min: 150, cap: 12, prank: { on: true, hang: 0.5, bsod: 0.01, boot: 9, results: 10 } },
   slides: {
     iterations: 150000,
     ssalt: '4564344c5f5c5d59c48e5cfb395f3c52',
@@ -135,19 +141,34 @@ window.TAS3D_CHECKIN = {
     ['like', '\uD83D\uDC4D', 'Like']
   ]
 };
-// For tests: ?broker=ws://localhost:9001/mqtt (comma-separated) replaces the list above.
+// For tests: ?broker=ws://localhost:9001/mqtt (comma-separated) replaces the list above;
+// ?game=time:0,min:1000 replaces numbers of `game` on that page (a short game for a test).
 (function (c) {
   try {
-    var b = new URLSearchParams(location.search).get('broker');
+    var P = new URLSearchParams(location.search), b = P.get('broker'), g = P.get('game');
     if (b) c.brokers = b.split(',').filter(function (u) { return /^wss?:\/\//.test(u); });
+    if (g) g.split(',').forEach(function (kv) { var m = /^(time|cal|per|min|cap):(\d+(?:\.\d+)?)$/.exec(kv); if (m) c.game[m[1]] = +m[2]; });
   } catch (e) {}
   c.base = c.topic + '/' + c.room;
 })(window.TAS3D_CHECKIN);
 // A new version of the site was published: fn(newBuild). TAS3D_BUILD is put into each page by tools/build_checkin.py.
 (function () {
-  window.TasUpdate = function (fn, first) {
+  // quick (the screen and the host panel: 5000): every `quick` ms the tiny file build.txt next to the pages is asked for
+  // the build id, so those two take a new version within seconds and nobody has to press anything. The guests' phones do
+  // not do it: hundreds of them asking every 5 s would be too many requests.
+  window.TasUpdate = function (fn, first, quick) {
     var mine = window.TAS3D_BUILD;
     if (!mine || location.protocol === 'file:') return;
+    if (quick) setInterval(function () {
+      fetch(new URL('../build.txt', location.href.split(/[?#]/)[0]).href + '?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+        t = (t || '').trim();
+        if (!/^[a-z0-9]{6,20}$/.test(t) || t === mine) return;
+        // this page has just loaded itself again for that build and is still not it (the page is not out yet): not at once again
+        var m = null; try { m = /^([a-z0-9]+)\|(\d+)$/.exec(sessionStorage.getItem('tas3d-upd') || ''); } catch (e) {}
+        if (m && m[1] === t && Date.now() - +m[2] < 60000) return;
+        fn(t);
+      }).catch(function () {});
+    }, quick);
     function check() {
       fetch(location.pathname + '?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (h) {
         var m = /TAS3D_BUILD\s*=\s*'([a-z0-9]+)'/.exec(h);
@@ -161,6 +182,7 @@ window.TAS3D_CHECKIN = {
   };
   // open the new version: a new address, so no cached copy of the old page is used
   window.TasUpdate.reload = function (build) {
+    try { sessionStorage.setItem('tas3d-upd', build + '|' + Date.now()); } catch (e) {}
     try { var u = new URL(location.href); u.searchParams.set('v', build); location.replace(u.toString()); } catch (e) { location.reload(); }
   };
 })();

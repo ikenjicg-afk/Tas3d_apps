@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'cdbdb8a476';</script>
+<script>window.TAS3D_BUILD = '6d656b1fa2';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -85,9 +85,6 @@ button,input,textarea{font:inherit;color:inherit}
 .gwarn-in .b{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .gwarn-in .btn{min-height:54px}
 @media (min-width:700px){.gwarn{align-items:center}}
-.glen{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.glen button{min-height:46px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
-.glen button[aria-pressed="true"]{background:var(--fg);color:#0e0e0e;border-color:var(--fg)}
 .gcard .btn.big{flex:1 1 100%;min-height:64px;font-size:18px}
 .gcard.pk{border-color:var(--orange)}
 @media (max-width:480px){.tabs button{font-size:12px;letter-spacing:.01em;padding-left:2px;padding-right:2px}.tabs em{margin-left:3px;padding:1px 4px;font-size:10px;letter-spacing:0}.tabs em.dot{margin-left:4px;padding:0;font-size:0}.sub button{font-size:12px;letter-spacing:.01em}.sub em{margin-left:4px;padding:1px 5px;font-size:10px}}
@@ -263,7 +260,6 @@ h2.sec{margin-top:30px;font-size:22px}
   <div class="scr" aria-label="What the screen shows">
     <p class="kick scrst"><span>On the screen</span><span id="scrSt" class="off">Screen: checking…</span></p>
     <div class="pvf" id="pvf"><iframe id="pvFrame" title="What the screen shows now" tabindex="-1" aria-hidden="true"></iframe></div>
-    <p class="hint bad" id="scrOld" hidden><span id="scrOldT"></span> <button type="button" class="btn" id="scrUpd" style="margin-top:8px">Update the screen</button></p>
     <p class="pvl"><a id="openScreen" href="../screen/" target="tas3d-screen">Open the screen on this device ↗</a></p>
     <div class="seg" role="group" aria-label="Screen">
       <button type="button" data-s="blank" aria-pressed="false">Blank</button>
@@ -386,7 +382,7 @@ h2.sec{margin-top:30px;font-size:22px}
       <div class="gbar"><b id="gB"></b></div>
       <p class="hint" id="gN" style="margin-top:10px"></p>
       <p class="hint bad" id="gPic" style="margin-top:10px" hidden>The screen has no game picture to render (it did not load there): the hall sees black. Put the picture into the folder “Game” in the presentations folder on the screen computer, or reload the screen page.</p>
-      <p class="hint bad" id="gOld" style="margin-top:10px" hidden><span id="gOldT"></span> <button type="button" class="btn" id="gUpd" style="margin-top:8px">Update the screen</button></p>
+      <p class="hint bad" id="gSnd" style="margin-top:10px" hidden>The screen’s sound is off: the error window and the blue screen will be silent. Click once on the screen window, or press F there (a browser rule: no sound until someone touches the page).</p>
       <div class="rows" id="gRoles"></div>
       <div class="b">
         <button type="button" class="btn o" id="gNew">Show the game</button>
@@ -397,13 +393,6 @@ h2.sec{margin-top:30px;font-size:22px}
         <button type="button" class="btn" id="gOff" hidden>Close the game</button>
       </div>
     </div>
-    <h2 class="sec">How long</h2>
-    <div class="glen" id="gLen">
-      <button type="button" data-k="short" aria-pressed="false">Short</button>
-      <button type="button" data-k="normal" aria-pressed="true">Normal</button>
-      <button type="button" data-k="long" aria-pressed="false">Long</button>
-    </div>
-    <p class="hint" id="gLenH" style="margin-top:8px"></p>
     <h2 class="sec">How it goes</h2>
     <p class="hint" id="gPrankH" style="margin-top:8px"></p>
     </div>
@@ -494,9 +483,9 @@ h2.sec{margin-top:30px;font-size:22px}
 
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=f7917e49"></script>
+<script src="../assets/config.js?v=39c28a0f"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
-<script src="../assets/hub.js?v=ec82e386"></script>
+<script src="../assets/hub.js?v=03fd4e9b"></script>
 <script src="../assets/deck.js?v=2fa26438"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
@@ -595,8 +584,7 @@ h2.sec{margin-top:30px;font-size:22px}
     // the second tap of a double tap lands where the dialog has just appeared: "Yes" counts only a moment later
     $('warnYes').addEventListener('click', function () { if (Date.now() - warnAt < 400) return; var f = warnGo; warnClose(); if (f) f(); });
 
-    var updAt = 0, nudgeAt = 0;
-    $('scrUpd').addEventListener('click', function () { if (!dc) return; guard('Update the screen', function () { updAt = Date.now(); dc.cmd('reload'); render(); }, 'in'); });
+    var nudgeAt = 0;                                     // "a newer version is out: look now" for the screen (see render)
     twoClick($('reset'), 'Reset', 'Reset for sure?', function () { guard('Reset', function () { hub.reset(); }, 'game'); });
 
     // ---- polls
@@ -636,18 +624,13 @@ h2.sec{margin-top:30px;font-size:22px}
     $('qonHide').addEventListener('click', function () { guard('Hide the question', function () { hub.showQuestion(''); }); });
 
     // ---- the opening game
-    var gLen = 'normal';
-    try { gLen = localStorage.getItem('tas3d-glen') || 'normal'; } catch (e) {}
-    if (!C.game.per[gLen]) gLen = 'normal';
-    $('gLen').querySelectorAll('button').forEach(function (b) {
-      b.addEventListener('click', function () { gLen = b.getAttribute('data-k'); try { localStorage.setItem('tas3d-glen', gLen); } catch (e) {} if (S.game.st === 'ready') hub.setGame({ per: C.game.per[gLen] }); render(); });
-    });
+    // how long the game lasts is not chosen here any more (27.11.2026): config.js → game.time — the screen fits the amount
+    // to render to the hall's pace, so the hall taps for about that long whatever the number of guests
     // the prank is part of the game, there is no switch for it: the 1st render stops with "Insufficient Memory" when the
     // screen's meter says NOISE 50% → the host's Fake reset → the 2nd render crashes with a blue screen at NOISE 1% →
     // the results 10 s later (config.js → game.prank)
-    $('gUpd').addEventListener('click', function () { $('scrUpd').click(); });   // the same as the button at the top (it asks first)
     $('gReset').addEventListener('click', function () { guard('Fake reset', function () { hub.fakeReset(); }, 'in'); });
-    $('gNew').addEventListener('click', function () { guard($('gNew').textContent, function () { hub.newGame(C.game.per[gLen]); }); });
+    $('gNew').addEventListener('click', function () { guard($('gNew').textContent, function () { hub.newGame(); }); });
     $('gGo').addEventListener('click', function () { guard('Start rendering', function () { hub.startGame(); }, 'in'); });
     $('gBack').addEventListener('click', function () { guard('Back on the screen', function () { hub.setCfg({ scene: 'game' }); }); });
     twoClick($('gFin'), 'Finish now', 'Finish for sure?', function () { hub.finishGame(); });
@@ -1045,6 +1028,8 @@ h2.sec{margin-top:30px;font-size:22px}
         clearTimeout(t); b.classList.remove('sure'); b.textContent = label; fn();
       });
     }
+    var gpId = '', gpMax = 0;
+    function gDur(sec) { sec = Math.round(sec / 5) * 5; return sec < 60 ? sec + ' s' : Math.floor(sec / 60) + ' min' + (sec % 60 ? ' ' + sec % 60 + ' s' : ''); }   // 45 s · 1 min 45 s · 2 min 30 s
     function ago(t) {
       var s = Math.max(0, Math.round((Date.now() - t) / 1000));
       return s < 60 ? 'just now' : s < 3600 ? Math.floor(s / 60) + ' min ago' : new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1073,17 +1058,11 @@ h2.sec{margin-top:30px;font-size:22px}
       var noFc = !!(dc && dc.state.sa && dc.state.sa.fc === 0 && Date.now() - dc.state.saAt < 20000);
       // the browser on the screen computer holds the sound until someone clicks there once
       var noSnd = !!(dc && dc.state.au && dc.state.au.blk && on);
-      // the screen page is older than this panel: it takes the new version by itself when nothing is on; the button does it now
-      $('scrOld').hidden = !old;
-      // tell the screen that a newer version is out: it looks at once, and takes it unless something is on that a reload would cut
-      if (old && dc && Date.now() - nudgeAt > 60000) { nudgeAt = Date.now(); dc.cmd('upd'); }
-      // a screen page from before 22.11.2026 does not say its version in "sa" and knows neither "upd" nor "reload": only a reload by hand helps
-      var canUpd = !!(dc && dc.state.sa && dc.state.sa.v);
-      $('scrUpd').hidden = !canUpd;
-      if (old) $('scrOldT').textContent = !canUpd ? 'The screen page is an older version that cannot update itself. Reload it once on the screen computer: ⌘R on a Mac, Ctrl+R on Windows. After that it updates by itself.'
-        : Date.now() - updAt < 15000 ? 'Updating the screen…' : updAt ? 'The screen is still on an older version: reload its page on the screen computer (Ctrl+R, on a Mac ⌘R).' : 'The screen has another version than this panel. It takes the new one by itself when nothing is playing; the button does it now (a playing video starts over, and sound then needs one click on the screen computer).';
-      else updAt = 0;
-      st.textContent = old ? 'Screen: old version — refresh it' : on ? (noSnd ? 'Screen: no sound — click on it' : nScr > 1 ? nScr + ' screens are open' : noFc ? 'Screen: click on it (clicker)' : 'Screen: on') : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off';
+      // The screen page and this panel both ask for a new version every 5 s and take it by themselves (the screen: when that
+      // cuts nothing — no speaker on, no video, no game). Nothing is shown about it and there is no button (27.11.2026).
+      // A screen from before that does not ask so often: it is told "look now" every 5 s while the versions differ.
+      if (old && dc && Date.now() - nudgeAt > 5000) { nudgeAt = Date.now(); dc.cmd('upd'); }
+      st.textContent = on ? (noSnd ? 'Screen: no sound — click on it' : nScr > 1 ? nScr + ' screens are open' : noFc ? 'Screen: click on it (clicker)' : 'Screen: on') : Date.now() - opened < 12000 ? 'Screen: checking…' : 'Screen: off';
       document.querySelectorAll('.seg button').forEach(function (b) {
         var sc = b.getAttribute('data-s');
         b.setAttribute('aria-pressed', S.cfg.scene === sc ? 'true' : 'false');
@@ -1143,6 +1122,10 @@ h2.sec{margin-top:30px;font-size:22px}
       // the opening game
       var g = S.game, gs = S.gs && S.gs.id === g.id ? S.gs : null, gon = g.st !== 'off' && !!g.id;
       var gt = (gs && gs.target) || g.target || 0, gtot = gs ? gs.total : 0, gp = g.st === 'done' ? 1 : /^(run|hang|bsod)$/.test(g.st) && gt ? Math.min(1, gtot / gt) : 0;
+      var gTime = +C.game.time || 0;
+      // the screen sets the amount again once it knows the hall's pace: the bar here never goes back
+      if (gpId !== g.id || g.st === 'boot' || g.st === 'ready') { gpId = g.id; gpMax = 0; }
+      if (g.st === 'run') { gp = Math.max(gpMax, gp); gpMax = gp; }
       // the prank's marks, as the hall sees them on the screen's meter: NOISE 50% (the error), NOISE 1% (the blue screen)
       var GP = C.game.prank || {}, gHangN = Math.round(Math.pow(1 - hub.prankAt(1), 1.3) * 100), gBsodN = Math.round(Math.pow(1 - hub.prankAt(2), 1.3) * 100), gpkAt = g.ph === 2 ? gBsodN : gHangN;
       var gNoise = Math.round(Math.pow(1 - gp, 1.3) * 100);
@@ -1154,7 +1137,7 @@ h2.sec{margin-top:30px;font-size:22px}
       document.querySelector('#gRender .gcard').classList.toggle('pk', /^(hang|boot|bsod)$/.test(g.st));
       $('gB').style.width = (gp * 100) + '%';
       var screenOk = S.screenSeen && Date.now() - S.screenSeen < 20000;
-      $('gN').textContent = !gon ? (S.total ? S.total + ' checked in → about ' + Math.max(C.game.min, Math.round(S.total * C.game.per[gLen])) + ' samples to render' : 'Guests check in first.')
+      $('gN').textContent = !gon ? (S.total ? S.total + ' checked in' + (gTime ? ' · the hall taps for about ' + gDur(gTime) + ' in all, however many take part' : '') : 'Guests check in first.')
         : (screenOk ? '' : 'The screen is off. ')
           + (g.st === 'ready' ? 'Waiting for Start · ' + S.total + ' checked in'
             : g.st === 'hang' ? 'The hall sees the error and the phones say “Not responding”. Do your restart, then press Fake reset: the render starts again from zero.'
@@ -1180,21 +1163,18 @@ h2.sec{margin-top:30px;font-size:22px}
       $('gBack').hidden = !gon || S.cfg.scene === 'game';
       $('tG').hidden = !gon; $('tG').textContent = g.st === 'run' ? Math.floor(gp * 100) + '%' : g.st === 'hang' ? '!' : g.st === 'boot' ? '…' : g.st === 'bsod' ? ':(' : g.st === 'done' ? '✓' : 'On';
       $('tG').classList.toggle('hot', /^(run|hang|boot|bsod)$/.test(g.st));
-      $('gLen').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-k') === gLen ? 'true' : 'false'); });
-      $('gLenH').textContent = C.game.per[gLen] + ' taps per guest';
-      $('gPrankH').textContent = hub.prankOn() ? 'When the screen shows NOISE ' + gHangN + '%, the render freezes with “Insufficient Memory”: do your restart and press Fake reset. '
+      var gF = hub.prankAt(1) + hub.prankAt(2);
+      $('gPrankH').textContent = (hub.prankOn() ? 'When the screen shows NOISE ' + gHangN + '%, the render freezes with “Insufficient Memory”: do your restart and press Fake reset. '
         + 'The second render starts from zero and crashes with a blue screen at NOISE ' + gBsodN + '%. The results come ' + (GP.results || 10) + ' s later.'
-        : 'The hall renders the picture to the end; the results come at NOISE 0%.';
+        : 'The hall renders the picture to the end; the results come at NOISE 0%.')
+        + (gTime ? ' The hall taps for about ' + gDur(gTime) + ' in all' + (hub.prankOn() ? ': about ' + gDur(gTime * hub.prankAt(1) / gF) + ' until the error and about ' + gDur(gTime * hub.prankAt(2) / gF) + ' until the blue screen' : '')
+          + '. The length does not depend on how many guests tap or how fast: ' + (+C.game.cal || 10) + ' s after the start the screen measures the hall’s pace and sets the amount to render by it.' : '');
       // the error and the blue screen are done by the screen page: a screen on another version may not do them
-      var gScrOn = S.screenSeen && Date.now() - S.screenSeen < 20000, gScrOld = gScrOn && window.TAS3D_BUILD && S.screenBuild && S.screenBuild !== window.TAS3D_BUILD;
-      var gCanUpd = !!(dc && dc.state.sa && dc.state.sa.v);
       // how the screen draws the game picture (it says so with "the screen is on"): none at all is worth a warning
       var gGp = dc && dc.state.sa && Date.now() - dc.state.saAt < 20000 ? String(dc.state.sa.gp || '') : '';
       $('gPic').hidden = !(gon && /^no picture/.test(gGp));
-      $('gOld').hidden = !(gScrOld && hub.prankOn() && g.st !== 'done');
-      $('gUpd').hidden = !gCanUpd;
-      $('gOldT').textContent = 'The screen runs another version (' + S.screenBuild + ') than this panel: the error and the blue screen may not come. '
-        + (gCanUpd ? 'Update the screen first (then click once on the screen computer for sound).' : 'Reload the screen page on the screen computer: ⌘R on a Mac, Ctrl+R on Windows.');
+      // the made sounds of the prank need a page that may sound: say so before the game, not after it
+      $('gSnd').hidden = !(noSnd && hub.prankOn() && g.st !== 'done');
 
       renderSound();
       renderScr();
@@ -1338,7 +1318,8 @@ h2.sec{margin-top:30px;font-size:22px}
     }
     render();
     // a new version of the site: reload (nothing is lost, everything comes back from the server) unless typing
-    TasUpdate(function (b) { var a = document.activeElement; if (!a || !/INPUT|TEXTAREA/.test(a.tagName)) TasUpdate.reload(b); });
+    // a new version of the site: this panel asks every 5 s and loads itself again (not while you type or answer a question of the panel)
+    TasUpdate(function (b) { var a = document.activeElement; if ((!a || !/INPUT|TEXTAREA/.test(a.tagName)) && $('warn').hidden) TasUpdate.reload(b); }, 0, 5000);
   }
 })();
 </script>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = 'cdbdb8a476';</script>
+<script>window.TAS3D_BUILD = '6d656b1fa2';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -600,11 +600,11 @@ html.pv .ctl,html.pv .setp{display:none!important}
   document.addEventListener('visibilitychange', function () { if (document.hidden) Object.keys(frames).forEach(function (id) { if (!frames[id].t) byTimer(id); }); });
 })();
 </script>
-<script src="../assets/config.js?v=f7917e49"></script>
+<script src="../assets/config.js?v=39c28a0f"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
-<script src="../assets/hub.js?v=ec82e386"></script>
+<script src="../assets/hub.js?v=03fd4e9b"></script>
 <script src="../assets/deck.js?v=2fa26438"></script>
-<script src="../assets/slides.js?v=c97e9b32"></script>
+<script src="../assets/slides.js?v=9edf1add"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -895,7 +895,7 @@ html.pv .ctl,html.pv .setp{display:none!important}
     if (!PREVIEW) settings(up);
   }
   // ---- the opening game: the picture comes out of render noise as the hall taps RENDER
-  var gDoneId = '', GR = null, gLastSt = '', gLastId = '', gCdEnd = 0, gShown = 0, gHist = [], gS = null, gGame = null, gOn = false, gTxtAt = 0;
+  var gDoneId = '', GR = null, gLastSt = '', gLastId = '', gCdEnd = 0, gShown = 0, gHist = [], gS = null, gGame = null, gOn = false, gTxtAt = 0, gTgt = 0, gPMax = 0, gPNow = 0;
   // like a bucket render (V-Ray): black at first, the picture comes in small squares in a shuffled order;
   // the next squares are marked with corner brackets, and fresh ones are still a little noisy
   function BucketRender(canvas, src, fps) {
@@ -1094,7 +1094,7 @@ html.pv .ctl,html.pv .setp{display:none!important}
     var gm = GR.mode();
     $('gErr').hidden = PREVIEW || !(gGame.st !== 'off' && /^no picture/.test(gm));
     // 3, 2, 1 when the host presses Start, or after the prank's restart (not when this page opens in the middle of the game)
-    if (gGame.id !== gLastId) { gShown = 0; gHist = []; GR.game(gGame.id); box.classList.remove('fin'); gFroze = false; }
+    if (gGame.id !== gLastId) { gShown = 0; gHist = []; gTgt = 0; gPMax = 0; gPNow = 0; GR.game(gGame.id); box.classList.remove('fin'); gFroze = false; }
     if (gGame.st === 'run' && (gLastSt === 'ready' || gLastSt === 'boot') && gGame.id === gLastId) gCdEnd = Date.now() + 3000;
     // the finale with motion only when the hall finishes it now (not when the page opens later); after the blue screen too
     if (gGame.st === 'done' && (gLastSt === 'run' || gLastSt === 'bsod') && gGame.id === gLastId) { box.classList.remove('fin'); void box.offsetWidth; box.classList.add('fin'); }
@@ -1181,7 +1181,12 @@ html.pv .ctl,html.pv .setp{display:none!important}
       play: function (kind) {
         if (PREVIEW) return;
         if (slides && slides.gameSound && slides.gameSound(kind)) return;   // an own file for it
-        if (ac() && synth[kind]) { try { synth[kind](); } catch (e) {} }
+        var c = ac(); if (!c || !synth[kind]) return;
+        if (c.state === 'running') { try { synth[kind](); } catch (e) {} return; }
+        // the browser holds the sound (nobody has clicked on this page): try once; a sound that could only come later, at
+        // the first click, is dropped — an error "ding" a minute after the error would be out of place
+        var t0 = Date.now();
+        try { c.resume().then(function () { if (Date.now() - t0 < 700) { try { synth[kind](); } catch (e) {} } }, function () {}); } catch (e) {}
       }
     };
   })();
@@ -1230,7 +1235,12 @@ html.pv .ctl,html.pv .setp{display:none!important}
     var target = (gS && gS.target) || gGame.target || 0, total = gS ? gS.total : 0;
     gShown += (total - gShown) * 0.18;
     if (gGame.st === 'done') return;
-    var p = gGame.st === 'run' && target ? Math.min(1, gShown / target) : 0;
+    // the amount to render is set again once the hall's pace is known (hub.js gameCal): the shown one glides there, and
+    // the picture never goes back — at most it waits a moment
+    gTgt = gGame.st === 'run' && gTgt && target ? gTgt + (target - gTgt) * 0.06 : target;
+    var p = gGame.st === 'run' && gTgt ? Math.min(1, gShown / gTgt) : 0;
+    if (gGame.st === 'run') { p = Math.max(gPMax, p); gPMax = p; } else gPMax = 0;
+    gPNow = p;
     GR.set(p, gGame.st === 'run' ? Math.pow(1 - p, 1.3) : 1, gGame.st === 'run' && Date.now() >= gCdEnd);
     var now = Date.now();
     gHist.push([now, total]); while (gHist.length && now - gHist[0][0] > 3000) gHist.shift();
@@ -1239,7 +1249,7 @@ html.pv .ctl,html.pv .setp{display:none!important}
   function gameText(force) {
     gTxtAt = Date.now();
     var st = gGame.st, target = (gS && gS.target) || gGame.target || 0, total = gS ? gS.total : 0, going = st === 'run' || st === 'hang' || st === 'bsod';
-    var shown = st === 'done' ? total : gShown, p = st === 'done' ? 1 : going && target ? Math.min(1, shown / target) : 0;
+    var shown = st === 'done' ? total : gShown, p = st === 'done' ? 1 : st === 'run' ? gPNow : going && target ? Math.min(1, shown / target) : 0;
     var noise = st === 'done' ? 0 : going ? Math.pow(1 - p, 1.3) : 1;
     $('gV').textContent = Math.round(noise * 100) + '%';
     $('gM').style.height = (noise * 100) + '%';
@@ -1367,8 +1377,7 @@ html.pv .ctl,html.pv .setp{display:none!important}
   function settings(up) {
     var key = !!TasSlidesKey.get(), s = slides ? slides.status() : null;
     // a video or the music was asked for, and the browser holds the sound; or the prank is on and nobody has clicked here yet
-    var fxNeed = !!hub && prankNeedsSound(hub.state);
-    if (fxNeed && slides && slides.wantSound) slides.wantSound();   // the host panel says "no sound" too
+    var fxNeed = !!hub && !slides && prankNeedsSound(hub.state);   // with the presentations open, slides.js knows it (it asks the browser at once)
     $('sndWarn').hidden = !((s && !s.sound) || fxNeed);
     var cf = hub ? hub.state.cfg : {}, dl = slides ? slides.list().filter(function (d) { return d.total; }) : [];
     var sig = JSON.stringify([key, s, up, $('setp').hidden, cf.scene, cf.deck, dl]);
@@ -1461,7 +1470,7 @@ html.pv .ctl,html.pv .setp{display:none!important}
   }
   // a page that has only just been opened loses nothing by loading again
   function takeNew() { if (newBuild && (forceNew || Date.now() - T_OPEN < 12000 || !busy())) TasUpdate.reload(newBuild); }
-  var checkNew = !PREVIEW && window.TasUpdate ? TasUpdate(function (b) { newBuild = b; takeNew(); }, 2500) : null;
+  var checkNew = !PREVIEW && window.TasUpdate ? TasUpdate(function (b) { newBuild = b; takeNew(); }, 2500, 5000) : null;   // asks every 5 s (build.txt)
   if (!PREVIEW) setInterval(takeNew, 5000);
   function reloadNow() {                               // the host pressed "Update the screen"
     forceNew = true;
