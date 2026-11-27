@@ -91,10 +91,21 @@
         catch (e) { if (k < 12) setTimeout(() => go(k + 1), 700 + k * 300); }
       })(0);
     }
+    // "the screen is on", and everything the host panel shows under Screen settings (the screen itself shows none of it to
+    // the hall): the folder and what is in it, the sound, the window (full screen, active), the servers, the version
     function pubSa() {
-      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), ua: UA, v: window.TAS3D_BUILD || '', fl: window.TAS3D_FILE ? 1 : 0, fc: document.hasFocus() ? 1 : 0, f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0, gp: window.TasGameGfx ? String(window.TasGameGfx() || '').slice(0, 60) : '' });
+      let ins = null;
+      try {
+        const spN = (decks.find((d) => d.sp) || { files: [] }).files.filter((f) => f.c).length, hoD = decks.find((d) => d.ho), hoN = hoD ? hoD.files.filter((f) => f.c).length : -1;
+        // inside the folder: speakers, files in "Host" (-1 = no folder), tracks, music, files in "Screen", quiz pictures
+        ins = [decks.length - (spN ? 1 : 0) - (hoN >= 0 ? 1 : 0), hoN, slots.length, bgList.length, spN, quiz.filter((q) => q.a).length];
+      } catch (e) {}                                  // called before the lists below exist
+      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), ua: UA, v: window.TAS3D_BUILD || '', fl: window.TAS3D_FILE ? 1 : 0, fc: document.hasFocus() ? 1 : 0, f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0, gp: window.TasGameGfx ? String(window.TasGameGfx() || '').slice(0, 60) : '',
+        fs: document.fullscreenElement || document.webkitFullscreenElement ? 1 : 0, up: links ? links.up() : 0, kind: root ? root.kind : '', err: String(err || '').slice(0, 200),
+        in: ins });
     }
     setInterval(pubSa, 8000); setTimeout(pubSa, 1500);
+    ['fullscreenchange', 'webkitfullscreenchange'].forEach((ev) => document.addEventListener(ev, () => setTimeout(pubSa, 300)));
     // the keys of a clicker go to the window that is active on this computer: the host panel is told when this one is not
     let fcT = 0;
     ['focus', 'blur'].forEach((ev) => window.addEventListener(ev, () => { clearTimeout(fcT); fcT = setTimeout(pubSa, 400); }));
@@ -235,6 +246,20 @@
       let q = 'prompt'; try { q = await h.queryPermission({ mode: 'read' }); } catch (e) {}
       if (q === 'granted') useHandle(h, false); else { need = 'reconnect'; changed(); pubSa(); }
     })();
+
+    // The host panel open in this same browser (the same computer) chose the folder, or allowed it again, in its own
+    // window: the browser's permission is for the site, not for one tab, and the folder is in the store both pages share.
+    // Nothing is asked here (asking needs a click on this page): if the browser says "not allowed", it stays "reconnect".
+    async function adopt() {
+      if (NOFS || !window.indexedDB) return false;
+      let h = null; try { h = await kv('dir'); } catch (e) {}
+      if (!h || h.kind !== 'directory') return false;
+      saved = h; rootName = h.name;
+      let q = 'prompt'; try { q = await h.queryPermission({ mode: 'read' }); } catch (e) {}
+      if (q !== 'granted') { need = 'reconnect'; changed(); pubSa(); return false; }
+      await useHandle(h, false); pubSa();
+      return true;
+    }
 
     async function drop(items) {
       const its = Array.from(items || []).filter((x) => x.kind === 'file');
@@ -966,6 +991,7 @@
       connect: () => connect(false),
       choose: () => connect(true),
       drop,                                          // a folder dragged onto the screen
+      adopt,                                         // the folder chosen in the host panel of this same browser
       unmute: () => soundOn(),
       // the game's prank: while the computer "restarts" and the blue screen is up, the music and the tracks wait
       hush(v) {

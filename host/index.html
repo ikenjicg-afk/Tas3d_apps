@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '80a07c6dae';</script>
+<script>window.TAS3D_BUILD = 'cdbdb8a476';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -91,6 +91,15 @@ button,input,textarea{font:inherit;color:inherit}
 .gcard .btn.big{flex:1 1 100%;min-height:64px;font-size:18px}
 .gcard.pk{border-color:var(--orange)}
 @media (max-width:480px){.tabs button{font-size:12px;letter-spacing:.01em;padding-left:2px;padding-right:2px}.tabs em{margin-left:3px;padding:1px 4px;font-size:10px;letter-spacing:0}.tabs em.dot{margin-left:4px;padding:0;font-size:0}.sub button{font-size:12px;letter-spacing:.01em}.sub em{margin-left:4px;padding:1px 5px;font-size:10px}}
+/* Screen settings (tab Screen): what the screen's own Settings showed — the hall does not see any of it */
+.sset{margin-top:12px;border-top:1px solid var(--rule)}
+.ssr{padding:14px 0;border-bottom:1px solid var(--rule)}
+.ssr .v{margin-top:6px;font-size:17px;line-height:1.35;overflow-wrap:anywhere}
+.ssr .v.bad{color:var(--orange)}
+.ssr .v+.v{margin-top:4px}
+.ssr .hint{margin-top:6px;font-size:13px;line-height:1.4}
+.ssr .b{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.ssr .b .btn{min-height:48px}
 /* the announcement to the guests' phones (Slides tab) */
 .anb{margin-top:14px;padding:14px;background:var(--card);border:1px solid #262625}
 .anon{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 8px 8px 12px;border:1px solid var(--orange);background:#1a120f;font-size:15px;line-height:1.3}
@@ -444,6 +453,22 @@ h2.sec{margin-top:30px;font-size:22px}
       <div class="b" style="margin-top:14px"><button type="button" class="btn" id="spOff">Take off the screen</button></div>
       <ul class="spbad" id="spBad" hidden></ul>
     </div>
+    <h2 class="sec" id="ssH">Screen settings</h2>
+    <p class="hint" style="margin-top:6px">The screen itself shows no Settings button any more: the hall does not see any of this.</p>
+    <div class="sset" id="sset">
+      <div class="ssr">
+        <p class="kick">Folder</p>
+        <p class="v" id="ssF"></p>
+        <p class="hint" id="ssIn" hidden></p>
+        <div class="b" id="ssFb" hidden><button type="button" class="btn o" id="ssAllow" hidden>Allow access</button><button type="button" class="btn" id="ssPick">Choose the folder…</button></div>
+        <p class="hint bad" id="ssMsg" role="status" hidden></p>
+        <p class="hint" id="ssFt"></p>
+      </div>
+      <div class="ssr"><p class="kick">Sound</p><p class="v" id="ssS"></p></div>
+      <div class="ssr"><p class="kick">Window</p><p class="v" id="ssW"></p><p class="v" id="ssW2" hidden></p></div>
+      <div class="ssr"><p class="kick">Connection</p><p class="v" id="ssN"></p><p class="hint" id="ssV"></p></div>
+    </div>
+    <p class="hint" style="margin-top:12px">Without the internet this panel does not reach the screen. The spare way then: Shift+S on the screen computer opens the screen’s own settings (Esc closes them).</p>
   </section>
 
   <section class="pane" id="p-rnd" hidden>
@@ -472,7 +497,7 @@ h2.sec{margin-top:30px;font-size:22px}
 <script src="../assets/config.js?v=f7917e49"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=ec82e386"></script>
-<script src="../assets/deck.js?v=8df87e31"></script>
+<script src="../assets/deck.js?v=2fa26438"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
@@ -814,7 +839,112 @@ h2.sec{margin-top:30px;font-size:22px}
       var el = $('vX'); vxDrag = Date.now(); $('vXv').textContent = el.value + '%';
       clearTimeout(vxT); vxT = setTimeout(function () { if (dc) dc.cmd('scrvol', '', { x: +el.value / 100 }); }, 120);
     });
+    // ---- Screen settings: what the screen's own Settings used to show (27.11.2026: the screen has no Settings button any
+    // more — the hall must not see it, and nobody should have to go to that window). The state comes with "sa".
+    // What needs a click in the browser that holds the folder — choosing it, allowing it again after a restart of the
+    // browser — is done right here when this panel is open in the SAME browser as the screen (the same computer): the
+    // browser's permission is for the site, not for one tab, and the folder sits in the store both pages share (IndexedDB
+    // "tas3d-slides", as in slides.js). The pages find each other over a BroadcastChannel; the screen answers "here".
+    var bc = null, bcSeen = 0, bcKey = true, dirH = null, ssErr = '', ssErrAt = 0, ssSent = 0;
+    function bcSend(m) { if (bc) try { bc.postMessage(m); } catch (e) {} }
+    function sameBrowser() { return !!bc && Date.now() - bcSeen < 9000; }
+    function dirDb(v) {
+      return new Promise(function (ok, no) {
+        var r = indexedDB.open('tas3d-slides', 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore('kv'); };
+        r.onerror = function () { no(r.error); };
+        r.onsuccess = function () {
+          var st = r.result.transaction('kv', v === undefined ? 'readonly' : 'readwrite').objectStore('kv'), q = v === undefined ? st.get('dir') : st.put(v, 'dir');
+          q.onsuccess = function () { ok(q.result); }; q.onerror = function () { no(q.error); };
+        };
+      });
+    }
+    function ssSay(t) { ssErr = t || ''; ssErrAt = Date.now(); render(); }
+    if (window.BroadcastChannel) try {
+      bc = new BroadcastChannel('tas3d-screen-' + C.room);
+      bc.onmessage = function (e) {
+        var d = e.data || {}; if (d.t !== 'here') return;
+        var was = sameBrowser(); bcSeen = Date.now(); bcKey = d.key !== false;
+        // the screen in this browser was opened without the key (a bookmark, a typed address): it gets it from here
+        if (!bcKey && TasSlidesKey.get()) bcSend({ t: 'key', k: TasSlidesKey.get() });
+        if (!was) render();
+      };
+      setInterval(function () { bcSend({ t: 'hello' }); }, 4000); bcSend({ t: 'hello' });
+    } catch (e) { bc = null; }
+    $('ssPick').addEventListener('click', function () {
+      if (!window.showDirectoryPicker) return;
+      ssSay('');
+      window.showDirectoryPicker({ id: 'tas3d-slides', mode: 'read' }).then(function (h) {
+        return dirDb(h).then(function () { dirH = h; ssSent = Date.now(); bcSend({ t: 'folder' }); render(); });
+      }).catch(function (e) { if (e && e.name !== 'AbortError') ssSay('This folder cannot be opened: ' + (e.message || e.name)); });
+    });
+    $('ssAllow').addEventListener('click', function () {
+      ssSay('');
+      function ask(h) {
+        if (!h || !h.requestPermission) { ssSay('The folder is not known to this browser any more: choose it again.'); return; }
+        return h.requestPermission({ mode: 'read' }).then(function (r) {
+          if (r === 'granted') { ssSent = Date.now(); bcSend({ t: 'folder' }); render(); } else ssSay('The browser did not allow it. Press “Allow access” again and choose “Allow”.');
+        });
+      }
+      Promise.resolve(dirH ? ask(dirH) : dirDb().then(function (h) { dirH = h; return ask(h); })).catch(function (e) { ssSay('Could not ask the browser: ' + ((e && (e.message || e.name)) || 'error')); });
+    });
+    function renderSS() {
+      var on = !!(dc && dc.screenOn()), sa = dc && dc.state.sa && Date.now() - dc.state.saAt < 20000 ? dc.state.sa : null, same = sameBrowser();
+      var need = sa ? sa.need || '' : '', folder = sa ? sa.folder || '' : '', F = $('ssF'), bad = true, t;
+      if (!dc) t = 'Log in again.';
+      else if (!on) t = 'The screen is off. Open it on the computer at the projector: “Open the screen on this device” at the top of this panel.';
+      else if (!sa) t = same ? 'Unlocking the presentations on the screen…' : 'Presentations are locked on the screen: it was opened without the key. Open it with “Open the screen on this device” from this panel, or with the file TAS3D Screen.html.';
+      else if (need === 'reading') { t = 'Reading the folder…'; bad = false; }
+      else if (need === 'reconnect') t = '“' + folder + '” was connected before. After each start of the browser it asks once:';
+      else if (need || !sa.f) t = 'Not connected yet.';
+      else { bad = false; t = 'Connected: ' + folder + (sa.kind === 'files' ? ' · after changes in the folder connect it again (that browser does not see new files).' : ' · new files appear by themselves.'); }
+      if (sa && sa.err && need !== 'reading') { t += ' ' + sa.err; bad = true; }
+      F.textContent = t; F.classList.toggle('bad', bad);
+      var ins = sa && Array.isArray(sa.in) && !need && sa.f ? sa.in : null;
+      $('ssIn').hidden = !ins;
+      if (ins) $('ssIn').textContent = 'Inside: ' + ins[0] + (ins[0] === 1 ? ' speaker' : ' speakers') + ' · Host: ' + (ins[1] >= 0 ? ins[1] + (ins[1] === 1 ? ' file' : ' files') : 'no') + ' · Sound: ' + (ins[2] ? ins[2] + ' of 6 tracks' : 'no') +
+        ' · Music: ' + (ins[3] || 'no') + ' · Screen: ' + (ins[4] ? ins[4] + (ins[4] === 1 ? ' file' : ' files') : 'no') + ' · Quiz: ' + (ins[5] ? ins[5] + (ins[5] === 1 ? ' picture' : ' pictures') : 'no');
+      // the buttons: only where they can work — in the browser that has the screen open, and that can keep a folder (Chrome, Edge)
+      var can = same && !!sa && !!window.showDirectoryPicker;
+      $('ssFb').hidden = !can;
+      $('ssAllow').hidden = need !== 'reconnect'; $('ssAllow').textContent = 'Allow access to “' + folder + '”';
+      $('ssPick').className = 'btn' + (need === 'reconnect' || (!need && sa && sa.f) ? '' : ' o');
+      $('ssPick').textContent = !need && sa && sa.f ? 'Choose another folder…' : 'Choose the folder…';
+      if (can && need === 'reconnect' && !dirH) dirDb().then(function (h) { if (h) dirH = h; }, function () {});   // ready for the click
+      if (ssErr && Date.now() - ssErrAt > 20000) ssErr = '';
+      // the screen did not take the folder (it answers within a few seconds)
+      var slow = !ssErr && ssSent && Date.now() - ssSent > 6000 && Date.now() - ssSent < 30000 && need && need !== 'reading' ? 'The screen has not taken the folder yet. If nothing changes: Shift+S on the screen computer, and choose it there.' : '';
+      $('ssMsg').textContent = ssErr || slow; $('ssMsg').hidden = !(ssErr || slow);
+      $('ssFt').textContent = !on || !dc ? '' : can ? 'The folder “TAS3D 2026 Presentations” on this computer. The browser asks once to let the site view the files: press “View files”. Nothing appears on the screen.'
+        : same && sa ? 'This browser cannot keep a folder. Open the screen and this panel in Google Chrome or Edge, or drag the folder onto the screen window.'
+        : 'A folder can only be chosen in the browser that has the screen open (a browser rule). Open this host panel there, in the same browser as the screen: the buttons appear here. Or drag the folder onto the screen window.';
+      // sound
+      var S1 = $('ssS');
+      if (!sa) { S1.textContent = '—'; S1.classList.remove('bad'); }
+      else if (sa.snd === 0) { S1.textContent = 'Off until someone clicks or presses a key on the screen window (a browser rule). F — full screen — does it too.'; S1.classList.add('bad'); }
+      else { S1.textContent = 'On.'; S1.classList.remove('bad'); }
+      // the window
+      var W = $('ssW'), W2 = $('ssW2'), hasFs = !!sa && (sa.fs === 0 || sa.fs === 1);
+      W.textContent = !sa ? '—' : !hasFs ? 'Full screen: F on the screen computer.' : sa.fs ? 'Full screen: on. To leave it: F, or hold Esc, on the screen computer.' : 'Full screen: off. Press F on the screen window.';
+      W.classList.toggle('bad', hasFs && !sa.fs);
+      W2.hidden = !(sa && sa.fc === 0);
+      W2.textContent = 'Another window is in front there: click the screen once — the clicker’s keys go to the window that is active.'; W2.classList.add('bad');
+      // connection, version
+      var N = $('ssN'), nb = C.brokers.length;
+      N.textContent = !dc ? '—' : !on ? 'The screen does not answer.' : sa && typeof sa.up === 'number' ? (sa.up ? 'Live · ' + sa.up + ' of ' + nb + ' servers' : 'No connection — check the internet on the screen computer.') : 'Live';
+      N.classList.toggle('bad', !!dc && (!on || (sa && sa.up === 0)));
+      var v = [];
+      if (sa) {
+        if (sa.ua) v.push(sa.ua);
+        v.push(sa.fl ? 'a file saved on that computer' + (sa.v ? ', version ' + sa.v : '') + ' (it does not update itself)' : sa.v ? 'version ' + sa.v + (window.TAS3D_BUILD && sa.v !== window.TAS3D_BUILD ? ' — this panel is ' + window.TAS3D_BUILD : ' · updates by itself') : 'an old version');
+        if (sa.gp) v.push('game picture: ' + sa.gp);
+        v.push(same ? 'in this browser' : 'in another browser or on another computer');
+        if (dc.screens() > 1) v.push(dc.screens() + ' screen pages are open');
+      }
+      $('ssV').textContent = v.join(' · ');
+    }
     function renderScr() {
+      renderSS();
       var d = spDeck(), on = dc && dc.screenOn(), files = d ? d.files.map(function (f, i) { return { f: f, i: i }; }).filter(function (x) { return x.f.c; }) : [];
       var msg = !dc ? 'Log in again.' : !on ? 'The screen is off.' : !dc.state.list ? 'Waiting for the screen…' : !files.length ? 'No folder “Screen” in the main folder.' : '';
       $('spSt').textContent = msg; $('spSt').hidden = !msg;

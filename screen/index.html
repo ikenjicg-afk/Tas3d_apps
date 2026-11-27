@@ -2,18 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '80a07c6dae';</script>
+<script>window.TAS3D_BUILD = 'cdbdb8a476';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="../assets/favicon.svg?v=e35b67db" type="image/svg+xml">
 <link rel="preload" href="../assets/helvtas-400.woff?v=666d43d4" as="font" type="font/woff" crossorigin>
 <meta name="theme-color" content="#0e0e0e">
-<style>/* TAS3D 2026 — the projector screen (no password: it only shows; presentations need the slides key — see Settings).
+<style>/* TAS3D 2026 — the projector screen (no password: it only shows; presentations need the slides key, which comes with the link from the host panel).
    Shows check-in (QR + count by role), or the poll results while a poll is on; the question chosen by the host as a card;
    reactions from the guests fly up on the right. 1rem = 1% of the width of a 16:9 screen, so it scales like a slide.
    What it shows is chosen in the host panel: Blank, Logo, QR code, Check-in, Poll or Slides; QR on/off; reactions on/off.
-   Slides: Settings (bottom right, appears with the mouse) — drag the folder "TAS3D 2026 Presentations" there; a subfolder per speaker (slides.js).
+   Slides: the folder "TAS3D 2026 Presentations" with a subfolder per speaker (slides.js). It is chosen in the host panel
+   (tab Screen → Screen settings, when the panel is open in this same browser) or dragged onto this page. There is no
+   Settings button here: the hall must not see it. Shift+S opens the spare settings panel (for a computer without the internet).
    ?preview — the small copy in the host panel: no connections of its own, the panel gives it everything (TasPreview).
    Keys: F — full screen (a browser only goes full screen after a click or key on this computer);
    → ↓ Page Down Space — next slide, ← ↑ Page Up — previous (a presentation clicker works too). ?demo — rehearsal. */
@@ -147,6 +149,8 @@ html.sc-polls .qr{display:none}
 /* Controls: appear when the mouse moves */
 .ctl{position:fixed;left:50%;top:2.25rem;transform:translateX(-50%);z-index:6;display:flex;gap:.3rem;transition:opacity .4s}
 body.idle .ctl{opacity:0;pointer-events:none}
+:root:fullscreen .ctl{display:none}
+:root:-webkit-full-screen .ctl{display:none}
 .ctl button{font:inherit;font-size:max(12px,.85rem);font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#1b1b1b;color:var(--mute);border:0;padding:.5rem .8rem;cursor:pointer}
 .ctl button:hover{color:var(--fg)}
 .ctl .ver{align-self:center;margin-left:.6rem;font-size:max(11px,.7rem);letter-spacing:.04em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
@@ -313,12 +317,7 @@ html.sc-game .cols,html.sc-game .stage{display:none}
 .pkbsod .s2{margin-top:1.6rem;font-size:.85rem}
 .pkbsod .s2+.s2{margin-top:.8rem}
 
-/* settings: bottom right, for the person at this computer (sizes in px: readable on any screen) */
-.gear{position:fixed;right:24px;bottom:24px;z-index:8;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#1b1b1b;color:var(--mute);border:0;font:inherit;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:opacity .4s}
-.gear:hover,.gear[aria-expanded="true"]{color:var(--fg)}
-.gear svg{width:16px;height:16px}
-.gear .dot{width:8px;height:8px;border-radius:50%;background:var(--orange)}
-body.idle .gear{opacity:0;pointer-events:none}
+/* the spare settings panel (Shift+S): bottom right, for the person at this computer (sizes in px: readable on any screen) */
 .setp{position:fixed;right:24px;bottom:72px;z-index:8;width:min(460px,calc(100vw - 48px));max-height:calc(100vh - 110px);overflow:auto;padding:20px 22px 22px;background:#151514;border:1px solid #2c2c2b;box-shadow:0 20px 60px rgba(0,0,0,.6);font-size:15px;line-height:1.4;cursor:auto}
 body.idle .setp,body.idle .setp *{cursor:auto}
 .setp .sh{display:flex;justify-content:space-between;align-items:center}
@@ -345,7 +344,7 @@ html.pv .sndwarn{display:none!important}
 .setp form .sbtn{margin-top:0}
 .dropall{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:rgba(14,14,14,.86);border:4px dashed var(--orange);color:var(--fg);font-size:max(22px,3rem);pointer-events:none}
 /* the copy in the host panel */
-html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
+html.pv .ctl,html.pv .setp{display:none!important}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* Opened on a phone: stack everything */
@@ -499,12 +498,11 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   <button type="button" id="bFs">Full screen (F)</button>
   <span class="ver" id="verTag"></span>
 </div>
-<button type="button" class="gear" id="bSet" aria-expanded="false" aria-controls="setp" hidden>
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
-  <span>Settings</span><i class="dot" id="setDot" hidden></i>
-</button>
+<!-- No Settings button on the screen (27.11.2026): the hall must not see it. The same things are in the host panel, tab
+     Screen → Screen settings. This panel is the spare for a computer without the internet: Shift+S opens and closes it. -->
 <div class="setp" id="setp" role="dialog" aria-label="Screen settings" hidden>
   <div class="sh"><h2>Screen settings</h2><button type="button" class="x" id="setX" aria-label="Close">×</button></div>
+  <p class="tip" style="margin-bottom:10px">The spare panel. All of this is in the host panel: tab Screen → Screen settings. Close: Esc or Shift+S.</p>
   <div id="keyBox" hidden>
     <h3>Presentations</h3>
     <p class="bad">Presentations are locked on this computer.</p>
@@ -605,8 +603,8 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
 <script src="../assets/config.js?v=f7917e49"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=ec82e386"></script>
-<script src="../assets/deck.js?v=8df87e31"></script>
-<script src="../assets/slides.js?v=027ac0f7"></script>
+<script src="../assets/deck.js?v=2fa26438"></script>
+<script src="../assets/slides.js?v=c97e9b32"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -1330,6 +1328,7 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     // PowerPoint. "Start the show" is F5 (or Shift+F5): here it turns full screen on and never reloads the page —
     // without the internet the page would not come back. (To reload on purpose: Ctrl+R, on a Mac ⌘R.)
     if (k === 'f5') { e.preventDefault(); if (!e.repeat && !isFull()) fullscreen(); return; }
+    if ((k === 's' || k === 'ы') && e.shiftKey) { if (!e.repeat && !DEMO) openSettings($('setp').hidden); return; }
     if ((k === 'f' || k === 'а') && !e.repeat) fullscreen();
     if (k === 'escape' && !$('setp').hidden) openSettings(false);
     var step = { arrowright: 1, arrowdown: 1, pagedown: 1, ' ': 1, enter: 1, arrowleft: -1, arrowup: -1, pageup: -1, backspace: -1 }[k];
@@ -1357,8 +1356,8 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
   var slides = null, hub = null;
   var IS_MAC = /Mac/i.test(navigator.platform || '') || /Mac OS X/.test(navigator.userAgent), IS_WIN = /Win/i.test(navigator.platform || '') || /Windows/.test(navigator.userAgent);
   var KEEPS = !!window.showDirectoryPicker && !Q.has('nofs');           // Chrome, Edge: remember the folder and see new files
-  function openSettings(on) { $('setp').hidden = !on; $('bSet').setAttribute('aria-expanded', on ? 'true' : 'false'); if (on) { wake(); settings(hub ? hub.up() : 0); } }
-  $('bSet').addEventListener('click', function () { this.blur(); openSettings($('setp').hidden); });
+  // no button for it on the screen: Shift+S on this computer (the spare way; the host panel has Screen settings)
+  function openSettings(on) { if (PREVIEW) return; $('setp').hidden = !on; if (on) { wake(); settings(hub ? hub.up() : 0); } else wake(); }
   $('setX').addEventListener('click', function () { openSettings(false); });
   var setSig = '';
   function prankNeedsSound(S) {
@@ -1389,8 +1388,6 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
     dl.forEach(function (d) {
       locBtn(d.sp ? 'Screen (pause)' : d.name, d.total + (d.total === 1 ? ' slide' : ' slides'), cf.scene === 'slides' && cf.deck === d.id, function () { hub.setCfg({ scene: 'slides', deck: d.id }); });
     });
-    var attention = !key || !s || !!s.need || !!s.err || !s.sound;
-    $('setDot').hidden = !attention;
     $('keyBox').hidden = key; $('dirBox').hidden = !key;
     if (s) {
       var st = $('fSt');
@@ -1498,11 +1495,28 @@ html.pv .ctl,html.pv .gear,html.pv .setp{display:none!important}
       window.TasPreview = { render: function (S, up, slide) { pvSlide = slide || null; render(S, up); }, react: onReact };
       return;
     }
-    $('ctl').hidden = false; $('bSet').hidden = DEMO; wake(); keepAwake();
+    $('ctl').hidden = false; wake(); keepAwake();
     if (DEMO) return demo();
     hub = TasHub(function (S) { render(S, hub.up()); }, { onReact: onReact, screen: true });
     startSlides();
     render(hub.state, 0);
+    bcStart();
+  }
+  // ---- the host panel open in this same browser (the same computer) does what needs a click or a password — choosing the
+  // folder, allowing it again after a restart of the browser, the key — in its own window, so nobody opens anything on this
+  // screen in front of the hall. The two pages find each other over a BroadcastChannel (same site, same browser only).
+  var bc = null;
+  function bcHere() { if (bc) try { bc.postMessage({ t: 'here', key: !!TasSlidesKey.get() }); } catch (e) {} }
+  function bcStart() {
+    if (!window.BroadcastChannel) return;
+    try { bc = new BroadcastChannel('tas3d-screen-' + C.room); } catch (e) { bc = null; return; }
+    bc.onmessage = function (e) {
+      var d = e.data || {};
+      if (d.t === 'hello') bcHere();
+      else if (d.t === 'folder') { if (slides && slides.adopt) slides.adopt().then(function () { setSig = ''; settings(hub ? hub.up() : 0); }, function () {}); }
+      else if (d.t === 'key' && /^[0-9a-f]{64}$/.test(d.k || '') && !TasSlidesKey.get()) { TasSlidesKey.keepScreen(d.k); startSlides(); setSig = ''; settings(hub ? hub.up() : 0); bcHere(); }
+    };
+    bcHere();
   }
   // the key comes with the link from the host panel or TAS3D Screen.html (#k=...): kept here, removed from the address
   (function () {
