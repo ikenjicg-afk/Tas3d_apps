@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '171151cf20';</script>
+<script>window.TAS3D_BUILD = '80a07c6dae';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -91,6 +91,23 @@ button,input,textarea{font:inherit;color:inherit}
 .gcard .btn.big{flex:1 1 100%;min-height:64px;font-size:18px}
 .gcard.pk{border-color:var(--orange)}
 @media (max-width:480px){.tabs button{font-size:12px;letter-spacing:.01em;padding-left:2px;padding-right:2px}.tabs em{margin-left:3px;padding:1px 4px;font-size:10px;letter-spacing:0}.tabs em.dot{margin-left:4px;padding:0;font-size:0}.sub button{font-size:12px;letter-spacing:.01em}.sub em{margin-left:4px;padding:1px 5px;font-size:10px}}
+/* the announcement to the guests' phones (Slides tab) */
+.anb{margin-top:14px;padding:14px;background:var(--card);border:1px solid #262625}
+.anon{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 8px 8px 12px;border:1px solid var(--orange);background:#1a120f;font-size:15px;line-height:1.3}
+.anon span{min-width:0;overflow-wrap:anywhere}
+.anon b{color:var(--orange)}
+.anon small{display:block;color:var(--mute);font-size:13px}
+.antm{margin-top:14px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);font-variant-numeric:tabular-nums}
+.annm{margin-top:4px;font-size:22px;line-height:1.15}
+.ansb{margin-top:4px;color:var(--mute);font-size:14px;line-height:1.35}
+.anb .b{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.anb .b .btn{min-height:48px;padding:0 8px}
+.anl{margin-top:12px;border-top:1px solid var(--rule)}
+.anl button{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;width:100%;min-height:48px;padding:8px 0;background:none;border:0;border-bottom:1px solid var(--rule);border-radius:0;color:var(--fg);font:inherit;font-size:16px;line-height:1.25;text-align:left;cursor:pointer}
+.anl button span:first-child{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nums}
+.anl button[aria-pressed="true"] span:last-child{color:var(--orange)}
+.anl button em{font-style:normal;margin-left:8px;padding:1px 6px;background:var(--orange);color:#fff;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:2px}
+.anb .hint{margin-top:10px;font-size:13px}
 /* sound */
 .slots{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .slot{position:relative;min-height:84px;padding:12px 12px 14px;border:1px solid #2c2c2b;background:var(--card);color:var(--fg);font:inherit;text-align:left;cursor:pointer;overflow:hidden;touch-action:manipulation}
@@ -339,6 +356,16 @@ h2.sec{margin-top:30px;font-size:22px}
           <p class="hint" style="margin-top:6px;font-size:13px">The same page by a link: open it to see what the speakers see.</p></div></div>
       <div class="spkbtn"><a class="btn" id="spkOpen" target="_blank" rel="noopener">Open the page</a><button type="button" class="btn" id="spkCopy">Copy link</button></div>
     </div>
+    <div class="anb" id="anBox" hidden>
+      <p class="kick">Announce to the guests’ phones</p>
+      <p class="anon" id="anOn" hidden><span><b id="anOnN"></b><small id="anOnT"></small></span><button type="button" class="btn" id="anOff">Take off</button></p>
+      <p class="antm" id="anTm"></p>
+      <p class="annm" id="anNm"></p>
+      <p class="ansb" id="anSub"></p>
+      <div class="b"><button type="button" class="btn o" id="anGo">Announce</button><button type="button" class="btn" id="anMore" aria-expanded="false" aria-controls="anList">Other item</button></div>
+      <div class="anl" id="anList" hidden></div>
+      <p class="hint" id="anHint"></p>
+    </div>
     <div id="deckui"></div>
   </section>
 
@@ -442,10 +469,10 @@ h2.sec{margin-top:30px;font-size:22px}
 
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=875f2cd5"></script>
+<script src="../assets/config.js?v=f7917e49"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
-<script src="../assets/hub.js?v=c9a643ae"></script>
-<script src="../assets/deck.js?v=da77d3dc"></script>
+<script src="../assets/hub.js?v=ec82e386"></script>
+<script src="../assets/deck.js?v=8df87e31"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
@@ -600,6 +627,63 @@ h2.sec{margin-top:30px;font-size:22px}
     $('gBack').addEventListener('click', function () { guard('Back on the screen', function () { hub.setCfg({ scene: 'game' }); }); });
     twoClick($('gFin'), 'Finish now', 'Finish for sure?', function () { hub.finishGame(); });
     $('gOff').addEventListener('click', function () { guard('Close the game', function () { hub.closeGame(); }); });
+
+    // ---- the announcement to the guests' phones: an item of the programme (config.js → program). The card offers the
+    // item after the one announced last (before the first one: by the clock); "Other item" opens the whole list.
+    // Announce asks once more on the button itself; every phone with the guests' page open shows it at once.
+    var PG = C.program || {}, AN = C.announce || {}, anItems = (PG.items || []).filter(function (it) { return it && it.id && it.ann !== false; });
+    var anPick = '', anPickAt = -1, anListOpen = false;
+    function anBy(it) { return (it.by || []).map(function (k) { return (PG.people || {})[k]; }).filter(Boolean); }
+    function anName(it) { var by = anBy(it); return by.length === 1 ? by[0].name : it.title; }
+    function anSub(it) { var by = anBy(it); return by.length === 1 ? it.title : by.length ? by.map(function (p) { return p.name; }).join(' · ') : (it.note || ''); }
+    function anTime(it) { return it.from + (it.to ? '–' + it.to : ''); }
+    function anFind(id) { for (var i = 0; i < anItems.length; i++) if (anItems[i].id === id) return anItems[i]; return null; }
+    function anMin(t) { var m = /^(\d\d?):(\d\d)$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : -1; }
+    function anDefault() {
+      var i;
+      if (S.an.id && Date.now() - S.an.at < 6 * 3600000) for (i = 0; i < anItems.length; i++) if (anItems[i].id === S.an.i) return anItems[Math.min(i + 1, anItems.length - 1)].id;
+      var d = new Date(), now = d.getHours() * 60 + d.getMinutes();
+      for (i = 0; i < anItems.length; i++) if (anMin(anItems[i].to || anItems[i].from) > now) return anItems[i].id;
+      return anItems.length ? anItems[0].id : '';
+    }
+    function anSel() { return (anPickAt === S.an.at && anFind(anPick) ? anPick : '') || anDefault(); }
+    anItems.forEach(function (it) {
+      var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-i', it.id); b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = '<span></span><span></span>';
+      b.firstChild.textContent = anTime(it); b.lastChild.textContent = anName(it);
+      b.addEventListener('click', function () { anPick = it.id; anPickAt = S.an.at; anListOpen = false; render(); });
+      $('anList').appendChild(b);
+    });
+    twoClick($('anGo'), 'Announce', 'Send to the phones?', function () { var id = anSel(); if (id) { anListOpen = false; hub.announce(id); render(); } });
+    $('anMore').addEventListener('click', function () { anListOpen = !anListOpen; render(); });
+    twoClick($('anOff'), 'Take off', 'For sure?', function () { hub.clearAnnounce(); render(); });
+    function renderAn() {
+      $('anBox').hidden = !anItems.length;
+      if (!anItems.length) return;
+      var cur = S.an.id ? anFind(S.an.i) : null, sel = anFind(anSel()), show = (AN.show > 0 ? AN.show : 120) * 1000;
+      $('anOn').hidden = !cur;
+      if (cur) {
+        $('anOnN').textContent = anName(cur);
+        $('anOnT').textContent = Date.now() - S.an.at < show ? 'On the phones now' : 'Announced ' + ago(S.an.at) + ' · marked “Now” in the guests’ programme';
+      }
+      if (sel) {
+        $('anTm').textContent = anTime(sel) + (cur && sel.id === cur.id ? ' · announced' : anPickAt === S.an.at && anPick === sel.id ? '' : ' · next');
+        $('anNm').textContent = anName(sel);
+        $('anSub').textContent = anSub(sel); $('anSub').hidden = !$('anSub').textContent;
+      }
+      if (!$('anGo').classList.contains('sure')) $('anGo').textContent = cur && sel && sel.id === cur.id ? 'Announce again' : 'Announce';
+      $('anMore').setAttribute('aria-expanded', anListOpen ? 'true' : 'false'); $('anMore').textContent = anListOpen ? 'Close the list' : 'Other item';
+      $('anList').hidden = !anListOpen;
+      if (anListOpen) $('anList').querySelectorAll('button').forEach(function (b) {
+        var id = b.getAttribute('data-i');
+        b.setAttribute('aria-pressed', sel && id === sel.id ? 'true' : 'false');
+        var em = b.lastChild.querySelector('em'), on = !!cur && id === cur.id;
+        if (on && !em) { em = document.createElement('em'); em.textContent = 'Now'; b.lastChild.appendChild(em); }
+        if (!on && em) em.remove();
+      });
+      $('anHint').textContent = 'Every phone with the guests’ page open shows it for ' + (show >= 120000 ? Math.round(show / 60000) + ' minutes' : Math.round(show / 1000) + ' seconds') +
+        ': who is on stage and a request to listen. Then the item stays marked “Now” in their Programme tab.';
+    }
 
     // ---- slides: the remote for every speaker's folder (made when the tab is first opened)
     var deckUI = null;
@@ -848,7 +932,7 @@ h2.sec{margin-top:30px;font-size:22px}
       $('p-checkin').hidden = tab !== 'checkin'; $('p-slides').hidden = tab !== 'slides'; $('p-snd').hidden = tab !== 'snd'; $('p-scr').hidden = tab !== 'scr';
       $('p-game').hidden = !(gm && (subG === 'render' || subG === 'quiz')); $('gRender').hidden = subG !== 'render'; $('gQuiz').hidden = subG !== 'quiz';
       $('p-rnd').hidden = !(gm && subG === 'rnd'); $('p-poll').hidden = !(gm && subG === 'poll'); $('p-qs').hidden = !(gm && subG === 'qs');
-      if (tab === 'slides') slidesUI();
+      if (tab === 'slides') { slidesUI(); renderAn(); }
       var hasPoll = !!(S.now && S.now.k === 'poll');
       // is the screen page running somewhere? (it says so every 8 s)
       var on = S.screenSeen && Date.now() - S.screenSeen < 20000, st = $('scrSt');

@@ -109,6 +109,24 @@
       try { localStorage.setItem(WHK, JSON.stringify(S.who)); } catch (e) {}
       changed();
     }
+    // the announcement to the guests' phones (host: Slides tab): {id, i: id of the programme item, at, w}; id '' = taken off.
+    // The texts are in config.js (program): a phone shows its own copy, the message only says which item.
+    S.an = { id: '', i: '', at: 0, w: '' };
+    var ANK = KEY + '-an';
+    try { var ka = JSON.parse(localStorage.getItem(ANK) || 'null'); if (ka && ka.at) S.an = { id: String(ka.id || ''), i: String(ka.i || ''), at: +ka.at, w: String(ka.w || '') }; } catch (e) {}
+    function onAn(x) {
+      var d = json(x); if (!d) return;
+      var at = +d.at || 0, w = String(d.w || '');
+      if (at < S.an.at || (at === S.an.at && w <= S.an.w)) return;      // the newest wins (two host devices)
+      S.an = { id: String(d.id || '').slice(0, 40), i: String(d.i || '').slice(0, 40), at: at, w: w };
+      try { localStorage.setItem(ANK, JSON.stringify(S.an)); } catch (e) {}
+      changed();
+    }
+    function setAn(id, i) {
+      S.an = { id: id, i: i, at: Math.max(Date.now(), S.an.at + 1), w: WID };
+      try { localStorage.setItem(ANK, JSON.stringify(S.an)); } catch (e) {}
+      pub(B + '/an', JSON.stringify(S.an), { qos: 1, retain: true }); changed();
+    }
     // the question on the screen travels as text; one addressed to somebody as "@Name\nquestion"
     function shown(x) { var m = /^@([^\n]{1,40})\n([\s\S]+)$/.exec(x || ''); return m ? { to: m[1], q: m[2] } : { to: '', q: x || '' }; }
 
@@ -133,7 +151,7 @@
       c.subscribe(B + '/show', 1); c.subscribe(B + '/now', 1); c.subscribe(B + '/cfg', 1); c.subscribe(B + '/x'); c.subscribe(B + '/scr'); c.subscribe(B + '/ph', 1);
       c.subscribe(B + '/game', 1); c.subscribe(B + '/gs', 1);
       c.subscribe(B + '/pick', 1); if (!opt.screen) c.subscribe(B + '/pk/+/+', 1);
-      c.subscribe(B + '/who', 1);
+      c.subscribe(B + '/who', 1); if (!opt.screen) c.subscribe(B + '/an', 1);
       c.subscribe(B + '/quiz', 1); c.subscribe(B + '/qw', 1); if (!opt.screen) c.subscribe(B + '/qs', 1);
       if (opt.screen && S.quiz.id && S.quiz.st !== 'off') c.subscribe(B + '/qa/' + S.quiz.id + '/+/+', 1);
       if (opt.screen && S.game.id && S.game.st !== 'off') c.subscribe(B + '/gt/' + S.game.id + '/+');
@@ -165,7 +183,7 @@
       if (!L.c || !L.c.ok) return;
       L.got = {};
       L.c.subscribe(B + '/c/+', 1); L.c.subscribe(B + '/q/+', 1);       // subscribing again: the server sends everything it keeps
-      ['/cfg', '/now', '/show', '/game', '/ph', '/pick', '/who', '/quiz'].forEach(function (k) { L.c.subscribe(B + k, 1); });
+      ['/cfg', '/now', '/show', '/game', '/ph', '/pick', '/who', '/quiz'].concat(opt.screen ? [] : ['/an']).forEach(function (k) { L.c.subscribe(B + k, 1); });
       if (S.now && S.now.k === 'poll') L.c.subscribe(B + '/v/' + S.now.id + '/+', 1);
       setTimeout(function () { heal(L); }, 6000);
     }
@@ -186,6 +204,7 @@
       if (S.show && !got[B + '/show']) { n++; L.c.publish(B + '/show', S.show, { qos: 1, retain: true }).catch(function () {}); }
       if (S.pick.at && !opt.screen) put(B + '/pick', S.pick);
       if (S.who.at && !opt.screen) put(B + '/who', S.who);
+      if (S.an.at && !opt.screen) put(B + '/an', S.an);
       S.healed = (S.healed || 0) + n;
     }
     setInterval(function () { links.forEach(function (L, i) { setTimeout(function () { audit(L); }, i * 20000); }); }, 300000 + Math.random() * 30000);
@@ -231,6 +250,7 @@
       if (t === B + '/ph') return onPH(x);
       if (t === B + '/pick') return onPick(x);
       if (t === B + '/who') return onWho(x);
+      if (t === B + '/an') return onAn(x);
       if (t.indexOf(B + '/pk/') === 0) { var kq2 = t.slice(B.length + 4).split('/'); return onPickSeen(kq2[0], kq2[1]); }
       if (t === B + '/game') return onGame(x);
       if (t === B + '/gs') { if (!opt.screen) { var gd = json(x); if (gd && gd.id === S.game.id) { S.gs = gd; changed(); } } return; }
@@ -604,6 +624,7 @@
         if (S.game.st !== 'off') api.setGame({ st: 'off' });
         if (S.quiz.st !== 'off') api.setQuiz({ st: 'off' });
         picked = {}; S.pickSeen = {}; if (S.pick.id) setPick('', []); else savePick();
+        if (S.an.id) setAn('', '');                    // an announcement left from a rehearsal does not stay on the phones
         clearTimeout(statT); statT = null;
         recount(); pushStats(); storeNow();
       },
@@ -720,6 +741,9 @@
         return add.length;
       },
       clearPick: function () { S.pickSeen = {}; if (S.pick.id) setPick('', []); },
+      // the announcement: item = id of a programme item (config.js); every guest's phone with the page open shows it
+      announce: function (item) { item = String(item || ''); if (item) setAn('a' + rid(), item); },
+      clearAnnounce: function () { if (S.an.id) setAn('', ''); },
       pickInfo: function () {
         var all = Object.keys(S.db.seen), seen = S.pick.w.filter(function (id) { return S.pickSeen[id]; }).length;
         return { on: !!S.pick.id, n: S.pick.w.length, seen: seen, all: all.length, left: all.filter(function (id) { return !picked[id]; }).length };

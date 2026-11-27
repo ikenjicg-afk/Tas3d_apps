@@ -22,6 +22,8 @@
 //   bsod = the blue screen, the results come by themselves after `prank.results` seconds.
 //   <base>/gt/<game>/<phone> = "role:taps so far" (every second while tapping); <base>/gs = the score (kept, from the screen).
 // <base>/ph = the polls of this round with their results (kept until Reset).
+// <base>/an = the host's announcement to the guests' phones (kept; {id, i: id of the programme item, at, w}; id '' = taken off).
+//   The texts are not in the message: a phone shows the item of its own config.js, so nobody can put words of their own on the phones.
 window.TAS3D_CHECKIN = {
   room: '24s57u4s6z',
   topic: 'testtopic/tas3d2026',
@@ -62,10 +64,62 @@ window.TAS3D_CHECKIN = {
   polls: [
     ['How many years have you been in 3D?', ['Less than 1', '1–3', '3–5', '5–10', '10+']],
     ['Which renderer do you use most?', ['Corona', 'V-Ray', 'D5 Render', 'Unreal Engine', 'Twinmotion', 'Other']],
-    ['Where are you from?', ['Uzbekistan', 'Russia', 'Kazakhstan', 'Other country']],
+    ['Where are you from?', ['Uzbekistan', 'Russia', 'Kazakhstan', 'Belarus', 'Other country']],
     ['Is this your first TAS3D?', ['Yes, first time', 'No, I was here in 2025']],
     ['How was this talk?', ['Loved it', 'It was good', 'So-so']]
   ],
+  // the talk timer (host: under Start; the speaker's page: the same row): after `glow` minutes of a running talk the row
+  // glows softly in orange (a slow pulse, nothing jumps) — on the speaker's phone and in the host panel. 0 = never.
+  timer: { glow: 30 },
+  // announcements: the host announces an item of the programme (Slides tab → "Announce to the guests"); every guest's phone
+  // with the page open shows it over the remote — who is on stage and a request to listen.
+  // show: for how many seconds after the host's tap a phone still brings the notice up (a phone that opens the page later
+  //   only marks the item "Now" in its programme); now: for how many minutes the item stays marked "Now" if nothing else is announced.
+  // talk / pause: the request under a talk and under a break when the item has no `say` of its own ({to} = the item's end time).
+  announce: { show: 120, now: 60,
+    talk: 'Please listen carefully: this talk is full of useful and important things.',
+    pause: 'We start again at {to}.' },
+  // the programme of the day: the guests' tab "Programme" and the host's announcements.
+  // people: who is on stage. name; role = title / company (one line); bio = the text about them (\n\n between paragraphs);
+  //   photo = a file name in media/speakers/ (square, about 800 px). Empty role, bio or photo: the page shows the initials
+  //   and "More about the speaker will be here soon."
+  // items, in the order of the day: id (letters and digits; do not change one after the forum has started), from, to ('HH:MM'),
+  //   kind: talk | break | info, title, by: [keys of people], lang: 'EN' = the talk is in English,
+  //   note = a small line for the guests, say = the request on the phones when it is announced, ann: false = not in the host's list.
+  // 27.11.2026: times and names from the organizer's run sheet; the titles are translated from Russian — check them.
+  //   Roles, bios and photos are not here yet.
+  program: {
+    day: '3 December 2026',
+    note: 'Every talk: 25 minutes and 5 minutes for questions.',
+    people: {
+      kenji: { name: 'Kenji', role: 'Host', bio: '', photo: '' },
+      artem: { name: 'Artem Kupriianenko', role: '', bio: '', photo: '' },
+      daniel: { name: 'Daniel Nagaets', role: '', bio: '', photo: '' },
+      vlad: { name: 'Vlad Sidorenko', role: '', bio: '', photo: '' },
+      promptx: { name: 'PromptX', role: '', bio: '', photo: '' },
+      bloom: { name: 'Bloom Architects', role: '', bio: '', photo: '' },
+      zach: { name: 'Zach Bai', role: 'D5', bio: '', photo: '' },
+      wellington: { name: 'Wellington Franzao', role: '', bio: '', photo: '' }
+    },
+    items: [
+      { id: 'doors', from: '14:00', kind: 'info', title: 'Doors open, registration', ann: false },
+      { id: 'video', from: '15:00', to: '15:02', kind: 'info', title: 'Opening video', ann: false },
+      { id: 'opening', from: '15:02', to: '15:12', kind: 'talk', by: ['kenji'], title: 'Opening: the story of TAS3D, the map of the day, the question of the day',
+        say: 'We are starting. Please take your seats.' },
+      { id: 'artem', from: '15:13', to: '15:43', kind: 'talk', by: ['artem'], title: 'A beautiful picture has lost its value: how to stay in demand' },
+      { id: 'daniel', from: '15:46', to: '16:16', kind: 'talk', by: ['daniel'], title: 'Archviz = marketing: what to learn and what level to aim for' },
+      { id: 'vlad', from: '16:19', to: '16:49', kind: 'talk', by: ['vlad'], title: 'An AI pipeline on a real project' },
+      { id: 'coffee', from: '16:55', to: '17:25', kind: 'break', title: 'Coffee break', note: 'The PromptX prize draw is right after the break.',
+        say: 'We start again at {to} with PromptX and the prize draw. Do not be late.' },
+      { id: 'promptx', from: '17:25', to: '17:35', kind: 'talk', by: ['promptx'], title: 'AI under the hood + the prize draw' },
+      { id: 'bloom', from: '17:38', to: '18:08', kind: 'talk', by: ['bloom'], title: 'Architecture and AI: how it was before and how it is now' },
+      { id: 'zach', from: '18:11', to: '18:41', kind: 'talk', by: ['zach'], lang: 'EN', title: 'AI agents run a project from the idea to the delivery' },
+      { id: 'wellington', from: '18:44', to: '19:14', kind: 'talk', by: ['wellington'], lang: 'EN', title: 'Sketches art' },
+      { id: 'panel', from: '19:17', to: '19:42', kind: 'talk', by: ['artem', 'daniel', 'vlad', 'bloom'], title: 'Panel: the answer to the question of the day',
+        say: 'Four speakers answer the question of the day. Please listen carefully.' },
+      { id: 'closing', from: '19:42', to: '19:50', kind: 'info', title: 'Closing and group photo', say: 'Thank you for this day. Please stay for the photo.' }
+    ]
+  },
   // the quiz "Render or photo?": seconds for one picture
   quiz: { sec: 15 },
   // how many reactions one guest may send: max in every `per` seconds (the phone stops there, the screen ignores the rest)

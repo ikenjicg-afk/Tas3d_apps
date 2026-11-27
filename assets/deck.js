@@ -363,6 +363,11 @@
     '.dk-tm span{margin-left:auto;color:var(--fg);font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}' +
     '.dk-tm.run{border-color:#4a4a48}.dk-tm.run svg{color:var(--orange)}.dk-tm.run b,.dk-tm.stop b{color:var(--fg)}' +
     'button.dk-tm:active{opacity:.75}' +
+    // the talk is longer than its slot (config.js: timer.glow): a slow, calm orange glow — seen from the corner of the eye
+    '.dk-tm.late{border-color:var(--orange);animation:dktm 3.2s ease-in-out infinite}.dk-tm.late b{color:var(--orange)}' +
+    '@keyframes dktm{0%,100%{background-color:rgba(240,85,42,0);box-shadow:0 0 0 0 rgba(240,85,42,0)}50%{background-color:rgba(240,85,42,.2);box-shadow:0 0 22px 0 rgba(240,85,42,.42)}}' +
+    '.dk-tg.tm.late{color:var(--orange)}' +
+    '@media (prefers-reduced-motion:reduce){.dk-tm.late{animation:none;background-color:rgba(240,85,42,.14)}}' +
     'div.dk-tm{cursor:default}div.dk-tm span{color:var(--mute);font-size:12px}' +
     '.dk-tg.tm{background:none;border:1px solid #3a3a38;color:var(--mute);font-weight:400;font-variant-numeric:tabular-nums;padding:1px 6px}' +
     '.dk-row .dk-b{flex:none}' +
@@ -384,6 +389,8 @@
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function mmss(s) { s = Math.round(+s || 0); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
+  var GLOW = C.timer && C.timer.glow > 0 ? C.timer.glow * 60000 : 0;      // the talk timer glows after this long (0 = never)
+  function late(ms) { return GLOW > 0 && ms >= GLOW; }
   function clock(ms) { var s = Math.floor((+ms || 0) / 1000); return ('0' + Math.floor(s / 60)).slice(-2 - (s >= 6000 ? 1 : 0)) + ':' + ('0' + s % 60).slice(-2); }   // 00:00 … 99:59, 100:00
   var WATCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="14" r="7.5"/><path d="M12 14V9.8M9.6 2.6h4.8M12 2.6v3.9M18.3 7.7l1.4-1.4"/></svg>';
   function count(f) { return f.k === 'pdf' ? f.c + (f.c === 1 ? ' slide' : ' slides') : f.k === 'vid' ? 'video' + (f.dur ? ' ' + mmss(f.dur) : '') + (f.lp ? ' · loop' : '') : f.k === 'img' ? 'picture' : ''; }
@@ -509,11 +516,11 @@
     // the time on this page (every second while it runs; nothing comes from the network for it)
     function tick() {
       var t = cl.timerOf(open);
-      tmb.className = 'dk-tm' + (t.st === 'run' ? ' run' : t.st === 'stop' ? ' stop' : '');
+      tmb.className = 'dk-tm' + (t.st === 'run' ? ' run' : t.st === 'stop' ? ' stop' : '') + (t.st === 'run' && late(t.ms) ? ' late' : '');
       tmb.querySelector('b').textContent = clock(t.ms);
       tmb.querySelector('span').textContent = host ? (t.st === 'run' ? 'Stop timer' : t.st === 'stop' ? 'Reset' : 'Start timer')
         : (t.st === 'run' ? 'Your talk' : t.st === 'stop' ? 'Stopped' : 'The host starts it');
-      if (host) { var tg = R.items.querySelector('.dk-tg.tm'); if (tg) tg.lastChild.textContent = clock(cl.timerOf(S.tm.d).ms); }
+      if (host) { var tg = R.items.querySelector('.dk-tg.tm'); if (tg) { var tl = cl.timerOf(S.tm.d); tg.lastChild.textContent = clock(tl.ms); tg.classList.toggle('late', tl.st === 'run' && late(tl.ms)); } }
     }
     setInterval(function () { if (S.tm.st === 'run') tick(); }, 250);
     var wasLive = '';

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '171151cf20';</script>
+<script>window.TAS3D_BUILD = '80a07c6dae';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAS3D 2026</title>
 <meta name="robots" content="noindex">
@@ -13,7 +13,9 @@
 <style>
 /* TAS3D 2026 — the guest's phone. English only.
    Step 1: check-in (choose a role, Confirm; one answer per phone and round).
-   Step 2: the remote — Reactions (fly over the slides) and anonymous Questions (go to the host's list).
+   Step 2: the remote — Reactions (fly over the slides), anonymous Questions (go to the host's list) and the Programme
+   of the day (config.js → program; a tap on a speaker opens their photo, title and text).
+   The host's announcement ("Now on stage …") comes up over everything on every phone that has this page open.
    A Reset on the screen starts a new round: the phone goes back to step 1. */
 @font-face{font-family:"HelvTAS";src:url(../assets/helvtas-400.woff?v=666d43d4) format("woff");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"HelvTAS";src:url(../assets/helvtas-700.woff?v=be6674ce) format("woff");font-weight:700;font-style:normal;font-display:swap}
@@ -95,8 +97,10 @@ h1{margin-top:10px;font-size:clamp(56px,17vw,112px);line-height:.9;letter-spacin
 .mine li small.ok{color:var(--orange)}
 .mine ul{margin:10px 0 0;padding:0}
 
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:4;display:grid;grid-template-columns:1fr 1fr;padding:0 var(--padr) env(safe-area-inset-bottom,0px) var(--pad);background:rgba(14,14,14,.96);border-top:1px solid var(--rule);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-.tabs button{height:var(--tabh);background:none;border:0;border-top:3px solid transparent;margin-top:-1px;font-size:15px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mute);cursor:pointer}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:4;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:0 var(--padr) env(safe-area-inset-bottom,0px) var(--pad);background:rgba(14,14,14,.96);border-top:1px solid var(--rule);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.tabs button{height:var(--tabh);min-width:0;padding:0 2px;background:none;border:0;border-top:3px solid transparent;margin-top:-1px;font-size:14px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;color:var(--mute);cursor:pointer}
+@media (max-width:389px){.tabs button{font-size:12.5px;letter-spacing:0}.tabs button em{margin-left:3px}}
+@media (max-width:339px){.tabs button{font-size:11px}}
 .tabs button[aria-selected="true"]{color:var(--fg);border-top-color:var(--orange)}
 .tabs button em{font-style:normal;display:inline-block;min-width:18px;margin-left:6px;padding:1px 5px;background:var(--orange);color:#fff;font-size:11px;border-radius:9px}
 
@@ -154,6 +158,58 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
 @keyframes chpulse{0%{box-shadow:0 0 0 0 rgba(240,85,42,.6)}100%{box-shadow:0 0 0 36px rgba(240,85,42,0)}}
 @media (prefers-reduced-motion:reduce){.chc{animation:none}}
 .chosen .cx{margin-top:44px;background:none;border:0;padding:10px 0;color:var(--mute);font:inherit;font-size:15px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+
+/* ---------- the programme of the day (third tab) ---------- */
+.pg{margin-top:18px;border-bottom:1px solid var(--rule)}
+.pgi{display:grid;grid-template-columns:52px minmax(0,1fr) auto;column-gap:12px;align-items:start;width:100%;margin:0;padding:14px 0;background:none;border:0;border-top:1px solid var(--rule);border-radius:0;text-align:left;color:var(--fg);font:inherit;line-height:1.4}
+button.pgi{cursor:pointer;touch-action:manipulation}
+button.pgi:active{background:#171716}
+.pgt{display:block;padding-top:2px;font-size:15px;line-height:1.3;font-variant-numeric:tabular-nums}
+.pgt b{display:block;font-weight:700}
+.pgt span{display:block;font-size:13px;color:var(--mute)}
+.pgc{display:block;min-width:0}
+.pgn{display:block;font-size:21px;line-height:1.15;letter-spacing:var(--tr-l);overflow-wrap:anywhere}
+.pgh{display:block;margin-top:5px;font-size:15px;line-height:1.35;color:#b4b4b0}
+.pgm{display:block;margin-top:7px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+.pgi.info .pgn,.pgi.break .pgn{font-size:17px;line-height:1.25;letter-spacing:0;color:#c9c9c5}
+.pgi.info .pgh,.pgi.break .pgh{color:var(--mute)}
+.pgi.break .pgn{color:var(--fg)}
+.pgf{flex:none;display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;overflow:hidden;background:#232322;color:#9a9a96;font-size:14px;font-weight:700;letter-spacing:.03em}
+.pgf img,.psf img,.annf img{display:block;width:100%;height:100%;object-fit:cover}
+.pgnow{display:inline-block;margin-bottom:7px;padding:2px 7px;background:var(--orange);color:#fff;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.pgi.now .pgt b{color:var(--orange)}
+.pgw{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
+.pgw .chip{min-height:38px;font-size:14px}
+/* a speaker: photo, title, the text about them */
+.psheet{z-index:12}
+.psheet .back{margin:0 0 18px;background:none;border:0;padding:8px 0;color:var(--mute);font:inherit;font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
+.psf{display:flex;align-items:center;justify-content:center;width:min(100%,340px);aspect-ratio:1;overflow:hidden;background:#171716;border:1px solid #262625;color:#4a4a48;font-size:clamp(72px,26vw,120px);font-weight:700;letter-spacing:-.02em;line-height:1}
+.psheet .kick{margin-top:22px}
+.psr{margin-top:10px;font-size:19px;line-height:1.3;color:var(--fg)}
+.psb{margin-top:18px}
+.psb p{font-size:17px;line-height:1.5;color:#d6d6d2}
+.psb p+p{margin-top:12px}
+.psb p.soon{color:var(--mute);font-size:15px}
+.pst{margin-top:24px;border-bottom:1px solid var(--rule)}
+.pst div{padding:13px 0;border-top:1px solid var(--rule)}
+.pst b{display:block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);font-variant-numeric:tabular-nums}
+.pst span{display:block;margin-top:4px;font-size:17px;line-height:1.3}
+
+/* ---------- the host's announcement: who is on stage now, and a request to listen ---------- */
+.ann{position:fixed;inset:0;z-index:19;background:#0b0b0b;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:sheetin .35s cubic-bezier(.2,.8,.2,1)}
+.ann-in{display:flex;flex-direction:column;max-width:620px;min-height:100%;min-height:100dvh;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) var(--padr) calc(22px + env(safe-area-inset-bottom,0px)) var(--pad)}
+.ann .kick{display:flex;align-items:center;gap:10px;color:var(--orange)}
+.ann .kick i{flex:none;width:10px;height:10px;border-radius:50%;background:var(--orange);animation:anndot 1.8s ease-out infinite}
+@keyframes anndot{0%{box-shadow:0 0 0 0 rgba(240,85,42,.6)}100%{box-shadow:0 0 0 12px rgba(240,85,42,0)}}
+.annc{flex:1 0 auto;display:flex;flex-direction:column;justify-content:center;padding:28px 0 8px}
+.annf{margin-bottom:26px;display:flex;align-items:center;justify-content:center;width:132px;height:132px;border-radius:50%;overflow:hidden;background:#171716}
+.ann h2{margin-top:0;font-size:clamp(44px,13.4vw,84px);line-height:.94;letter-spacing:var(--tr-xl);margin-left:-.03em;overflow-wrap:anywhere}
+.ann h2:focus{outline:none}
+.ann h2.long{font-size:clamp(34px,9.6vw,60px);line-height:1}
+.annt{margin-top:18px;font-size:clamp(20px,5.6vw,26px);line-height:1.25;color:#d6d6d2}
+.annm{margin-top:12px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+.anns p{padding:16px 16px 16px 15px;background:#1b1b1b;border-left:3px solid var(--orange);font-size:19px;line-height:1.35}
+.ann .big{margin-top:14px}
 
 /* ---------- the opening game: everyone taps RENDER, the picture on the screen gets rid of its noise ---------- */
 .gsheet{z-index:11}
@@ -231,6 +287,13 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
       <div class="mine" id="mine" hidden><p class="kick">Your questions</p><ul id="mylist"></ul></div>
     </div>
 
+    <div class="pane" id="pane-prog" role="tabpanel" aria-labelledby="tab-prog" hidden>
+      <p class="kick" id="pgDay">TAS3D 2026</p>
+      <h2>Programme</h2>
+      <p class="hint" id="pgNote"></p>
+      <div class="pg" id="pgList"></div>
+    </div>
+
     <div class="acts"><a href="https://tas3d.uz/en/">Forum website →</a></div>
     <button type="button" class="again" id="again" hidden>Test: check in again as a new guest</button>
   </section>
@@ -274,6 +337,31 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     <button type="button" class="close" id="qzClose">Back to the remote</button>
   </div>
 </div>
+<div class="sheet psheet" id="psheet" role="dialog" aria-modal="true" aria-labelledby="psN" hidden>
+  <div class="sheet-in">
+    <button type="button" class="back" id="psBack">← Programme</button>
+    <div class="psf" id="psF" aria-hidden="true"></div>
+    <p class="kick" id="psK">Speaker</p>
+    <h2 id="psN" tabindex="-1"></h2>
+    <p class="psr" id="psR"></p>
+    <div class="psb" id="psB"></div>
+    <div class="pst" id="psT"></div>
+    <button type="button" class="close" id="psX">Back to the programme</button>
+  </div>
+</div>
+<div class="ann" id="ann" role="alertdialog" aria-modal="true" aria-labelledby="annH" aria-describedby="annS" hidden>
+  <div class="ann-in">
+    <p class="kick"><i aria-hidden="true"></i><span id="annK">Now on stage</span></p>
+    <div class="annc">
+      <div class="annf" id="annF" aria-hidden="true" hidden></div>
+      <h2 id="annH" tabindex="-1"></h2>
+      <p class="annt" id="annT"></p>
+      <p class="annm" id="annM"></p>
+    </div>
+    <div class="anns"><p id="annS"></p>
+      <button type="button" class="big" id="annX"><span>OK</span><span aria-hidden="true">→</span></button></div>
+  </div>
+</div>
 <div class="chosen" id="chosen" role="alertdialog" aria-modal="true" aria-labelledby="chT" hidden>
   <p class="kick">TAS3D 2026</p>
   <div class="chc"><span id="chT">You are chosen!</span></div>
@@ -282,8 +370,9 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
 <nav class="tabs" id="tabs" role="tablist" hidden>
   <button type="button" role="tab" id="tab-react" aria-controls="pane-react" aria-selected="true">Reactions</button>
   <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false">Questions<em id="qbadge" hidden></em></button>
+  <button type="button" role="tab" id="tab-prog" aria-controls="pane-prog" aria-selected="false">Programme</button>
 </nav>
-<script src="../assets/config.js?v=875f2cd5"></script>
+<script src="../assets/config.js?v=f7917e49"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script>
 (function () {
@@ -355,8 +444,11 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     var el = $('net'); el.textContent = net ? TXT[net] : ''; el.hidden = !net;
     $('pane-react').hidden = tab !== 'react';
     $('pane-ask').hidden = tab !== 'ask';
+    $('pane-prog').hidden = tab !== 'prog';
     $('tab-react').setAttribute('aria-selected', tab === 'react' ? 'true' : 'false');
     $('tab-ask').setAttribute('aria-selected', tab === 'ask' ? 'true' : 'false');
+    $('tab-prog').setAttribute('aria-selected', tab === 'prog' ? 'true' : 'false');
+    renderProg();
     renderQs();
     renderPoll();
     renderGame();
@@ -366,6 +458,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     view = v;
     if (v === 'remote') gamePop();                     // checked in while the game is on: the RENDER button comes up
     render();
+    if (an) anUi(false);                               // an announcement made a moment ago comes up after the check-in
     if (v === 'remote') window.scrollTo(0, 0);
     openLive();                                        // one connection from the moment the page opens
   }
@@ -385,7 +478,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
       clearTimeout(timer); clearTimeout(qtimer); attempt = 0;
       st = fresh(); save(); pick = ''; net = ''; stats = null; justDone = false; tab = 'react';
       $('qtext').value = ''; qInput();
-      sheetOpen = false; vpick = -1;
+      sheetOpen = false; vpick = -1; pOpen = '';
       show('ask');
     }
   }
@@ -413,6 +506,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     else if (t === C.base + '/who') onWho(text);
     else if (t === C.base + '/quiz') onQuiz(text, kept);
     else if (t === C.base + '/qw') onQW(text);
+    else if (t === C.base + '/an') onAn(text, kept);
   }
 
   // ================= the quiz "Render or photo?" =================
@@ -603,7 +697,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     clearTimeout(liveT);
     var url = C.brokers[liveIdx % C.brokers.length], c, was = false;
     c = live = new TasMQ(url, {
-      onConnect: function () { was = true; liveWait = 1500; c.subscribe(C.base + '/r'); c.subscribe(C.base + '/s'); c.subscribe(C.base + '/now', 1); c.subscribe(C.base + '/pr'); c.subscribe(C.base + '/cfg', 1); c.subscribe(C.base + '/game', 1); c.subscribe(C.base + '/gs'); c.subscribe(C.base + '/pick', 1); c.subscribe(C.base + '/who', 1); c.subscribe(C.base + '/quiz', 1); c.subscribe(C.base + '/qw', 1); conn(); quizSend(); gameFlush(true); pickUi(); },
+      onConnect: function () { was = true; liveWait = 1500; c.subscribe(C.base + '/r'); c.subscribe(C.base + '/s'); c.subscribe(C.base + '/now', 1); c.subscribe(C.base + '/pr'); c.subscribe(C.base + '/cfg', 1); c.subscribe(C.base + '/game', 1); c.subscribe(C.base + '/gs'); c.subscribe(C.base + '/pick', 1); c.subscribe(C.base + '/who', 1); c.subscribe(C.base + '/quiz', 1); c.subscribe(C.base + '/qw', 1); c.subscribe(C.base + '/an', 1); conn(); quizSend(); gameFlush(true); pickUi(); },
       onMessage: onMsg,
       onClose: function () {
         if (live !== c) return;
@@ -794,7 +888,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
     $('pollbarK').textContent = !has ? '' : v || !poll.open ? 'Poll · see the results' : 'Poll · vote now';
     $('pollbarQ').textContent = has ? poll.q : '';
     $('sheet').hidden = !(view === 'remote' && has && sheetOpen);
-    document.body.style.overflow = $('sheet').hidden ? '' : 'hidden';
+    lockScroll();
     if (!has) return;
     $('pollK').textContent = (poll.re ? 'Once more · ' : 'Poll · ') + (poll.open ? 'voting open' : 'voting closed');
     $('pollQ').textContent = poll.q;
@@ -869,6 +963,7 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
 
   $('tab-react').addEventListener('click', function () { tab = 'react'; justDone = false; render(); });
   $('tab-ask').addEventListener('click', function () { tab = 'ask'; justDone = false; render(); });
+  $('tab-prog').addEventListener('click', function () { tab = 'prog'; justDone = false; render(); window.scrollTo(0, 0); });
 
   window.addEventListener('online', function () { attempt = Math.min(attempt, 1); go(); qgo(); openLive(); });
   document.addEventListener('visibilitychange', function () {
@@ -885,9 +980,149 @@ body.remote .hostlink{padding-bottom:calc(var(--tabh) + 18px + env(safe-area-ins
   // a new version of the site: reload when nothing is going on (the phone keeps its answers)
   if (window.TasUpdate) TasUpdate(function (b) {
     var a = document.activeElement;
-    if (busy || vbusy || qbusy || (st.role && !st.sent) || sheetOpen || gameOpen || /^(run|hang|boot|bsod)$/.test(game.st) || (a && /INPUT|TEXTAREA/.test(a.tagName))) return;
+    if (busy || vbusy || qbusy || (st.role && !st.sent) || sheetOpen || gameOpen || pOpen || !$('ann').hidden || /^(run|hang|boot|bsod)$/.test(game.st) || (a && /INPUT|TEXTAREA/.test(a.tagName))) return;
     TasUpdate.reload(b);
   });
+
+  // ================= the programme of the day =================
+  // config.js → program: the rows of the day; a talk with one speaker is a button (their photo, title and text),
+  // a panel shows a chip for each speaker. The item the host has announced is marked "Now".
+  var PG = C.program || {}, PGI = {}, pgBuilt = false, pOpen = '', pShown = '', PHOTO = "../assets/speakers/";
+  (PG.items || []).forEach(function (it) { if (it && it.id) PGI[it.id] = it; });
+  function person(k) { return (PG.people || {})[k] || null; }
+  function people(it) { return (it.by || []).map(person).filter(Boolean); }
+  function initials(n) { var w = String(n || '').trim().split(/\s+/); return ((w[0] || '').charAt(0) + (w.length > 1 ? w[w.length - 1].charAt(0) : '')).toUpperCase(); }
+  function face(el, p) {                                // the photo, or the initials until there is one (or if it does not load)
+    el.textContent = '';
+    if (!p.photo) { el.textContent = initials(p.name); return; }
+    var im = new Image(); im.alt = '';
+    im.onerror = function () { el.textContent = initials(p.name); };
+    im.src = /^(https?:)?\/\//.test(p.photo) ? p.photo : PHOTO + p.photo;
+    el.appendChild(im);
+  }
+  function span(cls, text) { var e = document.createElement('span'); e.className = cls; if (text != null) e.textContent = text; return e; }
+  function times(it) { return it.from + (it.to ? '–' + it.to : ''); }
+  function buildProg() {
+    pgBuilt = true;
+    $('pgDay').textContent = PG.day || 'TAS3D 2026';
+    $('pgNote').textContent = PG.note || ''; $('pgNote').hidden = !PG.note;
+    var box = $('pgList');
+    (PG.items || []).forEach(function (it) {
+      var by = people(it), one = by.length === 1, kind = /^(talk|break|info)$/.test(it.kind) ? it.kind : 'info';
+      var row = document.createElement(one ? 'button' : 'div');
+      if (one) row.type = 'button';
+      row.className = 'pgi ' + kind; row.setAttribute('data-i', it.id);
+      var t = span('pgt'); t.appendChild(document.createElement('b')).textContent = it.from || ''; t.appendChild(span('', it.to || ''));
+      var c = span('pgc'), now = span('pgnow', 'Now'); now.hidden = true; c.appendChild(now);
+      c.appendChild(span('pgn', one ? by[0].name : it.title));
+      var sub = one ? it.title : it.note;
+      if (sub) c.appendChild(span('pgh', sub));
+      if (one && it.note) c.appendChild(span('pgh', it.note));
+      if (it.lang === 'EN') c.appendChild(span('pgm', 'Talk in English'));
+      row.appendChild(t); row.appendChild(c);
+      if (one) {
+        var f = span('pgf'); f.setAttribute('aria-hidden', 'true'); face(f, by[0]); row.appendChild(f);
+        row.addEventListener('click', function () { openPerson(it.by[0]); });
+      } else if (by.length) {                           // a panel: each speaker opens from their own chip
+        var w = span('pgw');
+        (it.by || []).forEach(function (k) {
+          var p = person(k); if (!p) return;
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = p.name;
+          b.addEventListener('click', function () { openPerson(k); });
+          w.appendChild(b);
+        });
+        c.appendChild(w);
+      }
+      box.appendChild(row);
+    });
+  }
+  function renderProg() {
+    if (!PG || !an) return;                             // before this part of the script has run
+    if (!pgBuilt) buildProg();
+    var now = anNow();
+    $('pgList').querySelectorAll('.pgi').forEach(function (r) {
+      var on = !!now && r.getAttribute('data-i') === now;
+      r.classList.toggle('now', on); r.querySelector('.pgnow').hidden = !on;
+    });
+    renderPerson();
+  }
+  function openPerson(k) { if (!person(k)) return; pOpen = k; renderPerson(); $('psheet').scrollTop = 0; try { $('psN').focus({ preventScroll: true }); } catch (e) {} }
+  function closePerson() { pOpen = ''; renderPerson(); }
+  function renderPerson() {
+    var p = pOpen ? person(pOpen) : null, on = !!p && view === 'remote';
+    $('psheet').hidden = !on;
+    lockScroll();
+    if (!on || pShown === pOpen) return;
+    pShown = pOpen;
+    face($('psF'), p);
+    $('psN').textContent = p.name;
+    $('psR').textContent = p.role || ''; $('psR').hidden = !p.role;
+    var bio = $('psB'); bio.textContent = '';
+    String(p.bio || '').split(/\n\s*\n/).forEach(function (x) { x = x.trim(); if (x) bio.appendChild(document.createElement('p')).textContent = x; });
+    if (!bio.firstChild) { var soon = bio.appendChild(document.createElement('p')); soon.className = 'soon'; soon.textContent = 'More about the speaker will be here soon.'; }
+    var list = $('psT'); list.textContent = '';
+    (PG.items || []).forEach(function (it) {
+      if ((it.by || []).indexOf(pOpen) < 0) return;
+      var d = list.appendChild(document.createElement('div'));
+      d.appendChild(document.createElement('b')).textContent = times(it) + (it.lang === 'EN' ? ' · in English' : '');
+      d.appendChild(document.createElement('span')).textContent = it.title;
+    });
+    list.hidden = !list.firstChild;
+  }
+  $('psBack').addEventListener('click', closePerson);
+  $('psX').addEventListener('click', closePerson);
+  // the page behind a sheet does not scroll
+  function lockScroll() { document.body.style.overflow = !$('sheet').hidden || !$('psheet').hidden || !$('ann').hidden ? 'hidden' : ''; }
+
+  // ================= the host's announcement =================
+  // {id, i: programme item, at, w} on <base>/an (kept). The texts are this page's own (config.js): the message only says which
+  // item. A checked-in phone with the page open brings it up for C.announce.show seconds from the host's tap (a guest can close it);
+  // later the item is only marked "Now" in the programme, for at most C.announce.now minutes.
+  // A live message counts from this phone's own clock (a wrong clock does not matter); one kept by the server — from the host's.
+  var AN = C.announce || {}, ANSHOW = (AN.show > 0 ? AN.show : 120) * 1000, ANNOW = (AN.now > 0 ? AN.now : 60) * 60000;
+  var an = { id: '', i: '', at: -1, w: '', t0: 0 }, anT = null;
+  function onAn(text, kept) {
+    var d = json(text); if (!d) return;
+    var at = +d.at || 0, w = String(d.w || '');
+    if (at < an.at || (at === an.at && w < an.w)) return;
+    var id = String(d.id || '');
+    // kept by the server: its age by the host's clock — unless that clock is ahead of this phone's (then no notice: better
+    // than a notice that comes up for an hour on every phone that opens the page)
+    an = { id: id, i: String(d.i || ''), at: at, w: w, t0: id && id === an.id ? an.t0 : !kept ? Date.now() : at > Date.now() + 120000 ? 0 : at };
+    anUi(!kept);
+  }
+  function anAge() { return Math.max(0, Date.now() - an.t0); }
+  function anItem() { return an.id && PGI[an.i] ? PGI[an.i] : null; }
+  function anNow() { return anItem() && anAge() < ANNOW ? an.i : ''; }
+  function anUi(buzz) {
+    var it = anItem(), on = !!it && st.sent && view === 'remote' && st.anx !== an.id && anAge() < ANSHOW, el = $('ann');   // the check-in comes first
+    if (on && el.getAttribute('data-a') !== an.id) {
+      el.setAttribute('data-a', an.id);
+      var by = people(it), one = by.length === 1, kind = it.kind;
+      $('annK').textContent = kind === 'break' ? 'Break' : kind === 'talk' ? 'Now on stage' : 'Now';
+      var h = one ? by[0].name : it.title;
+      $('annH').textContent = h; $('annH').classList.toggle('long', h.length > 26);
+      var sub = one ? it.title : by.length ? by.map(function (p) { return p.name; }).join(' · ') : (it.note || '');
+      $('annT').textContent = sub; $('annT').hidden = !sub;
+      $('annM').textContent = it.lang === 'EN' ? 'Talk in English' : ''; $('annM').hidden = it.lang !== 'EN';
+      var say = it.say || (kind === 'talk' ? AN.talk : kind === 'break' ? AN.pause : '') || '';
+      $('annS').textContent = say.replace('{to}', it.to || '').replace('{from}', it.from || ''); $('annS').hidden = !say;
+      var f = $('annF'); f.hidden = !(one && by[0].photo); if (!f.hidden) face(f, by[0]);
+      el.scrollTop = 0;
+    }
+    if (on && el.hidden && buzz) { try { if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([120, 80, 120]); } catch (e) {} }
+    var was = el.hidden;
+    el.hidden = !on;
+    if (on && was) { try { $('annH').focus({ preventScroll: true }); } catch (e) {} }
+    clearTimeout(anT);
+    if (it) {                                           // comes back to close the notice, and later to take the "Now" mark off
+      var left = on ? ANSHOW - anAge() : anAge() < ANNOW ? ANNOW - anAge() : 0;
+      if (left > 0) anT = setTimeout(function () { anUi(false); }, Math.min(left + 60, 2147000000));
+    }
+    lockScroll();
+    if (pgBuilt) renderProg();
+  }
+  $('annX').addEventListener('click', function () { st.anx = an.id; save(); anUi(false); });
 
   // ================= the opening game =================
   // the host shows the game: the RENDER button pops up; Start rendering: 3, 2, 1 and everybody taps.
