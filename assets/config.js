@@ -87,25 +87,27 @@ window.TAS3D_CHECKIN = {
     pause: 'We start again at {to}.' },
   // the programme of the day: the guests' tab "Programme" and the host's announcements.
   // people: who is on stage. name; role = title / company (one line); bio = the text about them (\n\n between paragraphs);
-  //   photo = a file name in media/speakers/ (square, about 800 px). Empty role, bio or photo: the page shows the initials
-  //   and "More about the speaker will be here soon."
+  //   photo = a file name in media/speakers/ (square, about 800 px) or a full address (https://…); ig = the Instagram name
+  //   (without @). No photo: the initials. Neither role nor bio: "More about the speaker will be here soon."
   // items, in the order of the day: id (letters and digits; do not change one after the forum has started), from, to ('HH:MM'),
   //   kind: talk | break | info, title, by: [keys of people], lang: 'EN' = the talk is in English,
   //   note = a small line for the guests, say = the request on the phones when it is announced, ann: false = not in the host's list.
-  // 27.11.2026: times and names from the organizer's run sheet; the titles are translated from Russian — check them.
-  //   Roles, bios and photos are not here yet.
+  // 27.11.2026: times and names from the organizer's run sheet; the titles of the talks are translated from Russian — check them.
+  //   Roles, photos and Instagram: from https://tas3d.uz/en/ as it was on 27.11.2026 (the photos are the files on that site,
+  //   by address — they are not copied here). The site has no longer texts about the speakers; Bloom Architects and
+  //   PromptX are not on it yet.
   program: {
     day: '3 December 2026',
     note: 'Every talk: 25 minutes and 5 minutes for questions.',
     people: {
-      kenji: { name: 'Kenji', role: 'Host', bio: '', photo: '' },
-      artem: { name: 'Artem Kupriianenko', role: '', bio: '', photo: '' },
-      daniel: { name: 'Daniel Nagaets', role: '', bio: '', photo: '' },
-      vlad: { name: 'Vlad Sidorenko', role: '', bio: '', photo: '' },
-      promptx: { name: 'PromptX', role: '', bio: '', photo: '' },
-      bloom: { name: 'Bloom Architects', role: '', bio: '', photo: '' },
-      zach: { name: 'Zach Bai', role: 'D5', bio: '', photo: '' },
-      wellington: { name: 'Wellington Franzao', role: '', bio: '', photo: '' }
+      kenji: { name: 'KENJI', role: 'Host · Lead 3D Artist at Apex Development', bio: '', photo: 'https://tas3d.uz/media/speakers/kenji.jpg', ig: 'knji.knji' },
+      artem: { name: 'Artem Kupriianenko', role: 'Founder of OMEGA RENDER', bio: '', photo: 'https://tas3d.uz/media/speakers/artem-kupriianenko.jpg', ig: 'kupriianenko_art' },
+      daniel: { name: 'Daniel Nagaets', role: 'Founder of RENDER CAMP and Fortes Vision', bio: '', photo: 'https://tas3d.uz/media/speakers/daniel-nagaets-hq.jpg', ig: 'danielnagaets' },
+      vlad: { name: 'Vlad Sidorenko', role: 'Art Director at OMEGA RENDER', bio: '', photo: 'https://tas3d.uz/media/speakers/vlad-sidorenko.jpg', ig: 'vsdrnko' },
+      promptx: { name: 'PromptX', role: '', bio: '', photo: '', ig: '' },
+      bloom: { name: 'Bloom Architects', role: '', bio: '', photo: '', ig: '' },
+      zach: { name: 'Zach Bai', role: 'Co-founder of D5 Render', bio: '', photo: 'https://tas3d.uz/media/speakers/zach-bai.jpg', ig: 'd5officialaccount' },
+      wellington: { name: 'Wellington Franzao', role: 'Creative Director, podcast host, and three-time award-winning CG artist', bio: '', photo: 'https://tas3d.uz/media/speakers/wellington-franzao.jpg', ig: 'franzao.f' }
     },
     items: [
       { id: 'doors', from: '14:00', kind: 'info', title: 'Doors open, registration', ann: false },

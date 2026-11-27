@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '6d656b1fa2';</script>
+<script>window.TAS3D_BUILD = '78592c0352';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Screen — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -600,11 +600,11 @@ html.pv .ctl,html.pv .setp{display:none!important}
   document.addEventListener('visibilitychange', function () { if (document.hidden) Object.keys(frames).forEach(function (id) { if (!frames[id].t) byTimer(id); }); });
 })();
 </script>
-<script src="../assets/config.js?v=39c28a0f"></script>
+<script src="../assets/config.js?v=4bb8a3a3"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=03fd4e9b"></script>
-<script src="../assets/deck.js?v=2fa26438"></script>
-<script src="../assets/slides.js?v=9edf1add"></script>
+<script src="../assets/deck.js?v=31c5af75"></script>
+<script src="../assets/slides.js?v=fa962bb8"></script>
 <script>
 (function () {
   var C = window.TAS3D_CHECKIN;
@@ -1329,6 +1329,7 @@ html.pv .ctl,html.pv .setp{display:none!important}
   document.addEventListener('fullscreenchange', function () {
     try { if (navigator.keyboard && navigator.keyboard.lock) { if (isFull()) navigator.keyboard.lock(['Escape']).catch(function () {}); else navigator.keyboard.unlock(); } } catch (x) {}
   });
+  document.addEventListener('fullscreenchange', function () { setTimeout(bcSoon, 200); });
   $('bFs').addEventListener('click', function () { fullscreen(); this.blur(); });   // no focus left on it: Space is "next slide"
   document.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey || PREVIEW) return;
@@ -1491,7 +1492,7 @@ html.pv .ctl,html.pv .setp{display:none!important}
   function startSlides() {
     if (slides || !hub || !window.TasSlidesScreen || !TasSlidesKey.get()) return;
     try {
-      slides = TasSlidesScreen({ hub: hub, view: $('slides'), reload: reloadNow, onGamePic: gamePic, check: function () { if (checkNew) checkNew(); }, onChange: function () { render(hub.state, hub.up()); },
+      slides = TasSlidesScreen({ hub: hub, view: $('slides'), reload: reloadNow, onGamePic: gamePic, check: function () { if (checkNew) checkNew(); }, onChange: function () { render(hub.state, hub.up()); bcSoon(); },
         locked: function () { var g = hub.state.game, z = hub.state.quiz; return (/^(ready|run|hang|boot|bsod)$/.test(g.st) && hub.state.cfg.scene === 'game') || (/^(ready|ask|show)$/.test(z.st) && hub.state.cfg.scene === 'quiz'); } });
     } catch (e) { slides = null; }
     window.TasScreenSlides = slides;                  // tests
@@ -1514,8 +1515,11 @@ html.pv .ctl,html.pv .setp{display:none!important}
   // ---- the host panel open in this same browser (the same computer) does what needs a click or a password — choosing the
   // folder, allowing it again after a restart of the browser, the key — in its own window, so nobody opens anything on this
   // screen in front of the hall. The two pages find each other over a BroadcastChannel (same site, same browser only).
-  var bc = null;
-  function bcHere() { if (bc) try { bc.postMessage({ t: 'here', key: !!TasSlidesKey.get() }); } catch (e) {} }
+  // "here" also carries this screen's state (the folder, the sound, the window …): the panel in this browser shows it at
+  // once and without the internet — the same that goes to every panel over the servers as "sa".
+  var bc = null, bcT = null;
+  function bcHere() { if (bc) try { bc.postMessage({ t: 'here', key: !!TasSlidesKey.get(), sa: slides && slides.saInfo ? slides.saInfo() : null }); } catch (e) {} }
+  function bcSoon() { if (bc && !bcT) bcT = setTimeout(function () { bcT = null; bcHere(); }, 150); }   // after a change
   function bcStart() {
     if (!window.BroadcastChannel) return;
     try { bc = new BroadcastChannel('tas3d-screen-' + C.room); } catch (e) { bc = null; return; }

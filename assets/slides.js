@@ -59,7 +59,10 @@
     const T0 = Date.now();                  // when this screen page was opened: of two open screens the remotes follow the later one
     let seq = 0;
     let root = null;                        // {kind: 'handle', h} | {kind: 'files', top}
-    let saved = null, rootName = '', need = 'connect', scanning = false, err = '';
+    let saved = null, rootName = '', need = 'connect', scanning = false, err = '', scanN = [0, 0], scanMore = false;
+    // reading: what the pages are told ("Reading the folder…"). Not every scan is that: the look for new files every 15 s
+    // is quiet, unless it finds files to look into — otherwise every panel would flash "reading" four times a minute.
+    let reading = false;
     let decks = [], byId = {}, sigAll = '';
     let cfg = { scene: '', deck: '', live: '' };
     let soundBlocked = false;
@@ -77,6 +80,7 @@
     const links = TasLinks([B + '/sk', B + '/pv/+'], onMsg, () => {
       const u = links ? links.up() : 0;
       if (u > was) setTimeout(() => { pubSa(); if (decks.length) { pubDk(); decks.forEach(pubPv); } }, 400);   // a broker that restarted gets everything again
+      if (u !== was) setTimeout(changed, 0);           // the host panel in this browser shows how many servers this screen has
       was = u;
     });
     const seal = (t, o) => box.seal(t, o);
@@ -93,17 +97,19 @@
     }
     // "the screen is on", and everything the host panel shows under Screen settings (the screen itself shows none of it to
     // the hall): the folder and what is in it, the sound, the window (full screen, active), the servers, the version
-    function pubSa() {
+    function saInfo() {
       let ins = null;
       try {
         const spN = (decks.find((d) => d.sp) || { files: [] }).files.filter((f) => f.c).length, hoD = decks.find((d) => d.ho), hoN = hoD ? hoD.files.filter((f) => f.c).length : -1;
         // inside the folder: speakers, files in "Host" (-1 = no folder), tracks, music, files in "Screen", quiz pictures
         ins = [decks.length - (spN ? 1 : 0) - (hoN >= 0 ? 1 : 0), hoN, slots.length, bgList.length, spN, quiz.filter((q) => q.a).length];
       } catch (e) {}                                  // called before the lists below exist
-      pub(B + '/sa', { sn, st: T0, seq: ++seq, t: Date.now(), ua: UA, v: window.TAS3D_BUILD || '', fl: window.TAS3D_FILE ? 1 : 0, fc: document.hasFocus() ? 1 : 0, f: !!root && !need && !scanning ? 1 : 0, need: scanning ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0, gp: window.TasGameGfx ? String(window.TasGameGfx() || '').slice(0, 60) : '',
+      return { sn, st: T0, seq: ++seq, t: Date.now(), ua: UA, v: window.TAS3D_BUILD || '', fl: window.TAS3D_FILE ? 1 : 0, fc: document.hasFocus() ? 1 : 0, f: !!root && !need && !reading ? 1 : 0, need: reading ? 'reading' : need, folder: rootName, n: decks.length, snd: soundBlocked ? 0 : 1, au: sroot ? 1 : 0, gp: window.TasGameGfx ? String(window.TasGameGfx() || '').slice(0, 60) : '',
         fs: document.fullscreenElement || document.webkitFullscreenElement ? 1 : 0, up: links ? links.up() : 0, kind: root ? root.kind : '', err: String(err || '').slice(0, 200),
-        in: ins });
+        rd: reading && scanN[1] ? scanN : null,       // reading the folder: [files looked into, files to look into]
+        in: ins };
     }
+    function pubSa() { pub(B + '/sa', saInfo()); }
     setInterval(pubSa, 8000); setTimeout(pubSa, 1500);
     ['fullscreenchange', 'webkitfullscreenchange'].forEach((ev) => document.addEventListener(ev, () => setTimeout(pubSa, 300)));
     // the keys of a clicker go to the window that is active on this computer: the host panel is told when this one is not
@@ -250,16 +256,29 @@
     // The host panel open in this same browser (the same computer) chose the folder, or allowed it again, in its own
     // window: the browser's permission is for the site, not for one tab, and the folder is in the store both pages share.
     // Nothing is asked here (asking needs a click on this page): if the browser says "not allowed", it stays "reconnect".
-    async function adopt() {
-      if (NOFS || !window.indexedDB) return false;
-      let h = null; try { h = await kv('dir'); } catch (e) {}
-      if (!h || h.kind !== 'directory') return false;
-      saved = h; rootName = h.name;
-      let q = 'prompt'; try { q = await h.queryPermission({ mode: 'read' }); } catch (e) {}
-      if (q !== 'granted') { need = 'reconnect'; changed(); pubSa(); return false; }
-      await useHandle(h, false); pubSa();
-      return true;
+    // quiet: the look this page takes by itself every 3 s while it has no folder — nothing is said unless something changes.
+    let adopting = false;
+    async function adopt(quiet) {
+      if (NOFS || !window.indexedDB || adopting) return false;
+      adopting = true;
+      try {
+        let h = null; try { h = await kv('dir'); } catch (e) {}
+        if (!h || h.kind !== 'directory') return false;
+        let q = 'prompt'; try { q = await h.queryPermission({ mode: 'read' }); } catch (e) {}
+        if (q !== 'granted') {
+          if (need !== 'reconnect' || rootName !== h.name) { saved = h; rootName = h.name; need = 'reconnect'; err = ''; changed(); pubSa(); }
+          return false;
+        }
+        // allowed. Is the folder there (not moved, the disk not taken out)? A quiet look does not start a scan that would fail.
+        if (quiet) { try { for await (const e of h.values()) break; } catch (e) { return false; } }
+        if (!need && root && root.kind === 'handle' && saved && (await saved.isSameEntry(h).catch(() => false))) { if (!quiet) scan(); return true; }   // the same folder, connected already
+        await useHandle(h, false); pubSa();
+        return true;
+      } finally { adopting = false; }
     }
+    // No folder (never chosen here, or the browser wants to be asked, or the folder was away): look every 3 s whether it
+    // has come — chosen or allowed in the host panel (its message may get lost), or the disk is back. No click needed.
+    setInterval(() => { if (need && !scanning && (!root || root.kind === 'handle')) adopt(true).catch(() => {}); }, 3000);
 
     async function drop(items) {
       const its = Array.from(items || []).filter((x) => x.kind === 'file');
@@ -273,10 +292,10 @@
         if (h && h.kind === 'directory') { await useHandle(h, true); return true; }
       }
       if (en && en.isDirectory) {                     // Safari, Firefox: read the files now
-        scanning = true; changed();
+        scanning = true; reading = true; changed();
         const list = [];
         await readEntries(en, en.name + '/', list, 0);
-        scanning = false;
+        scanning = false; reading = false;
         const top = treeFromFiles(list);
         root = { kind: 'files', top }; rootName = top.name || en.name; need = ''; err = '';
         await scan();
@@ -335,10 +354,26 @@
       return top;
     }
 
-    // what is in each file (kept by file signature, so a new scan does not open everything again)
-    const meta = new Map();
+    // what is in each file (kept by file signature, so a new scan does not open everything again) — also over a reload of
+    // the page and a restart of the browser (localStorage): the folder is "connected" in a moment, not after every PDF and
+    // video has been opened once more. A file that changed has another signature (size, date) and is looked into again.
+    const meta = new Map(), METAK = 'tas3d-meta-' + C.room;
+    try { const o = JSON.parse(localStorage.getItem(METAK) || '{}'); Object.keys(o).forEach((k) => { const m = o[k]; if (m && /^(pdf|img|vid)$/.test(m.k)) meta.set(k, m); }); } catch (e) {}
+    let metaT = 0, metaDirty = false;
+    function metaFlush() {
+      clearTimeout(metaT); metaT = 0;
+      if (!metaDirty) return;
+      metaDirty = false;
+      const o = {}; let n = 0;
+      [...meta.entries()].reverse().forEach(([k, m]) => { if (n < 600 && /^(pdf|img|vid)$/.test(m.k)) { o[k] = m; n++; } });   // not the "does not open" ones: they get another try
+      try { localStorage.setItem(METAK, JSON.stringify(o)); } catch (e) {}
+    }
+    function metaSave() { metaDirty = true; if (!metaT) metaT = setTimeout(metaFlush, 500); }
+    window.addEventListener('pagehide', metaFlush);
+    let lookedN = 0; const lookedLast = [];            // files this page has opened to see what is in them (tests)
     async function inspect(f) {
       if (meta.has(f.sig)) return meta.get(f.sig);
+      lookedN++; lookedLast.push(f.sig); if (lookedLast.length > 6) lookedLast.shift();
       const n = f.path.split('/').pop();
       let m = { k: 'bad', c: 0, dur: 0, w: '' };
       if (PDF.test(n)) {
@@ -350,8 +385,26 @@
       else if (IMG.test(n)) m = { k: 'img', c: 1, dur: 0, w: '' };
       else if (VID.test(n)) { try { const vl = await videoLength(f); m = { k: 'vid', c: 1, dur: vl.dur, q: vl.q, w: '' }; } catch (e) { m.w = 'This video does not play in this browser. Save it as MP4 (H.264 video, AAC sound).'; } }
       else m.w = warnFor(n);
-      meta.set(f.sig, m);
+      meta.set(f.sig, m); metaSave();
       return m;
+    }
+    // every file not looked into yet, four at a time (a folder of big PDFs and videos is read several times faster);
+    // the host panel sees how far it is
+    async function inspectAll(files) {
+      const todo = files.filter((f) => !meta.has(f.sig) && !SKIP.test(f.path));
+      scanN = [0, todo.length];
+      if (!todo.length) return;
+      if (!reading) { reading = true; changed(); pubSa(); }   // the quiet look found new files: now it is a reading
+      let i = 0, saidAt = 0;
+      await Promise.all([0, 1, 2, 3].map(async () => {
+        while (i < todo.length) {
+          const f = todo[i++];
+          try { await inspect(f); } catch (e) {}
+          scanN = [scanN[0] + 1, todo.length];
+          if (Date.now() - saidAt > 700) { saidAt = Date.now(); changed(); pubSa(); }
+        }
+      }));
+      metaFlush();                                     // kept at once: a reload a moment later finds it
     }
     async function videoLength(f) {
       const v = document.createElement('video'), url = URL.createObjectURL(await f.get());
@@ -390,9 +443,12 @@
       const n = name.replace(/\.[a-z0-9]+$/i, '').toLowerCase(), r = /render|рендер|(^|[^a-z])cg/.test(n), p = /photo|foto|фото|real/.test(n);
       return r && !p ? 'r' : p && !r ? 'p' : '';
     }
-    async function scan() {
-      if (!root || scanning) return;
-      scanning = true; changed(); pubSa();
+    async function scan(quiet) {
+      if (!root) return;
+      if (scanning) { if (!quiet) scanMore = true; return; }   // asked for while reading: once more right after (another folder may have come)
+      scanning = true; scanN = [0, 0];
+      const errWas = err, needWas = need; let chg = false;
+      if (!quiet) { reading = true; changed(); pubSa(); }
       try {
         const top = await readTree();
         top.dirs.sort((a, b) => nat(a.name, b.name));
@@ -437,6 +493,8 @@
         } else if (sroot) { sroot = null; sname = ''; slots = []; bgList = []; fxFiles = {}; sSig = ''; stopSlot(0); pubAu(); }
         const sig = JSON.stringify([top.name, top.dirs.map((x) => [x.name, x.files.map((f) => f.sig)]), top.files.map((f) => f.sig)]);
         if (sig !== sigAll) {
+          chg = true;
+          await inspectAll(top.dirs.reduce((a, x) => a.concat(x.files), []).concat(top.files));
           const list = [];
           for (const x of top.dirs) {
             const d = await buildDeck(x.name, x.files);
@@ -467,10 +525,13 @@
         if (root.kind === 'handle' && e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) need = 'reconnect';
         if (e && e.name === 'NotFoundError') { need = 'connect'; root = null; }
       }
-      scanning = false; changed(); pubSa();
+      const said = reading;
+      scanning = false; reading = false;
+      if (said || chg || err !== errWas || need !== needWas) { changed(); pubSa(); }
+      if (scanMore) { scanMore = false; if (root) scan(); }
     }
     // new files appear by themselves (a folder chosen with Connect folder in Chrome or Edge)
-    setInterval(() => { if (root && root.kind === 'handle' && !need) scan(); }, 15000);
+    setInterval(() => { if (root && root.kind === 'handle' && !need) scan(true); }, 15000);   // new files: a quiet look
 
     // ---------- sound: the folders "Sound" and "Music" inside the one folder. The first 6 tracks of "Sound" (by name) are
     // the slots the host plays (fanfare for a speaker, transitions); "Music" is the music the host chooses (coffee break …):
@@ -674,6 +735,7 @@
         trimDocs();
       }
       x.used = Date.now();
+      clearTimeout(trimT); trimT = setTimeout(trimDocs, 30000);   // the ones opened only to count their pages are closed a little later
       return x.p;
     }
     async function openPdf(f) {
@@ -684,15 +746,32 @@
       return L.getDocument({ range: tr, length: file.size, rangeChunkSize: 1 << 20, disableAutoFetch: true, disableStream: true,
         standardFontDataUrl: PDFJS + 'standard_fonts/', cMapUrl: PDFJS + 'cmaps/', cMapPacked: true, wasmUrl: PDFJS + 'wasm/', iccUrl: PDFJS + 'iccs/' }).promise;
     }
+    // close a PDF that is no longer needed (its memory and its worker's). pdf.js 6 has no document.destroy(): the loading
+    // task closes it. (Until 27.11.2026 destroy() was called here — an error for every PDF past the eighth, and none closed.)
+    function closeDoc(doc) {
+      try {
+        if (doc && doc.loadingTask && doc.loadingTask.destroy) return Promise.resolve(doc.loadingTask.destroy()).catch(() => {});
+        if (doc && doc.destroy) return Promise.resolve(doc.destroy()).catch(() => {});
+        if (doc && doc.cleanup) doc.cleanup();
+      } catch (e) {}
+    }
+    // At most 8 PDFs stay open. Never closed: the files of the folder that is on the screen, a PDF a page is being drawn
+    // from right now, and one used in the last 20 s (the screen is drawing previews of it for the remotes).
+    let trimT = 0;
     function trimDocs() {
       if (docs.size <= 8) return;
-      const keep = new Set(), d = byId[cfg.deck];
+      const keep = new Set(), d = byId[cfg.deck], now = Date.now();
       if (d) d.files.forEach((f) => keep.add(f.sig));
-      const old = [...docs.entries()].filter(([k]) => !keep.has(k)).sort((a, b) => a[1].used - b[1].used);
-      while (docs.size > 8 && old.length) { const [k, x] = old.shift(); docs.delete(k); x.p.then((doc) => doc.destroy(), () => {}); }
+      const old = [...docs.entries()].filter(([k, x]) => !keep.has(k) && !x.busy && now - x.used > 20000).sort((a, b) => a[1].used - b[1].used);
+      while (docs.size > 8 && old.length) { const [k, x] = old.shift(); docs.delete(k); x.p.then(closeDoc, () => {}); }
     }
     async function drawPdf(f, page, maxW, maxH, canvas) {
-      const doc = await pdfDoc(f), pg = await doc.getPage(page + 1);
+      const doc = await pdfDoc(f), x = docs.get(f.sig);
+      if (x) x.busy = (x.busy || 0) + 1;               // not closed while a page of it is being drawn
+      try { return await drawPage(doc, page, maxW, maxH, canvas); } finally { if (x) { x.busy--; x.used = Date.now(); } }
+    }
+    async function drawPage(doc, page, maxW, maxH, canvas) {
+      const pg = await doc.getPage(page + 1);
       const v1 = pg.getViewport({ scale: 1 }), s = Math.min(maxW / v1.width, maxH / v1.height);
       const vp = pg.getViewport({ scale: s });
       canvas.width = Math.max(1, Math.round(vp.width)); canvas.height = Math.max(1, Math.round(vp.height));
@@ -1008,7 +1087,8 @@
       connect: () => connect(false),
       choose: () => connect(true),
       drop,                                          // a folder dragged onto the screen
-      adopt,                                         // the folder chosen in the host panel of this same browser
+      adopt: () => adopt(false),                     // the folder chosen in the host panel of this same browser
+      saInfo,                                        // the state for the host panel of this same browser (no server in between)
       unmute: () => soundOn(),
       // the game's prank: while the computer "restarts" and the blue screen is up, the music and the tracks wait
       hush(v) {
@@ -1048,7 +1128,7 @@
       // keys and the clicker on this computer
       step(n) { const d = byId[cfg.deck]; if (cfg.scene !== 'slides' || !d) return false; setPos(d, (pos[d.id] || 0) + n); pubPv(d); return true; },
       showing: () => cfg.scene === 'slides' && !!byId[cfg.deck],   // slides are on this screen now: the keys change them
-      status: () => ({ need, folder: rootName, n: decks.length, scanning, err, sound: !soundBlocked, kind: root ? root.kind : '',
+      status: () => ({ need, folder: rootName, n: decks.length, scanning: reading, looked: lookedN, lookedLast, pdfs: docs.size, err, sound: !soundBlocked, kind: root ? root.kind : '',
         vid: !!(shown && shown.k === 'vid' && cfg.scene === 'slides' && shown.el && !shown.el.paused && !shown.el.ended),   // a video is playing on this screen
         sp: (decks.find((d) => d.sp) || { files: [] }).files.filter((f) => f.c).length,   // files for a pause (folder "Screen")
         qz: quiz.filter((q) => q.a).length,          // pictures of the quiz (folder "Quiz") with an answer in the name

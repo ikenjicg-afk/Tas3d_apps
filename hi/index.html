@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '6d656b1fa2';</script>
+<script>window.TAS3D_BUILD = '78592c0352';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAS3D 2026</title>
 <meta name="robots" content="noindex">
@@ -169,7 +169,8 @@ button.pgi:active{background:#171716}
 .pgt span{display:block;font-size:13px;color:var(--mute)}
 .pgc{display:block;min-width:0}
 .pgn{display:block;font-size:21px;line-height:1.15;letter-spacing:var(--tr-l);overflow-wrap:anywhere}
-.pgh{display:block;margin-top:5px;font-size:15px;line-height:1.35;color:#b4b4b0}
+.pgr{display:block;margin-top:3px;font-size:13px;line-height:1.3;color:var(--mute)}
+.pgh{display:block;margin-top:6px;font-size:15px;line-height:1.35;color:#c4c4c0}
 .pgm{display:block;margin-top:7px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
 .pgi.info .pgn,.pgi.break .pgn{font-size:17px;line-height:1.25;letter-spacing:0;color:#c9c9c5}
 .pgi.info .pgh,.pgi.break .pgh{color:var(--mute)}
@@ -186,6 +187,9 @@ button.pgi:active{background:#171716}
 .psf{display:flex;align-items:center;justify-content:center;width:min(100%,340px);aspect-ratio:1;overflow:hidden;background:#171716;border:1px solid #262625;color:#4a4a48;font-size:clamp(72px,26vw,120px);font-weight:700;letter-spacing:-.02em;line-height:1}
 .psheet .kick{margin-top:22px}
 .psr{margin-top:10px;font-size:19px;line-height:1.3;color:var(--fg)}
+.psi{margin-top:12px;font-size:16px}
+.psi a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px 0 12px;border:1px solid #3a3a38;border-radius:22px;color:var(--fg)}
+.psi a svg{flex:none;width:20px;height:20px;color:var(--orange)}
 .psb{margin-top:18px}
 .psb p{font-size:17px;line-height:1.5;color:#d6d6d2}
 .psb p+p{margin-top:12px}
@@ -206,6 +210,7 @@ button.pgi:active{background:#171716}
 .ann h2{margin-top:0;font-size:clamp(44px,13.4vw,84px);line-height:.94;letter-spacing:var(--tr-xl);margin-left:-.03em;overflow-wrap:anywhere}
 .ann h2:focus{outline:none}
 .ann h2.long{font-size:clamp(34px,9.6vw,60px);line-height:1}
+.annr{margin-top:12px;font-size:15px;line-height:1.3;color:var(--mute)}
 .annt{margin-top:18px;font-size:clamp(20px,5.6vw,26px);line-height:1.25;color:#d6d6d2}
 .annm{margin-top:12px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
 .anns p{padding:16px 16px 16px 15px;background:#1b1b1b;border-left:3px solid var(--orange);font-size:19px;line-height:1.35}
@@ -344,6 +349,7 @@ button.pgi:active{background:#171716}
     <p class="kick" id="psK">Speaker</p>
     <h2 id="psN" tabindex="-1"></h2>
     <p class="psr" id="psR"></p>
+    <p class="psi" id="psI" hidden><a id="psIg" target="_blank" rel="noopener"></a></p>
     <div class="psb" id="psB"></div>
     <div class="pst" id="psT"></div>
     <button type="button" class="close" id="psX">Back to the programme</button>
@@ -355,6 +361,7 @@ button.pgi:active{background:#171716}
     <div class="annc">
       <div class="annf" id="annF" aria-hidden="true" hidden></div>
       <h2 id="annH" tabindex="-1"></h2>
+      <p class="annr" id="annR" hidden></p>
       <p class="annt" id="annT"></p>
       <p class="annm" id="annM"></p>
     </div>
@@ -372,7 +379,7 @@ button.pgi:active{background:#171716}
   <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false">Questions<em id="qbadge" hidden></em></button>
   <button type="button" role="tab" id="tab-prog" aria-controls="pane-prog" aria-selected="false">Programme</button>
 </nav>
-<script src="../assets/config.js?v=39c28a0f"></script>
+<script src="../assets/config.js?v=4bb8a3a3"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script>
 (function () {
@@ -996,10 +1003,13 @@ button.pgi:active{background:#171716}
     el.textContent = '';
     if (!p.photo) { el.textContent = initials(p.name); return; }
     var im = new Image(); im.alt = '';
+    // a photo by its address on the forum's site: only when it comes into view, and without saying where the request is from
+    im.loading = 'lazy'; im.decoding = 'async'; try { im.referrerPolicy = 'no-referrer'; } catch (e) {}
     im.onerror = function () { el.textContent = initials(p.name); };
     im.src = /^(https?:)?\/\//.test(p.photo) ? p.photo : PHOTO + p.photo;
     el.appendChild(im);
   }
+  var IGICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".6" fill="currentColor"/></svg>';
   function span(cls, text) { var e = document.createElement('span'); e.className = cls; if (text != null) e.textContent = text; return e; }
   function times(it) { return it.from + (it.to ? '–' + it.to : ''); }
   function buildProg() {
@@ -1015,6 +1025,7 @@ button.pgi:active{background:#171716}
       var t = span('pgt'); t.appendChild(document.createElement('b')).textContent = it.from || ''; t.appendChild(span('', it.to || ''));
       var c = span('pgc'), now = span('pgnow', 'Now'); now.hidden = true; c.appendChild(now);
       c.appendChild(span('pgn', one ? by[0].name : it.title));
+      if (one && by[0].role) c.appendChild(span('pgr', by[0].role));
       var sub = one ? it.title : it.note;
       if (sub) c.appendChild(span('pgh', sub));
       if (one && it.note) c.appendChild(span('pgh', it.note));
@@ -1057,9 +1068,14 @@ button.pgi:active{background:#171716}
     face($('psF'), p);
     $('psN').textContent = p.name;
     $('psR').textContent = p.role || ''; $('psR').hidden = !p.role;
+    // Instagram: the name from config.js (letters, digits, dot, underscore) → a link that opens the profile
+    var ig = /^[A-Za-z0-9._]{1,30}$/.test(p.ig || '') ? p.ig : '';
+    $('psI').hidden = !ig;
+    if (ig) { $('psIg').href = 'https://www.instagram.com/' + ig + '/'; $('psIg').innerHTML = IGICON + '<span></span>'; $('psIg').lastChild.textContent = '@' + ig; $('psIg').setAttribute('aria-label', 'Instagram: ' + ig); }
     var bio = $('psB'); bio.textContent = '';
     String(p.bio || '').split(/\n\s*\n/).forEach(function (x) { x = x.trim(); if (x) bio.appendChild(document.createElement('p')).textContent = x; });
-    if (!bio.firstChild) { var soon = bio.appendChild(document.createElement('p')); soon.className = 'soon'; soon.textContent = 'More about the speaker will be here soon.'; }
+    if (!bio.firstChild && !p.role) { var soon = bio.appendChild(document.createElement('p')); soon.className = 'soon'; soon.textContent = 'More about the speaker will be here soon.'; }
+    bio.hidden = !bio.firstChild;
     var list = $('psT'); list.textContent = '';
     (PG.items || []).forEach(function (it) {
       if ((it.by || []).indexOf(pOpen) < 0) return;
@@ -1104,6 +1120,7 @@ button.pgi:active{background:#171716}
       $('annH').textContent = h; $('annH').classList.toggle('long', h.length > 26);
       var sub = one ? it.title : by.length ? by.map(function (p) { return p.name; }).join(' · ') : (it.note || '');
       $('annT').textContent = sub; $('annT').hidden = !sub;
+      var role = one ? by[0].role || '' : ''; $('annR').textContent = role; $('annR').hidden = !role;
       $('annM').textContent = it.lang === 'EN' ? 'Talk in English' : ''; $('annM').hidden = it.lang !== 'EN';
       var say = it.say || (kind === 'talk' ? AN.talk : kind === 'break' ? AN.pause : '') || '';
       $('annS').textContent = say.replace('{to}', it.to || '').replace('{from}', it.from || ''); $('annS').hidden = !say;

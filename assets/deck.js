@@ -544,7 +544,7 @@
       else if (!up) msg = host ? 'The screen is off. Open it on the computer at the projector.' : 'The screen is not open yet. The host opens it on the computer at the projector.';
       else if (!sa || Date.now() - S.saAt > 20000) msg = host ? 'The screen cannot show presentations yet: open it with “Open the screen” from this panel (or TAS3D Screen.html), or refresh it.' : 'The screen is not ready for the presentations yet. Tell the host.';
       else if (!sa.f) msg = host
-        ? (sa.need === 'reading' ? 'The screen is reading the folder…' : sa.need === 'reconnect' ? 'The screen needs “Allow access” to its folder: tab Screen → Screen settings.' : 'The folder “TAS3D 2026 Presentations” is not connected on the screen: tab Screen → Screen settings.')
+        ? (sa.need === 'reading' ? 'The screen is reading the folder…' + (sa.rd && sa.rd[1] ? ' ' + sa.rd[0] + ' of ' + sa.rd[1] + ' files' : '') : sa.need === 'reconnect' ? 'The screen needs “Allow access” to its folder: tab Screen → Screen settings.' : 'The folder “TAS3D 2026 Presentations” is not connected on the screen: tab Screen → Screen settings.')
         : 'The presentations folder is not open on the screen computer yet. Tell the host.';
       else if (host && sa.fc === 0) msg = 'Another window is in front on the screen computer. Click once on the screen there: until then the clicker and the keys do nothing.';
       else if (host && sa.ua && !/^(Chrome|Edge|Opera|Yandex) /.test(sa.ua)) msg = 'The screen is open in ' + sa.ua + '. Open it in Google Chrome there: in other browsers videos stop in the background and sound needs a click for every video.';

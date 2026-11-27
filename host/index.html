@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.TAS3D_BUILD = '6d656b1fa2';</script>
+<script>window.TAS3D_BUILD = '78592c0352';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Host — TAS3D 2026</title>
 <meta name="robots" content="noindex, nofollow">
@@ -483,10 +483,10 @@ h2.sec{margin-top:30px;font-size:22px}
 
   <p class="foot"><button type="button" class="btn" id="logout">Log out</button></p>
 </main>
-<script src="../assets/config.js?v=39c28a0f"></script>
+<script src="../assets/config.js?v=4bb8a3a3"></script>
 <script src="../assets/mqtt.js?v=19acaad1"></script>
 <script src="../assets/hub.js?v=03fd4e9b"></script>
-<script src="../assets/deck.js?v=2fa26438"></script>
+<script src="../assets/deck.js?v=31c5af75"></script>
 <script src="../assets/qr.js?v=72b0af53"></script>
 <script>
 (function () {
@@ -828,7 +828,7 @@ h2.sec{margin-top:30px;font-size:22px}
     // browser — is done right here when this panel is open in the SAME browser as the screen (the same computer): the
     // browser's permission is for the site, not for one tab, and the folder sits in the store both pages share (IndexedDB
     // "tas3d-slides", as in slides.js). The pages find each other over a BroadcastChannel; the screen answers "here".
-    var bc = null, bcSeen = 0, bcKey = true, dirH = null, ssErr = '', ssErrAt = 0, ssSent = 0;
+    var bc = null, bcSeen = 0, bcKey = true, bcSa = null, bcSig = '', dirH = null, ssErr = '', ssErrAt = 0, ssSent = 0;
     function bcSend(m) { if (bc) try { bc.postMessage(m); } catch (e) {} }
     function sameBrowser() { return !!bc && Date.now() - bcSeen < 9000; }
     function dirDb(v) {
@@ -843,14 +843,24 @@ h2.sec{margin-top:30px;font-size:22px}
       });
     }
     function ssSay(t) { ssErr = t || ''; ssErrAt = Date.now(); render(); }
+    // "the folder is in the store: take it" — said again while the screen has not taken it (it also looks by itself every 3 s)
+    function ssFolder() {
+      ssSent = Date.now(); bcSend({ t: 'folder' }); render();
+      [1500, 4000].forEach(function (ms) { setTimeout(function () { var a = ssNow(); if (!a || a.need === 'connect' || a.need === 'reconnect') bcSend({ t: 'folder' }); }, ms); });
+    }
+    // the screen's state: from its own page when it is in this browser, else what came over the servers
+    function ssNow() { return sameBrowser() && bcSa ? bcSa : dc && dc.state.sa && Date.now() - dc.state.saAt < 20000 ? dc.state.sa : null; }
     if (window.BroadcastChannel) try {
       bc = new BroadcastChannel('tas3d-screen-' + C.room);
       bc.onmessage = function (e) {
         var d = e.data || {}; if (d.t !== 'here') return;
         var was = sameBrowser(); bcSeen = Date.now(); bcKey = d.key !== false;
+        // the screen's state, straight from its page: at once, and also without the internet
+        bcSa = d.sa && typeof d.sa === 'object' ? d.sa : null;
+        var sig = bcSa ? JSON.stringify([bcSa.need, bcSa.f, bcSa.folder, bcSa.rd, bcSa.err, bcSa.snd, bcSa.fs, bcSa.fc, bcSa.up, bcSa.in]) : '';
         // the screen in this browser was opened without the key (a bookmark, a typed address): it gets it from here
         if (!bcKey && TasSlidesKey.get()) bcSend({ t: 'key', k: TasSlidesKey.get() });
-        if (!was) render();
+        if (!was || sig !== bcSig) { bcSig = sig; render(); }
       };
       setInterval(function () { bcSend({ t: 'hello' }); }, 4000); bcSend({ t: 'hello' });
     } catch (e) { bc = null; }
@@ -858,7 +868,7 @@ h2.sec{margin-top:30px;font-size:22px}
       if (!window.showDirectoryPicker) return;
       ssSay('');
       window.showDirectoryPicker({ id: 'tas3d-slides', mode: 'read' }).then(function (h) {
-        return dirDb(h).then(function () { dirH = h; ssSent = Date.now(); bcSend({ t: 'folder' }); render(); });
+        return dirDb(h).then(function () { dirH = h; ssFolder(); });
       }).catch(function (e) { if (e && e.name !== 'AbortError') ssSay('This folder cannot be opened: ' + (e.message || e.name)); });
     });
     $('ssAllow').addEventListener('click', function () {
@@ -866,18 +876,18 @@ h2.sec{margin-top:30px;font-size:22px}
       function ask(h) {
         if (!h || !h.requestPermission) { ssSay('The folder is not known to this browser any more: choose it again.'); return; }
         return h.requestPermission({ mode: 'read' }).then(function (r) {
-          if (r === 'granted') { ssSent = Date.now(); bcSend({ t: 'folder' }); render(); } else ssSay('The browser did not allow it. Press “Allow access” again and choose “Allow”.');
+          if (r === 'granted') ssFolder(); else ssSay('The browser did not allow it. Press “Allow access” again and choose “Allow”.');
         });
       }
       Promise.resolve(dirH ? ask(dirH) : dirDb().then(function (h) { dirH = h; return ask(h); })).catch(function (e) { ssSay('Could not ask the browser: ' + ((e && (e.message || e.name)) || 'error')); });
     });
     function renderSS() {
-      var on = !!(dc && dc.screenOn()), sa = dc && dc.state.sa && Date.now() - dc.state.saAt < 20000 ? dc.state.sa : null, same = sameBrowser();
+      var same = sameBrowser(), on = !!(dc && (dc.screenOn() || same)), sa = dc ? ssNow() : null;
       var need = sa ? sa.need || '' : '', folder = sa ? sa.folder || '' : '', F = $('ssF'), bad = true, t;
       if (!dc) t = 'Log in again.';
       else if (!on) t = 'The screen is off. Open it on the computer at the projector: “Open the screen on this device” at the top of this panel.';
       else if (!sa) t = same ? 'Unlocking the presentations on the screen…' : 'Presentations are locked on the screen: it was opened without the key. Open it with “Open the screen on this device” from this panel, or with the file TAS3D Screen.html.';
-      else if (need === 'reading') { t = 'Reading the folder…'; bad = false; }
+      else if (need === 'reading') { t = 'Reading the folder…' + (sa.rd && sa.rd[1] ? ' ' + sa.rd[0] + ' of ' + sa.rd[1] + ' files' : ''); bad = false; }
       else if (need === 'reconnect') t = '“' + folder + '” was connected before. After each start of the browser it asks once:';
       else if (need || !sa.f) t = 'Not connected yet.';
       else { bad = false; t = 'Connected: ' + folder + (sa.kind === 'files' ? ' · after changes in the folder connect it again (that browser does not see new files).' : ' · new files appear by themselves.'); }
@@ -914,8 +924,9 @@ h2.sec{margin-top:30px;font-size:22px}
       W2.textContent = 'Another window is in front there: click the screen once — the clicker’s keys go to the window that is active.'; W2.classList.add('bad');
       // connection, version
       var N = $('ssN'), nb = C.brokers.length;
-      N.textContent = !dc ? '—' : !on ? 'The screen does not answer.' : sa && typeof sa.up === 'number' ? (sa.up ? 'Live · ' + sa.up + ' of ' + nb + ' servers' : 'No connection — check the internet on the screen computer.') : 'Live';
-      N.classList.toggle('bad', !!dc && (!on || (sa && sa.up === 0)));
+      var fresh = !!sa && sa.up === 0 && sa.st > 0 && Date.now() - sa.st < 8000;   // the screen page has only just opened: it is still connecting
+      N.textContent = !dc ? '—' : !on ? 'The screen does not answer.' : fresh ? 'Connecting…' : sa && typeof sa.up === 'number' ? (sa.up ? 'Live · ' + sa.up + ' of ' + nb + ' servers' : 'No connection — check the internet on the screen computer.') : 'Live';
+      N.classList.toggle('bad', !!dc && !fresh && (!on || (sa && sa.up === 0)));
       var v = [];
       if (sa) {
         if (sa.ua) v.push(sa.ua);
