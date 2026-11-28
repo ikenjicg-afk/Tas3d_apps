@@ -10,6 +10,9 @@
   const PDF = /\.pdf$/i, IMG = /\.(jpe?g|png|webp|gif|avif|bmp|svg)$/i, VID = /\.(mp4|m4v|webm|mov|ogv|mkv|3gp|3g2|avi|wmv|flv|mpe?g|ts|mts|m2ts)$/i;
   // not listed at all: hidden and system files, notes, unfinished downloads
   const SKIP = /^\.|^~\$|^(desktop\.ini|thumbs\.db|icon\r?)$|\.(txt|md|rtf|url|webloc|lnk|ini|db|tmp|part|crdownload|download)$/i;
+  // a folder whose name starts with _ ("_SS", "_old", "_src"…) is left out with everything in it, at any depth and in any folder:
+  // the organizer keeps there what the host must not see (sources, spare files). Files are not affected by this rule.
+  const SKIPDIR = /^_/;
   // a video with the word "loop" in its name plays in a circle until the next slide — however it is written: "Loop", "loop",
   // "_loop", "loop_", "-loop-", "1. loop 1 min", "bg loop2" (not inside another word: "looping"). In every folder, "Screen" too.
   // Every other video plays once: over its last 2 seconds the picture and the sound fade away, and the screen stays black.
@@ -326,8 +329,8 @@
         const parts = (x.rel || f.webkitRelativePath || f.name).split('/');
         if (!top.name) top.name = parts.length > 1 ? parts[0] : 'Files';
         const rest = parts.length > 1 ? parts.slice(1) : parts;
-        if (rest.length > 1 && !SKIP.test(rest[0]) && !dirs.has(rest[0])) { const d = { name: rest[0], files: [] }; dirs.set(rest[0], d); top.dirs.push(d); }   // a speaker's folder with only a note in it is still listed
-        if (rest.some((p) => SKIP.test(p)) || rest.length > 4) continue;
+        if (rest.length > 1 && !SKIP.test(rest[0]) && !SKIPDIR.test(rest[0]) && !dirs.has(rest[0])) { const d = { name: rest[0], files: [] }; dirs.set(rest[0], d); top.dirs.push(d); }   // a speaker's folder with only a note in it is still listed
+        if (rest.some((p) => SKIP.test(p)) || rest.slice(0, -1).some((p) => SKIPDIR.test(p)) || rest.length > 4) continue;
         const ent = { path: rest.slice(rest.length > 1 ? 1 : 0).join('/'), sig: rest.join('/') + '|' + f.size + '|' + f.lastModified, get: () => Promise.resolve(f) };
         if (rest.length === 1) top.files.push(ent);
         else { let d = dirs.get(rest[0]); if (!d) { d = { name: rest[0], files: [] }; dirs.set(rest[0], d); top.dirs.push(d); } d.files.push(ent); }
@@ -337,7 +340,7 @@
     async function walk(dir, prefix, deckName, depth, out) {
       for await (const e of dir.values()) {
         if (SKIP.test(e.name)) continue;
-        if (e.kind === 'directory') { if (depth < 3) await walk(e, prefix + e.name + '/', deckName, depth + 1, out); continue; }
+        if (e.kind === 'directory') { if (depth < 3 && !SKIPDIR.test(e.name)) await walk(e, prefix + e.name + '/', deckName, depth + 1, out); continue; }
         let f; try { f = await e.getFile(); } catch (x) { continue; }
         out.push({ path: prefix + e.name, sig: deckName + '/' + prefix + e.name + '|' + f.size + '|' + f.lastModified, get: () => e.getFile() });
       }
@@ -348,7 +351,7 @@
       const top = { name: root.h.name, dirs: [], files: [] };
       for await (const e of root.h.values()) {
         if (SKIP.test(e.name)) continue;
-        if (e.kind === 'directory') top.dirs.push({ name: e.name, files: await walk(e, '', e.name, 1, []) });
+        if (e.kind === 'directory') { if (!SKIPDIR.test(e.name)) top.dirs.push({ name: e.name, files: await walk(e, '', e.name, 1, []) }); }
         else { let f; try { f = await e.getFile(); } catch (x) { continue; } top.files.push({ path: e.name, sig: '/' + e.name + '|' + f.size + '|' + f.lastModified, get: () => e.getFile() }); }
       }
       return top;
