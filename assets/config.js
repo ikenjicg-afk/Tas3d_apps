@@ -95,7 +95,7 @@ window.TAS3D_CHECKIN = {
   // 28.11.2026: times and names from the organizer's programme sheet "TAS3D 2026 — Programme" (28.11); the titles of the
   //   talks are translated from Russian — check them. Roles, photos and Instagram: from https://tas3d.uz/en/ as it was on
   //   28.11.2026 (the photos are the files on that site, by address — they are not copied here). The site has no longer
-  //   texts about the speakers. Bloom Arch Studio on the site: Islambek Urazbaev. PromptX is not on it (a partner only).
+  //   texts about the speakers. Bloom Arch Studio on the site: Islambek Urazbaev. PromptX: Isfandiyor Jurabaev — name, photo and text from the organizer (28.11, evening), not from the site.
   program: {
     day: '3 December 2026',
     note: 'Every talk: 25 minutes and 5 minutes for questions.',
@@ -105,7 +105,9 @@ window.TAS3D_CHECKIN = {
       vlad: { name: 'Vlad Sidorenko', role: 'Art Director at OMEGA RENDER', bio: '', photo: 'https://tas3d.uz/media/speakers/vlad-sidorenko.jpg', ig: 'vsdrnko' },
       daniel: { name: 'Daniel Nagaets', role: 'Founder of RENDER CAMP and Fortes Vision', bio: '', photo: 'https://tas3d.uz/media/speakers/daniel-nagaets-hq.jpg', ig: 'danielnagaets' },
       bloom: { name: 'Islambek Urazbaev', role: 'Architect, co-founder and COO of Bloom Arch Studio', bio: '', photo: 'https://tas3d.uz/media/speakers/islambek-urazbaev.jpg', ig: 'iurazbaevv' },
-      promptx: { name: 'PromptX', role: '', bio: '', photo: '', ig: '' },
+      promptx: { name: 'Isfandiyor Jurabaev', role: 'Co-founder and CTO of PromptX, an Uzbek AI platform',
+        bio: 'The history of artificial intelligence, how it works and where it is going — and then AI in architecture in practice, on real cases of the PromptX platform.',
+        photo: 'isfandiyor-jurabaev.jpg', ig: '' },
       wellington: { name: 'Wellington Franzao', role: 'Creative Director, podcast host, and three-time award-winning CG artist', bio: '', photo: 'https://tas3d.uz/media/speakers/wellington-franzao.jpg', ig: 'franzao.f' },
       zach: { name: 'Zach Bai', role: 'Co-founder of D5 Render', bio: '', photo: 'https://tas3d.uz/media/speakers/zach-bai.jpg', ig: 'd5officialaccount' }
     },
