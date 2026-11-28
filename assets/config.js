@@ -122,8 +122,8 @@ window.TAS3D_CHECKIN = {
       { id: 'promptx', from: '18:05', to: '18:35', kind: 'talk', by: ['promptx'], title: 'How AI works under the hood + the prize draw' },
       { id: 'wellington', from: '18:38', to: '19:08', kind: 'talk', by: ['wellington'], lang: 'EN', title: 'Sketches art' },
       { id: 'zach', from: '19:11', to: '19:41', kind: 'talk', by: ['zach'], lang: 'EN', title: 'AI agents take a project from the first idea to the final delivery' },
-      { id: 'panel', from: '19:44', to: '20:09', kind: 'talk', by: ['artem', 'daniel', 'vlad', 'bloom'], title: 'Panel discussion',
-        say: 'Four speakers on stage. Please listen carefully.' },
+      { id: 'panel', from: '19:44', to: '20:09', kind: 'talk', by: [], title: 'Panel discussion',
+        say: 'The panel discussion is on. Please listen carefully.' },
       { id: 'closing', from: '20:09', to: '20:25', kind: 'info', title: 'Closing and group photo', say: 'Thank you for this day. Please stay for the photo.' }
     ]
   },
