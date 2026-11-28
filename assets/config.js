@@ -92,40 +92,39 @@ window.TAS3D_CHECKIN = {
   // items, in the order of the day: id (letters and digits; do not change one after the forum has started), from, to ('HH:MM'),
   //   kind: talk | break | info, title, by: [keys of people], lang: 'EN' = the talk is in English,
   //   note = a small line for the guests, say = the request on the phones when it is announced, ann: false = not in the host's list.
-  // 27.11.2026: times and names from the organizer's run sheet; the titles of the talks are translated from Russian — check them.
-  //   Roles, photos and Instagram: from https://tas3d.uz/en/ as it was on 27.11.2026 (the photos are the files on that site,
-  //   by address — they are not copied here). The site has no longer texts about the speakers; Bloom Architects and
-  //   PromptX are not on it yet.
+  // 28.11.2026: times and names from the organizer's programme sheet "TAS3D 2026 — Programme" (28.11); the titles of the
+  //   talks are translated from Russian — check them. Roles, photos and Instagram: from https://tas3d.uz/en/ as it was on
+  //   28.11.2026 (the photos are the files on that site, by address — they are not copied here). The site has no longer
+  //   texts about the speakers. Bloom Arch Studio on the site: Islambek Urazbaev. PromptX is not on it (a partner only).
   program: {
     day: '3 December 2026',
     note: 'Every talk: 25 minutes and 5 minutes for questions.',
     people: {
       kenji: { name: 'KENJI', role: 'Host · Lead 3D Artist at Apex Development', bio: '', photo: 'https://tas3d.uz/media/speakers/kenji.jpg', ig: 'knji.knji' },
       artem: { name: 'Artem Kupriianenko', role: 'Founder of OMEGA RENDER', bio: '', photo: 'https://tas3d.uz/media/speakers/artem-kupriianenko.jpg', ig: 'kupriianenko_art' },
-      daniel: { name: 'Daniel Nagaets', role: 'Founder of RENDER CAMP and Fortes Vision', bio: '', photo: 'https://tas3d.uz/media/speakers/daniel-nagaets-hq.jpg', ig: 'danielnagaets' },
       vlad: { name: 'Vlad Sidorenko', role: 'Art Director at OMEGA RENDER', bio: '', photo: 'https://tas3d.uz/media/speakers/vlad-sidorenko.jpg', ig: 'vsdrnko' },
+      daniel: { name: 'Daniel Nagaets', role: 'Founder of RENDER CAMP and Fortes Vision', bio: '', photo: 'https://tas3d.uz/media/speakers/daniel-nagaets-hq.jpg', ig: 'danielnagaets' },
+      bloom: { name: 'Islambek Urazbaev', role: 'Architect, co-founder and COO of Bloom Arch Studio', bio: '', photo: 'https://tas3d.uz/media/speakers/islambek-urazbaev.jpg', ig: 'iurazbaevv' },
       promptx: { name: 'PromptX', role: '', bio: '', photo: '', ig: '' },
-      bloom: { name: 'Bloom Architects', role: '', bio: '', photo: '', ig: '' },
-      zach: { name: 'Zach Bai', role: 'Co-founder of D5 Render', bio: '', photo: 'https://tas3d.uz/media/speakers/zach-bai.jpg', ig: 'd5officialaccount' },
-      wellington: { name: 'Wellington Franzao', role: 'Creative Director, podcast host, and three-time award-winning CG artist', bio: '', photo: 'https://tas3d.uz/media/speakers/wellington-franzao.jpg', ig: 'franzao.f' }
+      wellington: { name: 'Wellington Franzao', role: 'Creative Director, podcast host, and three-time award-winning CG artist', bio: '', photo: 'https://tas3d.uz/media/speakers/wellington-franzao.jpg', ig: 'franzao.f' },
+      zach: { name: 'Zach Bai', role: 'Co-founder of D5 Render', bio: '', photo: 'https://tas3d.uz/media/speakers/zach-bai.jpg', ig: 'd5officialaccount' }
     },
     items: [
       { id: 'doors', from: '14:00', kind: 'info', title: 'Doors open, registration', ann: false },
-      { id: 'video', from: '15:00', to: '15:02', kind: 'info', title: 'Opening video', ann: false },
-      { id: 'opening', from: '15:02', to: '15:12', kind: 'talk', by: ['kenji'], title: 'Opening: the story of TAS3D, the map of the day, the question of the day',
+      { id: 'opening', from: '15:00', to: '15:20', kind: 'talk', by: ['kenji'], title: 'Opening video and the opening of the day',
         say: 'We are starting. Please take your seats.' },
-      { id: 'artem', from: '15:13', to: '15:43', kind: 'talk', by: ['artem'], title: 'A beautiful picture has lost its value: how to stay in demand' },
-      { id: 'daniel', from: '15:46', to: '16:16', kind: 'talk', by: ['daniel'], title: 'Archviz = marketing: what to learn and what level to aim for' },
-      { id: 'vlad', from: '16:19', to: '16:49', kind: 'talk', by: ['vlad'], title: 'An AI pipeline on a real project' },
-      { id: 'coffee', from: '16:55', to: '17:25', kind: 'break', title: 'Coffee break', note: 'The PromptX prize draw is right after the break.',
+      { id: 'artem', from: '15:20', to: '15:50', kind: 'talk', by: ['artem'], title: 'AI and content: the beautiful picture has lost its value — how to stay in demand' },
+      { id: 'vlad', from: '15:53', to: '16:23', kind: 'talk', by: ['vlad'], title: 'An AI pipeline on a real project' },
+      { id: 'daniel', from: '16:26', to: '16:56', kind: 'talk', by: ['daniel'], title: 'Archviz is marketing: what to learn and what level to aim for' },
+      { id: 'bloom', from: '16:59', to: '17:29', kind: 'talk', by: ['bloom'], title: 'Architecture and AI: how it was before and how it is now' },
+      { id: 'coffee', from: '17:32', to: '18:02', kind: 'break', title: 'Coffee break', note: 'The PromptX prize draw is right after the break.',
         say: 'We start again at {to} with PromptX and the prize draw. Do not be late.' },
-      { id: 'promptx', from: '17:25', to: '17:35', kind: 'talk', by: ['promptx'], title: 'AI under the hood + the prize draw' },
-      { id: 'bloom', from: '17:38', to: '18:08', kind: 'talk', by: ['bloom'], title: 'Architecture and AI: how it was before and how it is now' },
-      { id: 'zach', from: '18:11', to: '18:41', kind: 'talk', by: ['zach'], lang: 'EN', title: 'AI agents run a project from the idea to the delivery' },
-      { id: 'wellington', from: '18:44', to: '19:14', kind: 'talk', by: ['wellington'], lang: 'EN', title: 'Sketches art' },
-      { id: 'panel', from: '19:17', to: '19:42', kind: 'talk', by: ['artem', 'daniel', 'vlad', 'bloom'], title: 'Panel: the answer to the question of the day',
-        say: 'Four speakers answer the question of the day. Please listen carefully.' },
-      { id: 'closing', from: '19:42', to: '19:50', kind: 'info', title: 'Closing and group photo', say: 'Thank you for this day. Please stay for the photo.' }
+      { id: 'promptx', from: '18:05', to: '18:35', kind: 'talk', by: ['promptx'], title: 'How AI works under the hood + the prize draw' },
+      { id: 'wellington', from: '18:38', to: '19:08', kind: 'talk', by: ['wellington'], lang: 'EN', title: 'Sketches art' },
+      { id: 'zach', from: '19:11', to: '19:41', kind: 'talk', by: ['zach'], lang: 'EN', title: 'AI agents take a project from the first idea to the final delivery' },
+      { id: 'panel', from: '19:44', to: '20:09', kind: 'talk', by: ['artem', 'daniel', 'vlad', 'bloom'], title: 'Panel discussion',
+        say: 'Four speakers on stage. Please listen carefully.' },
+      { id: 'closing', from: '20:09', to: '20:25', kind: 'info', title: 'Closing and group photo', say: 'Thank you for this day. Please stay for the photo.' }
     ]
   },
   // the quiz "Render or photo?": seconds for one picture
